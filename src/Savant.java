@@ -105,6 +105,7 @@ public class Savant implements Definitions {
 	// TODO: unstoppable passers
 	// TODO: king safety
 	
+	//test
 	public static HashtableEntry[] reptable = new HashtableEntry[HASH_SIZE_REP];
 	
 	public static void main(String[] args) throws FileNotFoundException {
