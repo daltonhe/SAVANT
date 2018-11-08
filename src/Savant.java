@@ -88,6 +88,7 @@ import java.util.Stack;
  * 		  Added bonuses for rook and queen on the 7th rank
  * 		  Tempo bonus is no longer applied to endgame score
  * 		  Added insufficient material check to search
+ * 		  Opened GitHub repository
  */
 
 /**
@@ -105,7 +106,6 @@ public class Savant implements Definitions {
 	// TODO: unstoppable passers
 	// TODO: king safety
 	
-	//testing
 	public static HashtableEntry[] reptable = new HashtableEntry[HASH_SIZE_REP];
 	
 	public static void main(String[] args) throws FileNotFoundException {

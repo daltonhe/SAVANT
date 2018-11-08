@@ -80,30 +80,16 @@ public interface Definitions {
 	public static final int MIDGAME_PHASE_LIMIT  = 22;
 	public static final int ENDGAME_PHASE_LIMIT  = 5;
 	
-	public static final int VALUE_PAWN_MG   = 100,   VALUE_PAWN_EG  = 100;
-	public static final int VALUE_KNIGHT_MG = 350,  VALUE_KNIGHT_EG = 350;
-	public static final int VALUE_BISHOP_MG = 350,  VALUE_BISHOP_EG = 350;
-	public static final int VALUE_ROOK_MG   = 525,  VALUE_ROOK_EG   = 525;
-	public static final int VALUE_QUEEN_MG  = 1000, VALUE_QUEEN_EG  = 1000;
+	public static final int PAWN_MG   = 100,  PAWN_EG  = 100;
+	public static final int KNIGHT_MG = 350,  KNIGHT_EG = 350;
+	public static final int BISHOP_MG = 350,  BISHOP_EG = 350;
+	public static final int ROOK_MG   = 525,  ROOK_EG   = 525;
+	public static final int QUEEN_MG  = 1000, QUEEN_EG  = 1000;
 	
-	public static final int PIECE_VALUE_MG[] = {
-			0,
-			VALUE_PAWN_MG,
-			VALUE_KNIGHT_MG,
-			VALUE_BISHOP_MG,
-			VALUE_ROOK_MG,
-			VALUE_QUEEN_MG,
-			0
-	};
-	public static final int PIECE_VALUE_EG[] = {
-			0,
-			VALUE_PAWN_EG,
-			VALUE_KNIGHT_EG,
-			VALUE_BISHOP_EG,
-			VALUE_ROOK_EG,
-			VALUE_QUEEN_EG,
-			0
-	};
+	public static final int PIECE_VALUE_MG[] = 
+		{0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
+	public static final int PIECE_VALUE_EG[] =
+		{0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
 	
 	public static final int PSQT_MG[][][] = {
 		    {{}},
@@ -233,31 +219,31 @@ public interface Definitions {
 		    }
 		};
 	
-	public static final int VALUE_TEMPO                    =  10;
-	public static final int VALUE_MINOR_WITH_NO_PAWNS      = -150;
-	public static final int VALUE_BISHOP_PAIR              =  50;
-	public static final int VALUE_REDUNDANT_ROOK           = -6;
-	public static final int VALUE_REDUNDANT_QUEEN          = -4;
-	public static final int VALUE_KNIGHT_PAWN_SYNERGY	   =  6;
-	public static final int VALUE_ROOK_PAWN_SYNERGY        = -12;
-	public static final int VALUE_DOUBLED_PAWN_MG          = -5;
-	public static final int VALUE_DOUBLED_PAWN_EG          = -28;
-	public static final int VALUE_ISOLATED_PAWN_MG         = -2;
-	public static final int VALUE_ISOLATED_PAWN_EG         = -7;
-	public static final int VALUE_SUPPORTED_PAWN           =  8;
-	public static final int[] VALUE_CONNECTED_PAWN         = {0, 87, 50, 32, 15, 12, 6, 0};
-	public static final int VALUE_PAWN_ON_BISHOP_COLOR_MG  = -3;
-	public static final int VALUE_PAWN_ON_BISHOP_COLOR_EG  = -7;
-	public static final int VALUE_ROOK_OPEN_FILE_MG        =  22;
-	public static final int VALUE_ROOK_OPEN_FILE_EG        =  10;
-	public static final int VALUE_ROOK_SEMIOPEN_FILE_MG    =  9;
-	public static final int VALUE_ROOK_SEMIOPEN_FILE_EG    =  3;
-	public static final int VALUE_TRAPPED_BISHOP		   = -100;
-	public static final int VALUE_TRAPPED_ROOK             = -50;
-	public static final int VALUE_ROOK_ON_7TH_MG           =  20;
-	public static final int VALUE_ROOK_ON_7TH_EG           =  40;
-	public static final int VALUE_QUEEN_ON_7TH_MG          =  10;
-	public static final int VALUE_QUEEN_ON_7TH_EG          =  20;
+	public static final int TEMPO                    =  10;
+	public static final int MINOR_WITH_NO_PAWNS      = -150;
+	public static final int BISHOP_PAIR              =  50;
+	public static final int REDUNDANT_ROOK           = -6;
+	public static final int REDUNDANT_QUEEN          = -4;
+	public static final int KNIGHT_PAWN_SYNERGY	   =  6;
+	public static final int ROOK_PAWN_SYNERGY        = -12;
+	public static final int DOUBLED_PAWN_MG          = -5;
+	public static final int DOUBLED_PAWN_EG          = -28;
+	public static final int ISOLATED_PAWN_MG         = -2;
+	public static final int ISOLATED_PAWN_EG         = -7;
+	public static final int SUPPORTED_PAWN           =  8;
+	public static final int[] CONNECTED_PAWN         = {0, 87, 50, 32, 15, 12, 6, 0};
+	public static final int PAWN_ON_BISHOP_COLOR_MG  = -3;
+	public static final int PAWN_ON_BISHOP_COLOR_EG  = -7;
+	public static final int ROOK_OPEN_FILE_MG        =  22;
+	public static final int ROOK_OPEN_FILE_EG        =  10;
+	public static final int ROOK_SEMIOPEN_FILE_MG    =  9;
+	public static final int ROOK_SEMIOPEN_FILE_EG    =  3;
+	public static final int TRAPPED_BISHOP		   = -100;
+	public static final int TRAPPED_ROOK             = -50;
+	public static final int ROOK_ON_7TH_MG           =  20;
+	public static final int ROOK_ON_7TH_EG           =  40;
+	public static final int QUEEN_ON_7TH_MG          =  10;
+	public static final int QUEEN_ON_7TH_EG          =  20;
 	
 	public static final int PASSED_PAWN_MG[][] = {
 		{  0,   0,   0,   0,   0,   0,   0,   0},

@@ -19,7 +19,7 @@ public class Evaluate implements Definitions {
 		int pieces_mg   = 0, pieces_eg   = 0;
 		int mobility_mg = 0, mobility_eg = 0;
 		int imbalance   = 0;	
-		int tempo       = VALUE_TEMPO * board.sideToMove;
+		int tempo       = TEMPO * board.sideToMove;
 		
 		int wKingPos = 0, bKingPos = 0;
 		int[] pieces       = new int[13];   // pieces[pieceType + 6]
@@ -122,29 +122,29 @@ public class Evaluate implements Definitions {
 					// Penalty for doubled pawns. Any pawn which has a friendly pawn directly
 					// behind it and is not supported diagonally is considered doubled.
 					if (doubled) {
-						pawns_mg += VALUE_DOUBLED_PAWN_MG;
-						pawns_eg += VALUE_DOUBLED_PAWN_EG;
+						pawns_mg += DOUBLED_PAWN_MG;
+						pawns_eg += DOUBLED_PAWN_EG;
 					}
 					// Penalty for isolated pawns. Any pawn which has no friendly pawn on an
 					// adjacent file is considered isolated.
 					if (isolated) {
-						pawns_mg += VALUE_ISOLATED_PAWN_MG;
-						pawns_eg += VALUE_ISOLATED_PAWN_EG;
+						pawns_mg += ISOLATED_PAWN_MG;
+						pawns_eg += ISOLATED_PAWN_EG;
 					}
 					// Bonus for connected pawns. Any pawn which is supported diagonally or
 					// adjacent to a friendly pawn (phalanx) is considered connected. Bonus is
 					// adjusted based on rank, whether the pawn is in a phalanx, whether the
 					// pawn is opposed, and the number of supporting pawns.
 					if (connected) {
-						double connectedBonus = VALUE_CONNECTED_PAWN[rank];
+						double connectedBonus = CONNECTED_PAWN[rank];
 						if (phalanx)
 							connectedBonus *= 1.4;
 						if (opposed)
 							connectedBonus *= 0.5;
 						if (supported) {
-							connectedBonus += VALUE_SUPPORTED_PAWN;
+							connectedBonus += SUPPORTED_PAWN;
 							if (supported_twice)
-								connectedBonus += VALUE_SUPPORTED_PAWN;
+								connectedBonus += SUPPORTED_PAWN;
 						}
 						pawns_mg += (int) connectedBonus;
 						// In the endgame only the 4th through 7th ranks receive a bonus.
@@ -174,23 +174,23 @@ public class Evaluate implements Definitions {
 						pawns_eg -= PASSED_PAWN_EG[7 - rank][file];
 					}
 					if (doubled) {
-						pawns_mg -= VALUE_DOUBLED_PAWN_MG;
-						pawns_eg -= VALUE_DOUBLED_PAWN_EG;
+						pawns_mg -= DOUBLED_PAWN_MG;
+						pawns_eg -= DOUBLED_PAWN_EG;
 					}
 					if (isolated) {
-						pawns_mg -= VALUE_ISOLATED_PAWN_MG;
-						pawns_eg -= VALUE_ISOLATED_PAWN_EG;
+						pawns_mg -= ISOLATED_PAWN_MG;
+						pawns_eg -= ISOLATED_PAWN_EG;
 					}
 					if (connected) {
-						double connectedBonus = VALUE_CONNECTED_PAWN[7 - rank];
+						double connectedBonus = CONNECTED_PAWN[7 - rank];
 						if (phalanx)
 							connectedBonus *= 1.4;
 						if (opposed)
 							connectedBonus *= 0.5;
 						if (supported) {
-							connectedBonus += VALUE_SUPPORTED_PAWN;
+							connectedBonus += SUPPORTED_PAWN;
 							if (supported_twice)
-								connectedBonus += VALUE_SUPPORTED_PAWN;
+								connectedBonus += SUPPORTED_PAWN;
 						}
 						pawns_mg -= (int) connectedBonus;
 						pawns_eg -= (int) (connectedBonus * (rank - 2) / 4);
@@ -207,39 +207,39 @@ public class Evaluate implements Definitions {
 					// Give a penalty for the number of pawns on the same color square
 					// as the bishop
 					int bishopPawns = whitePawns[8][(rank + file) % 2];
-					pieces_mg += bishopPawns * VALUE_PAWN_ON_BISHOP_COLOR_MG;
-					pieces_eg += bishopPawns * VALUE_PAWN_ON_BISHOP_COLOR_EG;
+					pieces_mg += bishopPawns * PAWN_ON_BISHOP_COLOR_MG;
+					pieces_eg += bishopPawns * PAWN_ON_BISHOP_COLOR_EG;
 					// Give a penalty for a trapped bishop. This is to prevent the common
 					// mistake of greedily capturing a pawn, e.g. Bxa7 b6, where the bishop is
 					// then trapped.
 					if (index == a7 || index == b8 || index == a6) {
 						if (board.board[index + 17] == B_PAWN) {
-							pieces_mg += VALUE_TRAPPED_BISHOP;
-							pieces_eg += VALUE_TRAPPED_BISHOP;
+							pieces_mg += TRAPPED_BISHOP;
+							pieces_eg += TRAPPED_BISHOP;
 						}
 					}
 					if (index == h7 || index == g8 || index == h6) {
 						if (board.board[index + 15] == B_PAWN) {
-							pieces_mg += VALUE_TRAPPED_BISHOP;
-							pieces_eg += VALUE_TRAPPED_BISHOP;
+							pieces_mg += TRAPPED_BISHOP;
+							pieces_eg += TRAPPED_BISHOP;
 						}
 					}
 				}
 				// Black Bishop
 				else {
 					int bishopPawns = blackPawns[8][(rank + file) % 2];
-					pieces_mg -= bishopPawns * VALUE_PAWN_ON_BISHOP_COLOR_MG;
-					pieces_eg -= bishopPawns * VALUE_PAWN_ON_BISHOP_COLOR_EG;
+					pieces_mg -= bishopPawns * PAWN_ON_BISHOP_COLOR_MG;
+					pieces_eg -= bishopPawns * PAWN_ON_BISHOP_COLOR_EG;
 					if (index == a2 || index == b1 || index == a3) {
 						if (board.board[index - 15] == W_PAWN) {
-							pieces_mg -= VALUE_TRAPPED_BISHOP;
-							pieces_eg -= VALUE_TRAPPED_BISHOP;
+							pieces_mg -= TRAPPED_BISHOP;
+							pieces_eg -= TRAPPED_BISHOP;
 						}
 					}
 					if (index == h2 || index == g1 || index == h3) {
 						if (board.board[index - 17] == W_PAWN) {
-							pieces_mg -= VALUE_TRAPPED_BISHOP;
-							pieces_eg -= VALUE_TRAPPED_BISHOP;
+							pieces_mg -= TRAPPED_BISHOP;
+							pieces_eg -= TRAPPED_BISHOP;
 						}
 					}
 					
@@ -254,51 +254,51 @@ public class Evaluate implements Definitions {
 					// pawn but no friendly pawn is considered semi-open.
 					if (whitePawns[file][0] == 0) {
 						if (blackPawns[file][0] == 0) {
-							pieces_mg += VALUE_ROOK_OPEN_FILE_MG;
-							pieces_eg += VALUE_ROOK_OPEN_FILE_EG;
+							pieces_mg += ROOK_OPEN_FILE_MG;
+							pieces_eg += ROOK_OPEN_FILE_EG;
 						} else {
-							pieces_mg += VALUE_ROOK_SEMIOPEN_FILE_MG;
-							pieces_eg += VALUE_ROOK_SEMIOPEN_FILE_EG;
+							pieces_mg += ROOK_SEMIOPEN_FILE_MG;
+							pieces_eg += ROOK_SEMIOPEN_FILE_EG;
 						}
 					}
 					// Give a bonus for a rook on the 7th rank with the enemy king on the
 					// 8th rank
 					if (rank == 1 && bKingPos / 16 == 0) {
-						pieces_mg += VALUE_ROOK_ON_7TH_MG;
-						pieces_eg += VALUE_ROOK_ON_7TH_EG;
+						pieces_mg += ROOK_ON_7TH_MG;
+						pieces_eg += ROOK_ON_7TH_EG;
 					}
 					// Give a penalty for a rook trapped by its own uncastled king
 					if (index == a1 || index == a2 || index == b1) {
 						if (wKingPos == c1 || wKingPos == b1)
-							pieces_mg += VALUE_TRAPPED_ROOK;
+							pieces_mg += TRAPPED_ROOK;
 					}
 					if (index == h1 || index == h2 || index == g1) {
 						if (wKingPos == g1 || wKingPos == f1)
-							pieces_mg += VALUE_TRAPPED_ROOK;
+							pieces_mg += TRAPPED_ROOK;
 					}
 				}
 				// Black Rook
 				else {
 					if (blackPawns[file][0] == 0) {
 						if (whitePawns[file][0] == 0) {
-							pieces_mg -= VALUE_ROOK_OPEN_FILE_MG;
-							pieces_eg -= VALUE_ROOK_OPEN_FILE_EG;
+							pieces_mg -= ROOK_OPEN_FILE_MG;
+							pieces_eg -= ROOK_OPEN_FILE_EG;
 						} else {
-							pieces_mg -= VALUE_ROOK_SEMIOPEN_FILE_MG;
-							pieces_eg -= VALUE_ROOK_SEMIOPEN_FILE_EG;
+							pieces_mg -= ROOK_SEMIOPEN_FILE_MG;
+							pieces_eg -= ROOK_SEMIOPEN_FILE_EG;
 						}
 					}
 					if (rank == 6 && wKingPos / 16 == 7) {
-						pieces_mg -= VALUE_ROOK_ON_7TH_MG;
-						pieces_eg -= VALUE_ROOK_ON_7TH_EG;
+						pieces_mg -= ROOK_ON_7TH_MG;
+						pieces_eg -= ROOK_ON_7TH_EG;
 					}
 					if (index == a8 || index == a7 || index == b8) {
 						if (bKingPos == c8 || bKingPos == b8)
-							pieces_mg -= VALUE_TRAPPED_ROOK;
+							pieces_mg -= TRAPPED_ROOK;
 					}
 					if (index == h8 || index == h7 || index == g8) {
 						if (bKingPos == g8 || bKingPos == f8)
-							pieces_mg -= VALUE_TRAPPED_ROOK;
+							pieces_mg -= TRAPPED_ROOK;
 					}
 				}
 				count = mobilityDelta(board, side, index, DELTA_ROOK, true);
@@ -309,15 +309,15 @@ public class Evaluate implements Definitions {
 					// Give a bonus for a queen on the 7th rank with the enemy king on the
 					// 8th rank
 					if (rank == 1 && bKingPos / 16 == 0) {
-						pieces_mg += VALUE_QUEEN_ON_7TH_MG;
-						pieces_eg += VALUE_QUEEN_ON_7TH_EG;
+						pieces_mg += QUEEN_ON_7TH_MG;
+						pieces_eg += QUEEN_ON_7TH_EG;
 					}
 				}
 				// Black Queen
 				else {
 					if (rank == 6 && wKingPos / 16 == 7) {
-						pieces_mg -= VALUE_QUEEN_ON_7TH_MG;
-						pieces_eg -= VALUE_QUEEN_ON_7TH_EG;
+						pieces_mg -= QUEEN_ON_7TH_MG;
+						pieces_eg -= QUEEN_ON_7TH_EG;
 					}
 				}
 				count = mobilityDelta(board, side, index, DELTA_QUEEN, true);
@@ -333,32 +333,32 @@ public class Evaluate implements Definitions {
 		// Drastically reduce the value of minor pieces if we have no pawns. This is used
 		// to avoid situations with insufficient mating material.
 		if (pieces[W_PAWN + 6] == 0)
-			imbalance += (pieces[W_KNIGHT + 6] + pieces[W_BISHOP + 6]) * VALUE_MINOR_WITH_NO_PAWNS;
+			imbalance += (pieces[W_KNIGHT + 6] + pieces[W_BISHOP + 6]) * MINOR_WITH_NO_PAWNS;
 		if (pieces[B_PAWN + 6] == 0)
-			imbalance -= (pieces[B_KNIGHT + 6] + pieces[B_BISHOP + 6]) * VALUE_MINOR_WITH_NO_PAWNS;
+			imbalance -= (pieces[B_KNIGHT + 6] + pieces[B_BISHOP + 6]) * MINOR_WITH_NO_PAWNS;
 		
 		// Give a bonus for having the bishop pair
 		if (pieces[W_BISHOP + 6] == 2)
-			imbalance += VALUE_BISHOP_PAIR;
+			imbalance += BISHOP_PAIR;
 		if (pieces[B_BISHOP + 6] == 2)
-			imbalance -= VALUE_BISHOP_PAIR;
+			imbalance -= BISHOP_PAIR;
 		
 		// Give penalties for redundancy of major pieces
 		if (pieces[W_ROOK + 6] >= 1) {
-			imbalance += pieces[W_ROOK + 6] * VALUE_REDUNDANT_ROOK;
-			imbalance += pieces[W_QUEEN + 6] * pieces[W_ROOK + 6] * VALUE_REDUNDANT_QUEEN;
+			imbalance += pieces[W_ROOK + 6] * REDUNDANT_ROOK;
+			imbalance += pieces[W_QUEEN + 6] * pieces[W_ROOK + 6] * REDUNDANT_QUEEN;
 		}
 		if (pieces[B_ROOK + 6] >= 1) {
-			imbalance -= pieces[B_ROOK + 6] * VALUE_REDUNDANT_ROOK;
-			imbalance -= pieces[B_QUEEN + 6] * pieces[B_ROOK + 6] * VALUE_REDUNDANT_QUEEN;
+			imbalance -= pieces[B_ROOK + 6] * REDUNDANT_ROOK;
+			imbalance -= pieces[B_QUEEN + 6] * pieces[B_ROOK + 6] * REDUNDANT_QUEEN;
 		}
 		
 		// Give a bonus to Knights for having more pawns on the board, and a similar bonus to
 		// Rooks for having fewer pawns on the board
-		imbalance += pieces[W_KNIGHT + 6] * (pieces[W_PAWN + 6] - 5) * VALUE_KNIGHT_PAWN_SYNERGY;
-		imbalance -= pieces[B_KNIGHT + 6] * (pieces[B_PAWN + 6] - 5) * VALUE_KNIGHT_PAWN_SYNERGY;
-		imbalance += pieces[W_ROOK + 6]   * (pieces[W_PAWN + 6] - 5) * VALUE_ROOK_PAWN_SYNERGY;
-		imbalance -= pieces[B_ROOK + 6]   * (pieces[B_PAWN + 6] - 5) * VALUE_ROOK_PAWN_SYNERGY;
+		imbalance += pieces[W_KNIGHT + 6] * (pieces[W_PAWN + 6] - 5) * KNIGHT_PAWN_SYNERGY;
+		imbalance -= pieces[B_KNIGHT + 6] * (pieces[B_PAWN + 6] - 5) * KNIGHT_PAWN_SYNERGY;
+		imbalance += pieces[W_ROOK + 6]   * (pieces[W_PAWN + 6] - 5) * ROOK_PAWN_SYNERGY;
+		imbalance -= pieces[B_ROOK + 6]   * (pieces[B_PAWN + 6] - 5) * ROOK_PAWN_SYNERGY;
 		
 		// Sum all the individual component scores
 		int score_mg =  material_mg 
