@@ -1,172 +1,531 @@
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Random;
+import java.util.Scanner;
 
 /**
- * Contains the search and evaluation functions.
- * @author Dalton
- * created 6-18-2018
+ * 
+ * @author Dalton He
+ * created 10-22-18
  */
 public class Engine implements Definitions {
-	public static int searchDepth = 0;
-	public static int nodes = 0;
-	public static int qnodes = 0;
-
+	public static int minDepth = 1;
+	public static int maxDepth = 100;
+	public static int currentDepth;
+	public static boolean pvNode;
+	public static ArrayList<Move> pv;
+	public static int eval;
+	public static long nodes;
+	public static boolean timeControlOn = false;
+	public static double timeControl = 1.0;
+	public static boolean showThinking = true;
+	public static boolean showBoard = true;
+	public static boolean useBook = true;
+	public static int[][][] historyMoves;
+	public static HashtableEntry[] ttable = new HashtableEntry[HASH_SIZE_TT];
+	public static HashtableEntry[] pvtable = new HashtableEntry[HASH_SIZE_PV];
+	public static HashtableEntry[] reptable = new HashtableEntry[HASH_SIZE_REP];
+	
 	/**
-	 * Searches to depth for the best move in position and displays the results.
-	 * @param position position to search
-	 * @param depth depth to search
+	 * 
+	 * @param openingLine
+	 * @return
+	 * @throws FileNotFoundException
 	 */
-	public static void search(Position position, int depth) {
-		searchDepth = depth;
-		for (int currentDepth = 1; currentDepth <= depth; currentDepth++) {
-			nodes = 0;
-			qnodes = 0;
-			ArrayList<Move> pv = new ArrayList<Move>();
-			long startTime = System.nanoTime();
-			int eval = alphaBeta(position, currentDepth, -INFINITY, INFINITY, pv);
-			eval *= position.sideToMove; //adjust evaluation to white's perspective
-			long endTime = System.nanoTime();
-			double elapsedSeconds = (endTime - startTime) / 1.0e9;
-			elapsedSeconds = Math.round(1000 * elapsedSeconds) / 1000.;
-			String result = "";
-			result += currentDepth + " ";
-			result += "[" + (eval >= 0 ? "+" : "") + eval + "] ";
-			for (Move move : pv) {
-				result += move + " ";
+	public static String getBookMove(String openingLine) throws FileNotFoundException {
+		Scanner book = new Scanner(new File("book.txt"));
+		ArrayList<String> variations = new ArrayList<String>();
+		
+		while (book.hasNextLine()) {
+			String line = book.nextLine().trim();
+			openingLine = openingLine.trim();
+			if (line.startsWith(openingLine) && !line.equals(openingLine)) {
+				Scanner continuation = new Scanner(line.substring(openingLine.length()));
+				variations.add(continuation.next());
+				continuation.close();
 			}
-			result += "\n       (" + elapsedSeconds + "s ";
-			result += "nodes=" + (nodes + qnodes);
-			result += " nps=" + (long) ((nodes + qnodes) / elapsedSeconds) + ")";
-			System.out.println(result);
 		}
+		
+		book.close();
+		if (variations.isEmpty())
+			return null;
+			
+		return variations.get(new Random().nextInt(variations.size()));
+	}
+	
+	/**
+	 * Gets the move object corresponding to the given algebraic string.
+	 * @param algebraic
+	 * @param board
+	 * @return
+	 */
+	public static Move getMoveObject(String algebraic, Board board) {
+		if (algebraic == null || algebraic.isBlank())
+			return null;
+
+		ArrayList<Move> moveList = board.filterLegal(board.generateMoves(false));
+		for (Move move : moveList) {
+			Engine.addAlgebraicModifier(move, moveList);
+			String longNotation = Board.indexToAlgebraic(move.start) + 
+					Board.indexToAlgebraic(move.target);
+			if (algebraic.equals(longNotation) || algebraic.equalsIgnoreCase(move.toString()))
+				return move;
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * 
+	 * @param depth
+	 */
+	public static void search(Board board) {
+		// reset node count
+		nodes = 0;
+		
+		// reset transposition table
+		ttable = new HashtableEntry[HASH_SIZE_TT];
+		
+		// reset history moves array
+		historyMoves = new int[2][13][120];
+		
+		// start timer
+		long startTime = System.currentTimeMillis();
+		
+		// iterative deepening loop
+		for (currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
+			//reptable = new HashtableEntry[HASH_SIZE_REP];
+			pvNode = true;
+			
+			if (currentDepth == 1)
+				eval = alphaBeta(currentDepth, 0, -VALUE_INF, VALUE_INF, false, board);
+			else { // aspiration search using last iteration's eval
+				int delta = INITIAL_WINDOW_SIZE;
+				int alpha = Math.max(eval - delta, -VALUE_INF);
+				int beta  = Math.min(eval + delta, VALUE_INF);
+				while (true) {
+					eval = alphaBeta(currentDepth, 0, alpha, beta, false, board);
+					
+					// In case of failing low/high increase aspiration window and re-search,
+					// otherwise exit the loop.
+					if (eval <= alpha) {
+						beta = (alpha + beta) / 2;
+						alpha = Math.max(eval - delta, -VALUE_INF);
+					}
+					else if (eval >= beta)
+						beta = Math.min(eval + delta, VALUE_INF);
+					else
+						break;
+					
+					delta *= 1.5; // increase width
+					
+					assert(alpha >= -VALUE_INF && beta <= VALUE_INF);
+				}
+			}
+			
+			// stop timer
+			long endTime = System.currentTimeMillis();
+			double timeElapsed = (endTime - startTime) / 1000.0;
+			
+			// update PV
+			pv = extractPV(board);
+			if (!pv.isEmpty()) {
+			
+				// display engine output
+				if (showThinking) {
+					String PVString = pv.toString().replace(",", "");
+					PVString = PVString.substring(1, PVString.length() - 1);
+					String evalString = "" + (eval / 100.0);
+					System.out.println("(d=" + currentDepth + ") " + pv.get(0) +
+							" [" + evalString + "] " + PVString + 
+							" (n=" + nodes + " t=" + timeElapsed + "s)");
+				}
+			}
+			
+			// found mate, end search
+			if (Math.abs(eval) > VALUE_MATE_THRESHOLD)
+				break;
+
+			// time up, end search
+			if (currentDepth >= minDepth && timeControlOn && timeElapsed > timeControl)
+				break;
+		}
+	}
+	
+	/**
+	 * 
+	 * @param board
+	 * @return
+	 */
+	public static ArrayList<Move> extractPV(Board board) {
+		ArrayList<Move> PV = new ArrayList<Move>();
+		HashtableEntry hash = getEntry(board.zobrist, pvtable);
+		int i = 0;
+		while (i < currentDepth + 9 && hash != null && hash.move != null) {
+			Move move = getMoveObject(hash.move, board);
+			// in case of a key collision the stored move may be invalid
+			if (move == null)
+				break;
+
+			PV.add(move);
+			board.makeMove(move);
+			/*if (hash.depth <= 1)
+				break;*/
+
+			hash = getEntry(board.zobrist, pvtable);
+			i++;
+		}
+		
+		for (int j = PV.size() - 1; j >= 0; j--)
+			board.unmakeMove(PV.get(j));
+
+		return PV;
 	}
 
 	/**
-	 * Returns the evaluation of position from the perspective of moving side.
-	 * @param position current position
-	 * @param ply remaining plies of search
-	 * @param alpha highest guaranteed score for the maximizing player (white)
-	 * @param beta lowest guaranteed score for the minimizing player (black)
-	 * @param pv current principal variation
-	 * @return evaluation of the position
+	 * The alpha-beta search.
+	 * @param ply - Remaining number of plies to search
+	 * @param ext - Number of plies we have extended the search
+	 * @param alpha - Highest score we can guarantee
+	 * @param beta - Lowest score our opponent can guarantee
+	 * @param canNull - True if we should try a null move
+	 * @param board
+	 * @return
 	 */
-	public static int alphaBeta(Position position, int ply, int alpha,
-			int beta, ArrayList<Move> pv) {
+	private static int alphaBeta(int ply, int ext, int alpha, int beta, boolean canNull, Board board) {
 		nodes++;
-		if (ply == 0) {
-			return quiescence(position, alpha, beta);
-		}
-		ArrayList<Move> localpv = new ArrayList<Move>();
-		ArrayList<Move> moves = position.generateMoves();
-		if (moves.isEmpty()) {
-			pv.clear();
-			if (position.isInCheck(position.sideToMove)) { //checkmate
-				return -(MATE_VALUE - searchDepth + ply);
-			} else { //stalemate
-				return DRAW_VALUE;
-			}
-		}
-		Collections.sort(moves);
-		for (Move move : moves) {
-			position.makeMove(move);
-			int eval = -alphaBeta(position, ply - 1, -beta, -alpha, localpv);
-			position.unmakeMove(move);
-			if (eval >= beta) { //beta cutoff; move is too good
-				return beta;
-			}
-			if (eval > alpha) { //new best move
-			//update principal variation
-				pv.clear();
-				pv.add(move);
-				pv.addAll(localpv);
-				alpha = eval;
-			}
-		}
-		return alpha;
-	}
+		
+		int eval;
+		boolean rootNode = (pvNode && ply == currentDepth);
 
-	/**
-	 * Returns the evaluation of position after it is quiet (no captures are
-	 * available).
-	 * @param position current position
-	 * @param alpha highest guaranteed score for the maximizing player (white)
-	 * @param beta lowest guaranteed score for the minimizing player (black)
-	 * @return evaluation of the position
-	 */
-	public static int quiescence(Position position, int alpha, int beta) {
-		qnodes++;
-		int standingPat = evaluate(position) * position.sideToMove;
-		if (standingPat >= beta) {
-			return beta;
+		// Check for draw by 50 move rule
+		if (board.fiftyMoves >= 100)
+			return VALUE_DRAW;
+		
+		// Check for draw by repetition
+		if (!rootNode && canNull) {
+			HashtableEntry rentry = getEntry(board.zobrist, Savant.reptable);
+			if (rentry != null && rentry.zobrist == board.zobrist)
+				return VALUE_DRAW;
 		}
-		if (standingPat > alpha) {
-			alpha = standingPat;
+		
+		// Check for draw by insufficient material
+		if (board.insufficientMaterial())
+			return VALUE_DRAW;
+		
+		// Mate distance pruning. If a shorter mate was found upward in the tree then there is
+		// no need to search further because we can impossibly improve alpha. Same logic but
+		// with reversed signs applies in the opposite condition of being mated. In this case
+		// return a fail-high score.
+		alpha = Math.max(matedScore(ply - ext), alpha);
+		beta  = Math.min(mateScore(ply - ext), beta);
+		if (alpha >= beta)
+			return alpha;
+		
+		// At non-PV nodes check for an early transposition table cutoff
+		HashtableEntry ttentry = getEntry(board.zobrist, ttable);
+		if (!pvNode && ttentry != null && ttentry.depth >= (ply - ext)) {
+			if ((ttentry.type == BOUND_UPPER && ttentry.eval * board.sideToMove < alpha) ||
+			    (ttentry.type == BOUND_LOWER && ttentry.eval * board.sideToMove > beta))
+				return ttentry.eval * board.sideToMove;
 		}
-		ArrayList<Move> moves = position.generateCaptures();
-		Collections.sort(moves);
-		for (Move move : moves) {
-			position.makeMove(move);
-			int eval = -quiescence(position, -beta, -alpha);
-			position.unmakeMove(move);
+		
+		int kingPos = (board.sideToMove == WHITE ? board.wKing : board.bKing);
+		boolean inCheck = (canNull ? board.isAttacked(kingPos, -board.sideToMove) : false);
+		
+		// Extend the search if we are in check
+		if (!rootNode && inCheck && ext < currentDepth / 2) {
+			ply++;
+			ext++;
+		}
+		
+		// Enter quiescence search we reach a leaf node
+		if (ply <= 0)
+			return quiescence(alpha, beta, board);
+		
+		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
+		
+		// Null move pruning
+		if (   canNull
+			&& !pvNode
+			&& !inCheck
+			&& !board.isPawnEnding(board.sideToMove)) {
+			int R = 2; // depth reduction factor
+			board.makeNullMove();
+			eval = -alphaBeta(ply - R - 1, ext, -beta, -beta + 1, false, board);
+			board.makeNullMove();
+			// Fail high
 			if (eval >= beta) {
+				// Update transposition table
+				addEntry(board.zobrist, null, ply - ext, eval * board.sideToMove, BOUND_LOWER);
 				return beta;
 			}
+		}
+		
+		// Generate moves and sort
+		ArrayList<Move> moveList = board.generateMoves(false);
+		sortMoves(moveList, board);
+
+		boolean foundLegal = false;
+		boolean foundPv = false;
+		String bestMove = null;
+		int movesTried = 0;
+		
+		// Loop through all the moves
+		for (Move move : moveList) {
+			
+			// Make the move
+			board.makeMove(move);
+			
+			// Check if the move is legal
+			kingPos = (board.sideToMove == WHITE ? board.bKing : board.wKing);
+			if (board.isAttacked(kingPos, board.sideToMove)) {
+				board.unmakeMove(move);
+				continue;
+			}
+			
+			foundLegal = true;
+			
+			// Late move reductions
+			if (   !pvNode
+				&& !inCheck
+				&& ply >= 3
+			    && movesTried >= 4 
+			    && move.captured == 0
+			    && move.type != PROMOTION) {
+				int R = 1;
+				//int R = (int) Math.sqrt(2 * (ply - 1) + Math.sqrt(2 * (movesTried - 1)));
+				eval = -alphaBeta(ply - R - 1, ext, -alpha - 1, -alpha, true, board);
+			}
+			else
+				eval = alpha + 1;
+			
 			if (eval > alpha) {
+				// Principal variation search
+				if (foundPv) {
+					eval = -alphaBeta(ply - 1, ext, -alpha - 1, -alpha, true, board);
+					// Do a full width search
+					if (eval > alpha && eval < beta)
+						eval = -alphaBeta(ply - 1, ext, -beta, -alpha, true, board);
+				} 
+				// Do a full width search
+				else
+					eval = -alphaBeta(ply - 1, ext, -beta, -alpha, true, board);
+			}
+			
+			// Unmake the move
+			board.unmakeMove(move);
+			
+			assert(eval > -VALUE_INF && eval < VALUE_INF);
+			
+			// Fail high
+			if (eval >= beta) {
+				// Update transposition table
+				addEntry(board.zobrist, move.longNotation(), ply - ext, eval * board.sideToMove, BOUND_LOWER);
+				
+				// Update history moves
+				if (move.captured == 0) {
+					int side = (board.sideToMove == WHITE ? 0 : 1);
+					historyMoves[side][move.piece + 6][move.target] += ply * ply;
+				}
+				return beta;
+			}
+			
+			// New best move
+			if (eval > alpha) {
+				foundPv = true;
+				bestMove = move.longNotation();
+				
+				int hashKey = (int) (board.zobrist % HASH_SIZE_PV);
+				pvtable[hashKey] = new HashtableEntry(board.zobrist, move.longNotation(), ply - ext); 
+				
 				alpha = eval;
 			}
+			
+			movesTried++;
 		}
+		
+		pvNode = false;
+		
+		assert(movesTried > 0 || !foundLegal);
+		
+		// Check for mate/stalemate
+		if (!foundLegal) {
+			if (inCheck)
+				return matedScore(ply - ext);
+			
+			return VALUE_DRAW;
+		}
+		
+		// Update transposition table
+		if (foundPv)
+			addEntry(board.zobrist, bestMove, ply - ext, alpha * board.sideToMove, BOUND_EXACT);
+		else
+			addEntry(board.zobrist, null, ply - ext, alpha * board.sideToMove, BOUND_UPPER);
+		
+		assert(alpha > -VALUE_INF && alpha < VALUE_INF);
+		
+		return alpha;
+	}
+	
+	/**
+	 * The quiescence search.
+	 * @param alpha
+	 * @param beta
+	 * @param board
+	 * @return
+	 */
+	private static int quiescence(int alpha, int beta, Board board) {
+		
+		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
+		
+		// Get a static evaluation first
+		int standPat = Evaluate.staticEval(board) * board.sideToMove;
+		// Fail high
+		if (standPat >= beta)
+			return beta;
+
+		if (standPat > alpha)
+			alpha = standPat;
+
+		// Generate captures and promotions only
+		ArrayList<Move> moveList = board.generateMoves(true);
+		sortMoves(moveList, board);
+		
+		// Loop through all the moves
+		for (Move move : moveList) { 
+			
+			// Delta pruning: if the capture plus the delta margin can impossibly raise alpha,
+			// prune it
+			if (standPat + PIECE_VALUE_MG[Math.abs(move.captured)] + DELTA_MARGIN <= alpha)
+				continue;
+			
+			// Make the move
+			board.makeMove(move);
+			
+			assert(eval > -VALUE_INF && eval < VALUE_INF);
+				
+			// Check if the move is legal
+			int kingPos = (board.sideToMove == WHITE ? board.bKing : board.wKing);
+			if (board.isAttacked(kingPos, board.sideToMove)) {
+				board.unmakeMove(move);
+				continue;
+			}
+			
+			int eval = -quiescence(-beta, -alpha, board);
+			
+			// Unmake the move
+			board.unmakeMove(move);
+			
+			// Fail high
+			if (eval >= beta)
+				return beta;
+
+			// New best move
+			if (eval > alpha) 
+				alpha = eval;
+		}
+		
+		assert(alpha > -VALUE_INF && alpha < VALUE_INF);
+		
 		return alpha;
 	}
 
 	/**
-	 * Returns the static evaluation of position from white's perspective.
-	 * @param position position to evaluate
-	 * @return evaluation of the position
+	 * Orders the given move list for the alpha-beta search.
+	 * @param moveList
 	 */
-	public static int evaluate(Position position) {
-		int materialScore = 0;
-		for (int i = 0; i < 64; i++) {
-			int index = INDEX_0x88[i];
-			materialScore += MATERIAL_VALUES[position.board[index] + 6];
+	public static void sortMoves(ArrayList<Move> moveList, Board board) {
+		// Get the hash move if it exists
+		String hashMove = null;
+		HashtableEntry hash = getEntry(board.zobrist, ttable);
+		if (hash != null)
+			hashMove = hash.move;
+		
+		for (Move move : moveList) {		
+			if (hashMove != null && move.longNotation().equals(hashMove))
+				move.priority = 121;
+			else if (move.type == PROMOTION)
+				move.priority = 120;
+			// MVV/LVA
+			else if (move.captured != 0)
+				move.priority = Math.abs(move.captured) * 10 - Math.abs(move.piece);
+			
+			// History move ordering
+			int side = (board.sideToMove == WHITE ? 0 : 1);
+			move.history = historyMoves[side][move.piece + 6][move.target];
 		}
-		return materialScore;
+		
+		Collections.sort(moveList);
+	}
+	
+	/**
+	 * 
+	 * @param zobrist
+	 * @return
+	 */
+	public static HashtableEntry getEntry(long zobrist, HashtableEntry[] hashTable) {
+		int hashKey = (int) (zobrist % hashTable.length);
+		HashtableEntry hash = hashTable[hashKey];
+		if (hash != null && hash.zobrist == zobrist)
+			return hash;
+		
+		return null;
 	}
 
 	/**
-	 * Returns the perft results for the position at the specified depth.
-	 * @param position
+	 * 
+	 * @param zobrist
+	 * @param move
 	 * @param depth
+	 * @param eval
+	 * @param type
 	 */
-	public static void perft(Position position, int depth) {
-		long startTime = System.nanoTime();
-		long nodes = miniMax(position, depth);
-		long endTime = System.nanoTime();
-		double elapsedTime = (endTime - startTime) / 1.0e9;
-		System.out.println("Seconds:\t" + elapsedTime);
-		System.out.println("Nodes:\t\t" + nodes);
-		System.out.println("NPS:\t\t" + (long) (nodes / elapsedTime));
-		System.out.println(position);
-		System.out.println(Engine.evaluate(position));
-	}
+	public static void addEntry(long zobrist, String move, int depth, int eval, int type) {
+		int hashKey = (int) (zobrist % HASH_SIZE_TT);
+		// if entry with higher depth exists, don't replace
+		HashtableEntry hash = ttable[hashKey];
+		/*if (Math.abs(eval) >= VALUE_MATE_THRESHOLD) {
+			depth--;
+		}*/
+		if (hash != null && zobrist == hash.zobrist && depth < hash.depth)
+			return;
 
+		ttable[hashKey] = new HashtableEntry(zobrist, move, depth, eval, type);
+	}
+	
 	/**
-	 * Returns the number of child nodes at the specified depth from position.
-	 * @param position
-	 * @param depth
-	 * @return number of nodes
+	 * Returns the value of mate in ply.
+	 * @param ply
+	 * @return
 	 */
-	public static long miniMax(Position position, int depth) {
-	  long nodes = 0;
-	  if (depth == 0) {
-	  	return 1;
-	  }
-	  ArrayList<Move> moves = position.generateMoves();
-	  for (Move move : moves) {
-	    position.makeMove(move);
-	    nodes += miniMax(position, depth - 1);
-	    position.unmakeMove(move);
-	  }
-	  return nodes;
+	public static int mateScore(int ply) {
+		return VALUE_MATE - currentDepth + ply;
 	}
+	
+	public static int matedScore(int ply) {
+		return -mateScore(ply);
+	}
+	
+	/**
+	 * Adds a modifier to the algebraic notation of the given move if needed.
+	 * @param move
+	 * @param moveList
+	 */
+	public static void addAlgebraicModifier(Move move, ArrayList<Move> moveList) {
+		if (Math.abs(move.piece) != KNIGHT && Math.abs(move.piece) != ROOK && Math.abs(move.piece) != QUEEN)
+			return;
 
+		for (Move m : moveList) {
+			if (m.target == move.target && m.piece == move.piece && m.start != move.start) {
+				if ((m.start % 16) != (move.start % 16))
+					move.modifier = "" + "abcdefgh".charAt(move.start % 16);
+				else
+					move.modifier = "" + (8 - move.start / 16);
+			}
+		}
+	}
+	
 }
