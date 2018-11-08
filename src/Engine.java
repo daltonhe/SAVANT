@@ -26,7 +26,6 @@ public class Engine implements Definitions {
 	public static int[][][] historyMoves;
 	public static HashtableEntry[] ttable = new HashtableEntry[HASH_SIZE_TT];
 	public static HashtableEntry[] pvtable = new HashtableEntry[HASH_SIZE_PV];
-	public static HashtableEntry[] reptable = new HashtableEntry[HASH_SIZE_REP];
 	
 	/**
 	 * 
@@ -203,9 +202,9 @@ public class Engine implements Definitions {
 			return VALUE_DRAW;
 		
 		// Check for draw by repetition
-		if (!rootNode && board.nullMovesMade == 0) {
+		if (!rootNode) {
 			HashtableEntry rentry = getEntry(board.zobrist, Savant.reptable);
-			if (rentry != null && rentry.zobrist == board.zobrist && rentry.count >= 2)
+			if (rentry != null && rentry.count >= 2)
 				return VALUE_DRAW;
 		}
 		
@@ -225,8 +224,9 @@ public class Engine implements Definitions {
 		// At non-PV nodes check for an early transposition table cutoff
 		HashtableEntry ttentry = getEntry(board.zobrist, ttable);
 		if (!pvNode && ttentry != null && ttentry.depth >= (ply - ext)) {
-			if ((ttentry.type == BOUND_UPPER && ttentry.eval * board.sideToMove <= alpha) ||
-			    (ttentry.type == BOUND_LOWER && ttentry.eval * board.sideToMove >= beta))
+			if (    ttentry.type == BOUND_EXACT
+				|| (ttentry.type == BOUND_UPPER && ttentry.eval * board.sideToMove <= alpha)
+				|| (ttentry.type == BOUND_LOWER && ttentry.eval * board.sideToMove >= beta))
 				return ttentry.eval * board.sideToMove;
 		}
 		
@@ -234,7 +234,7 @@ public class Engine implements Definitions {
 		boolean inCheck = (canNull ? board.isAttacked(kingPos, -board.sideToMove) : false);
 		
 		// Extend the search if we are in check
-		if (!rootNode && inCheck && ext < currentDepth / 2) {
+		if (!rootNode && inCheck && ext <= currentDepth / 2) {
 			ply++;
 			ext++;
 		}
@@ -246,7 +246,7 @@ public class Engine implements Definitions {
 		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
 		
 		// Null move pruning
-		/*if (   canNull
+		if (   canNull
 			&& !pvNode
 			&& !inCheck
 			&& !board.isPawnEnding(board.sideToMove)) {
@@ -260,7 +260,7 @@ public class Engine implements Definitions {
 				addEntry(board.zobrist, null, ply - ext, eval * board.sideToMove, BOUND_LOWER);
 				return beta;
 			}
-		}*/
+		}
 		
 		// Generate moves and sort
 		ArrayList<Move> moveList = board.generateMoves(false);
@@ -465,9 +465,9 @@ public class Engine implements Definitions {
 	 * @param zobrist
 	 * @return
 	 */
-	public static HashtableEntry getEntry(long zobrist, HashtableEntry[] hashTable) {
-		int hashKey = (int) (zobrist % hashTable.length);
-		HashtableEntry hash = hashTable[hashKey];
+	public static HashtableEntry getEntry(long zobrist, HashtableEntry[] hashtable) {
+		int hashKey = (int) (zobrist % hashtable.length);
+		HashtableEntry hash = hashtable[hashKey];
 		if (hash != null && hash.zobrist == zobrist)
 			return hash;
 		
