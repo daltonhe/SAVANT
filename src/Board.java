@@ -283,6 +283,15 @@ public class Board implements Definitions {
 	}
 	
 	/**
+	 * Returns whether the side to move is in check.
+	 * @return
+	 */
+	public boolean inCheck() {
+		int kingPos = (sideToMove == WHITE ? wKing : bKing);
+		return isAttacked(kingPos, -sideToMove);
+	}
+	
+	/**
 	 * Returns a list of all pseudolegal moves that can be made from this position, i.e.,
 	 * moves may leave the king in check. Such moves are only filtered out during search, in order
 	 * to save computation.
