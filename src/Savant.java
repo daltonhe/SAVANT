@@ -110,7 +110,7 @@ public class Savant implements Definitions {
 	
 	public static void main(String[] args) throws FileNotFoundException {
 		
-		Board board = new Board("8/K7/1p4k1/2n5/P7/8/8/8 b - - 0 50");
+		Board board = new Board();
 		//board = new Board("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
 		//board = new Board("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
 		//board = new Board("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
@@ -126,7 +126,7 @@ public class Savant implements Definitions {
 		
 		Engine.minDepth      = 7;
 		Engine.maxDepth      = 25;
-		Engine.timeControlOn = false;
+		Engine.timeControlOn = true;
 		Engine.timeControl   = 0.15;
 		Engine.showThinking  = true;
 		Engine.showBoard     = true;
@@ -146,9 +146,12 @@ public class Savant implements Definitions {
 		// Game loop
 		while (!gameOver) {
 
-			// Check for mate/stalemate
-			if (board.filterLegal(board.generateMoves(false)).isEmpty())
+			// Check for mate/stalemate and draw by insufficient material
+			if (   board.filterLegal(board.generateMoves(false)).isEmpty()
+				|| board.insufficientMaterial()) {
 				gameOver = true;
+				continue;
+			}
 			
 			/*if (board.moveNumber >= 15) {
 				Engine.timeControl = 1.5;
