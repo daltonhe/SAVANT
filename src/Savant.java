@@ -90,6 +90,8 @@ import java.util.Stack;
  * 		  Added insufficient material check to search
  * 		  Opened GitHub repository
  * 	      Fixed a bug involving faulty repetition detection when null moving
+ * 		  Fixed a bug where zobrist keys were initialized incorrectly. This was the actual root
+ *          cause of several hash table bugs which I thought I fixed earlier.
  */
 
 /**
@@ -111,7 +113,7 @@ public class Savant implements Definitions {
 	
 	public static void main(String[] args) throws FileNotFoundException {
 		
-		Board board = new Board();
+		Board board = new Board("8/K7/1p4k1/2n5/P7/8/8/8 b");
 		//board = new Board("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
 		//board = new Board("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
 		//board = new Board("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
@@ -125,9 +127,9 @@ public class Savant implements Definitions {
 		//board = new Board("k7/P7/8/K7/8/8/8/8 w - - 0 1");
 		//board = new Board("1k6/1P6/8/1K6/8/8/8/8 w - - 0 1");	
 		
-		Engine.minDepth      = 4;
-		Engine.maxDepth      = 4;
-		Engine.timeControlOn = true;
+		Engine.minDepth      = 7;
+		Engine.maxDepth      = 25;
+		Engine.timeControlOn = false;
 		Engine.timeControl   = 0.15;
 		Engine.showThinking  = true;
 		Engine.showBoard     = true;
@@ -149,7 +151,10 @@ public class Savant implements Definitions {
 			
 			HashtableEntry rep = reptable[(int) (board.zobrist % HASH_SIZE_REP)];
 			boolean repeated = (rep != null && board.zobrist == rep.zobrist && rep.count >= 3);
-
+			if (repeated) {
+				System.out.print("3fold");
+			}
+			
 			// Check for mate/stalemate, draw by insufficient material, or draw by repetition
 			if (   board.filterLegal(board.generateMoves(false)).isEmpty()
 				|| board.insufficientMaterial()

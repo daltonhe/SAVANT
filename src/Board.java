@@ -9,13 +9,14 @@ import java.util.Scanner;
 public class Board implements Definitions {
 	public int[] board;
 	public int sideToMove;
-	public String castling; //FEN format
+	public String castling; // stored using FEN format
 	public int enpassant;
 	public int fiftyMoves;
 	public int moveNumber;
 	public int wKing;
 	public int bKing;
 	public int pieceCount;
+	public int nullMovesMade;
 	public long zobrist;
 	
 	/**
@@ -83,20 +84,26 @@ public class Board implements Definitions {
 	 */
 	public void setDefaults() {
 		board = new int[128];
-		sideToMove = WHITE;
-		castling = "";
-		enpassant = -2;
-		moveNumber = 1;
-		fiftyMoves = 0;
+		sideToMove    = WHITE;
+		castling      = "";
+		enpassant     = -2;
+		moveNumber    = 1;
+		fiftyMoves    = 0;
+		nullMovesMade = 0;
 	}
 	
 	/**
 	 * Makes a passing move.
 	 */
-	public void makeNullMove() {
+	public void makeNullMove(boolean unmaking) {
 		sideToMove *= -1;
 		zobrist ^= Zobrist.SIDE;
+		if (unmaking)
+			nullMovesMade--;
+		else
+			nullMovesMade++;
 	}
+
 	
 	/**
 	 * Makes the given move on the board.

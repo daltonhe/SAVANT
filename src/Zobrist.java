@@ -19,7 +19,7 @@ public class Zobrist implements Definitions {
 	 */
 	public static void initialize() {
 		Random r = new Random();
-		for (int i = 0; i < 12; i++)
+		for (int i = 0; i < 13; i++)
 			for (int j = 0; j < 120; j++)
 				PIECES[i][j] = Math.abs(r.nextLong());
 

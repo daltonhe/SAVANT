@@ -15,7 +15,6 @@ public class Engine implements Definitions {
 	public static int maxDepth = 100;
 	public static int currentDepth;
 	public static boolean pvNode;
-	public static boolean nullSearching;
 	public static ArrayList<Move> pv;
 	public static int eval;
 	public static long nodes;
@@ -204,7 +203,7 @@ public class Engine implements Definitions {
 			return VALUE_DRAW;
 		
 		// Check for draw by repetition
-		if (!rootNode && !nullSearching) {
+		if (!rootNode && board.nullMovesMade == 0) {
 			HashtableEntry rentry = getEntry(board.zobrist, Savant.reptable);
 			if (rentry != null && rentry.zobrist == board.zobrist && rentry.count >= 2)
 				return VALUE_DRAW;
@@ -226,8 +225,8 @@ public class Engine implements Definitions {
 		// At non-PV nodes check for an early transposition table cutoff
 		HashtableEntry ttentry = getEntry(board.zobrist, ttable);
 		if (!pvNode && ttentry != null && ttentry.depth >= (ply - ext)) {
-			if ((ttentry.type == BOUND_UPPER && ttentry.eval * board.sideToMove < alpha) ||
-			    (ttentry.type == BOUND_LOWER && ttentry.eval * board.sideToMove > beta))
+			if ((ttentry.type == BOUND_UPPER && ttentry.eval * board.sideToMove <= alpha) ||
+			    (ttentry.type == BOUND_LOWER && ttentry.eval * board.sideToMove >= beta))
 				return ttentry.eval * board.sideToMove;
 		}
 		
@@ -247,23 +246,21 @@ public class Engine implements Definitions {
 		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
 		
 		// Null move pruning
-		if (   canNull
+		/*if (   canNull
 			&& !pvNode
 			&& !inCheck
 			&& !board.isPawnEnding(board.sideToMove)) {
 			int R = 2; // depth reduction factor
-			board.makeNullMove();
-			nullSearching = true;
+			board.makeNullMove(false);
 			eval = -alphaBeta(ply - R - 1, ext, -beta, -beta + 1, false, board);
-			nullSearching = false;
-			board.makeNullMove();
+			board.makeNullMove(true);
 			// Fail high
 			if (eval >= beta) {
 				// Update transposition table
 				addEntry(board.zobrist, null, ply - ext, eval * board.sideToMove, BOUND_LOWER);
 				return beta;
 			}
-		}
+		}*/
 		
 		// Generate moves and sort
 		ArrayList<Move> moveList = board.generateMoves(false);

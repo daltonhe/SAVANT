@@ -55,8 +55,8 @@ public class Evaluate implements Definitions {
 				
 				material_mg += PIECE_VALUE_MG[piece];
 				material_eg += PIECE_VALUE_EG[piece];
-				psqt_mg += PSQT_MG[piece][rank][file];
-				psqt_eg += PSQT_EG[piece][rank][file];
+				psqt_mg     += PSQT_MG[piece][rank][file];
+				psqt_eg     += PSQT_EG[piece][rank][file];
 			} 
 			else if (piece < 0) {
 				if (piece == B_PAWN) {
@@ -70,8 +70,8 @@ public class Evaluate implements Definitions {
 				
 				material_mg -= PIECE_VALUE_MG[-piece];
 				material_eg -= PIECE_VALUE_EG[-piece];
-				psqt_mg -= PSQT_MG[-piece][7 - rank][file];
-				psqt_eg -= PSQT_EG[-piece][7 - rank][file];
+				psqt_mg     -= PSQT_MG[-piece][7 - rank][file];
+				psqt_eg     -= PSQT_EG[-piece][7 - rank][file];
 			}
 		}
 		
