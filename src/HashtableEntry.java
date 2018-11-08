@@ -8,15 +8,15 @@ public class HashtableEntry {
 	public int type;
 	public int eval;
 	public String move;
+	public int count = 1;
 	
 	public HashtableEntry(long zobrist) {
 		this.zobrist = zobrist;
 	}
 	
-	public HashtableEntry(long zobrist, String move, int depth) {
+	public HashtableEntry(long zobrist, String move) {
 		this.zobrist = zobrist;
 		this.move = move;
-		this.depth = depth;
 	}
 
 	/**

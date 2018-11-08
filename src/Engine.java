@@ -15,6 +15,7 @@ public class Engine implements Definitions {
 	public static int maxDepth = 100;
 	public static int currentDepth;
 	public static boolean pvNode;
+	public static boolean nullSearching;
 	public static ArrayList<Move> pv;
 	public static int eval;
 	public static long nodes;
@@ -96,7 +97,7 @@ public class Engine implements Definitions {
 		
 		// iterative deepening loop
 		for (currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
-			//reptable = new HashtableEntry[HASH_SIZE_REP];
+			
 			pvNode = true;
 			
 			if (currentDepth == 1)
@@ -171,8 +172,6 @@ public class Engine implements Definitions {
 
 			PV.add(move);
 			board.makeMove(move);
-			/*if (hash.depth <= 1)
-				break;*/
 
 			hash = getEntry(board.zobrist, pvtable);
 			i++;
@@ -205,9 +204,9 @@ public class Engine implements Definitions {
 			return VALUE_DRAW;
 		
 		// Check for draw by repetition
-		if (!rootNode && canNull) {
+		if (!rootNode && !nullSearching) {
 			HashtableEntry rentry = getEntry(board.zobrist, Savant.reptable);
-			if (rentry != null && rentry.zobrist == board.zobrist)
+			if (rentry != null && rentry.zobrist == board.zobrist && rentry.count >= 2)
 				return VALUE_DRAW;
 		}
 		
@@ -254,7 +253,9 @@ public class Engine implements Definitions {
 			&& !board.isPawnEnding(board.sideToMove)) {
 			int R = 2; // depth reduction factor
 			board.makeNullMove();
+			nullSearching = true;
 			eval = -alphaBeta(ply - R - 1, ext, -beta, -beta + 1, false, board);
+			nullSearching = false;
 			board.makeNullMove();
 			// Fail high
 			if (eval >= beta) {
@@ -339,7 +340,7 @@ public class Engine implements Definitions {
 				bestMove = move.longNotation();
 				
 				int hashKey = (int) (board.zobrist % HASH_SIZE_PV);
-				pvtable[hashKey] = new HashtableEntry(board.zobrist, move.longNotation(), ply - ext); 
+				pvtable[hashKey] = new HashtableEntry(board.zobrist, move.longNotation()); 
 				
 				alpha = eval;
 			}
@@ -462,7 +463,8 @@ public class Engine implements Definitions {
 	}
 	
 	/**
-	 * 
+	 * Returns the hashtable entry for the given zobrist key if it exists, otherwise
+	 * return null.
 	 * @param zobrist
 	 * @return
 	 */
@@ -487,9 +489,6 @@ public class Engine implements Definitions {
 		int hashKey = (int) (zobrist % HASH_SIZE_TT);
 		// if entry with higher depth exists, don't replace
 		HashtableEntry hash = ttable[hashKey];
-		/*if (Math.abs(eval) >= VALUE_MATE_THRESHOLD) {
-			depth--;
-		}*/
 		if (hash != null && zobrist == hash.zobrist && depth < hash.depth)
 			return;
 

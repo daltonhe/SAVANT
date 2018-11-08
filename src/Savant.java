@@ -89,6 +89,7 @@ import java.util.Stack;
  * 		  Tempo bonus is no longer applied to endgame score
  * 		  Added insufficient material check to search
  * 		  Opened GitHub repository
+ * 	      Fixed a bug involving faulty repetition detection when null moving
  */
 
 /**
@@ -124,8 +125,8 @@ public class Savant implements Definitions {
 		//board = new Board("k7/P7/8/K7/8/8/8/8 w - - 0 1");
 		//board = new Board("1k6/1P6/8/1K6/8/8/8/8 w - - 0 1");	
 		
-		Engine.minDepth      = 7;
-		Engine.maxDepth      = 25;
+		Engine.minDepth      = 4;
+		Engine.maxDepth      = 4;
 		Engine.timeControlOn = true;
 		Engine.timeControl   = 0.15;
 		Engine.showThinking  = true;
@@ -145,10 +146,14 @@ public class Savant implements Definitions {
 		
 		// Game loop
 		while (!gameOver) {
+			
+			HashtableEntry rep = reptable[(int) (board.zobrist % HASH_SIZE_REP)];
+			boolean repeated = (rep != null && board.zobrist == rep.zobrist && rep.count >= 3);
 
-			// Check for mate/stalemate and draw by insufficient material
+			// Check for mate/stalemate, draw by insufficient material, or draw by repetition
 			if (   board.filterLegal(board.generateMoves(false)).isEmpty()
-				|| board.insufficientMaterial()) {
+				|| board.insufficientMaterial()
+				|| repeated) {
 				gameOver = true;
 				continue;
 			}
@@ -186,15 +191,13 @@ public class Savant implements Definitions {
 					move = Engine.getMoveObject(Engine.getBookMove(openingLine), board);
 				if (move == null) {
 					inOpening = false;
-					//Engine.reptable = reptable;
 					Engine.search(board);
 					move = Engine.pv.get(0);
 				}
 				break;
 				
 			case "undo":
-				int hashKey = (int) (board.zobrist % HASH_SIZE_REP);
-				reptable[hashKey] = null;
+				reptable[(int) (board.zobrist % HASH_SIZE_REP)] = null;
 				if (!moveHistory.isEmpty()) {
 					board.unmakeMove(moveHistory.pop());
 					board.print();
@@ -240,19 +243,28 @@ public class Savant implements Definitions {
 				moveHistory.push(move);
 				if (inOpening)
 					openingLine += move + " ";
+				
+				// Add move to repetition hashtable
 				int hashKey = (int) (board.zobrist % HASH_SIZE_REP);
-				reptable[hashKey] = new HashtableEntry(board.zobrist); 
+				if (reptable[hashKey] == null)
+					reptable[hashKey] = new HashtableEntry(board.zobrist);
+				else {
+					if (board.zobrist == reptable[hashKey].zobrist)
+						reptable[hashKey].count++;
+				}
 				
 				if (engineTurn) {
 					if (Engine.showThinking && !inOpening)
 						System.out.println();
 					System.out.print("SAVANT plays: ");
-					System.out.println(move + (Engine.showThinking ? "" : " [" + (Engine.eval / 100.0) + "]"));
+					System.out.println(move + (Engine.showThinking ? "" : 
+						" [" + (Engine.eval / 100.0) + "]"));
 				}
 				
 				if (Engine.showBoard)
 					board.print();
 			}
+			
 			System.out.println();
 		}
 		scan.close();
