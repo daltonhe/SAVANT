@@ -1,11 +1,10 @@
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.Stack;
 /**
  * Change log
  * 10-07: Started project
- * 		  Created Board class and Definitions interface
+ * 		  Created position class and Definitions interface
  * 10-08: Created Move class
  * 10-22: Finished make and unmake move
  * 		  Finished legal move generation and Perft tested, confirmed bug-free
@@ -82,17 +81,26 @@ import java.util.Stack;
  * 11-07: Added bonuses for connected pawns
  * 		  Reverted to old material values (Kaufmann 2012) and old phase values (Fruit)
  * 		  Tweaked imbalance evaluation
- * 		  Reached 2442 blitz and 2267 bullet rating on Lichess
+ * 		  Reached 2400 blitz and 2250 bullet rating on Lichess
  * 		  Added penalty for pawns on the same color square as the bishop
  * 		  Added penalties for trapped bishop and trapped rook
  * 		  Added bonuses for rook and queen on the 7th rank
  * 		  Tempo bonus is no longer applied to endgame score
+ * 		  Put a limit on the number of plies the search can be extended
  * 		  Added insufficient material check to search
  * 		  Opened GitHub repository
  * 	      Fixed a bug involving faulty repetition detection when null moving
  * 		  Fixed a bug where zobrist keys were initialized incorrectly. This was the actual root
  *          cause of several hash table bugs which I thought I fixed earlier.
  *        Added game over handling to UI
+ *        Reached 2300 bullet rating on Lichess
+ *        Reached 2450 blitz rating on Lichess (account was finally flagged for computer assistance)
+ * 11-09: Added efficient zobrist key updating during makeMove() and unmakeMove()
+ *        Reinstated underpromotions to move generation
+ *        Changed castling rights storage from string to int
+ *        Validated perft and sanity checked hash table
+ *        Added node type parameter to search and made corrections to PVS implementation
+ * 		  Added special evaluator for use in mating with KX vs K
  */
 
 /**
@@ -103,68 +111,73 @@ public class Savant implements Definitions {
 	// TODO: in-tree repetition detection
 	// TODO: efficient zobrist update
 	// TODO: expand opening book
-	// TODO: tt verification
 	// TODO: mobility area
 	// TODO: backward pawns
 	// TODO: blockage detection
 	// TODO: unstoppable passers
 	// TODO: king safety
+	// TODO: bishops of opposite colors
+	// TODO: UCI support
+	// TODO: piece lists
+	// TODO: regex validation for fen
 	
+	// repetition hash table
 	public static HashtableEntry[] reptable = new HashtableEntry[HASH_SIZE_REP];
 	
+	/**
+	 * The main method, from which the game loop is run.
+	 */
 	public static void main(String[] args) throws FileNotFoundException {
+		Position pos = new Position();
 		
-		Board board = new Board();
-		//board = new Board("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
-		//board = new Board("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
-		//board = new Board("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
+		//pos = new Position("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
+		//pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
+		//pos = new Position("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
 		
-		//board = new Board("k7/8/8/8/q7/8/8/1R3R1K w - - 0 1");
-		//board = new Board("5rk1/5Npp/8/3Q4/8/8/8/7K w - - 0 1");
-		//board = new Board("8/8/8/8/8/8/R7/R3K2k w Q - 0 1");
-		//board = new Board("7k/8/8/8/R2K3q/8/8/8 w - - 0 1");
-		//board = new Board("2k5/8/8/8/p7/8/8/4K3 b - - 0 1");
+		//pos = new Position("k7/8/8/8/q7/8/8/1R3R1K w - - 0 1");
+		//pos = new Position("5rk1/5Npp/8/3Q4/8/8/8/7K w - - 0 1");
+		//pos = new Position("8/8/8/8/8/8/R7/R3K2k w Q - 0 1");
+		//pos = new Position("7k/8/8/8/R2K3q/8/8/8 w - - 0 1");
+		//pos = new Position("2k5/8/8/8/p7/8/8/4K3 b - - 0 1");
 		
-		//board = new Board("k7/P7/8/K7/8/8/8/8 w - - 0 1");
-		//board = new Board("1k6/1P6/8/1K6/8/8/8/8 w - - 0 1");	
+		//pos = new Position("7k/8/8/8/8/8/8/RK");
+		//pos = new Position("k7/P7/8/K7/8/8/8/8 w - - 0 1");
+		//pos = new Position("1k6/1P6/8/1K6/8/8/8/8 w - - 0 1");	
 		
-		Engine.minDepth      = 5;
-		Engine.maxDepth      = 5;
-		Engine.timeControlOn = false;
-		Engine.timeControl   = 0.15;
+		Engine.minDepth      = 9;
+		Engine.maxDepth      = 25;
+		Engine.timeControlOn = true;
+		Engine.timeControl   = 4.0;
 		Engine.showThinking  = true;
 		Engine.showBoard     = true;
-		Engine.useBook       = (board.getFEN().equals(INITIAL_FEN));
+		Engine.useBook       = (pos.getFEN().equals(INITIAL_FEN));
 		
 		Stack<Move> moveHistory = new Stack<Move>();
 		String openingLine      = "";
 		boolean inOpening       = true;
-		String gameOverMsg     = "";
+		String gameOverMsg      = "";
 		boolean playWhite       = false;
 		boolean playBlack       = false;
-		Scanner scan            = new Scanner(System.in);	
+		Scanner input           = new Scanner(System.in);	
 		
-		board.print();
+		pos.print();
 		System.out.println();
 		
 		// Game loop
 		while (true) {
-			
-			HashtableEntry rep = reptable[(int) (board.zobrist % HASH_SIZE_REP)];
-			boolean repeated = (rep != null && board.zobrist == rep.zobrist && rep.count >= 3);
+			HashtableEntry rentry = Engine.getEntry(pos.zobrist, reptable);
+			boolean repeated = (rentry != null && rentry.count >= 3);
 
 			// Check for mate/stalemate,  or draw by repetition
-			if (board.filterLegal(board.generateMoves(false)).isEmpty()) {
-				if (board.inCheck())
-					gameOverMsg = (board.sideToMove == WHITE ? "Black" : "White") + " wins by checkmate.";
+			if (pos.filterLegal(pos.generateMoves(false)).isEmpty()) {
+				if (pos.inCheck(pos.sideToMove))
+					gameOverMsg = (pos.sideToMove == WHITE ? "Black" : "White") + " wins by checkmate.";
 				else
 					gameOverMsg = "Game drawn by stalemate.";
-			}
-			
+			}	
 			// Check for draw by insufficient material
-			if (board.insufficientMaterial())
+			if (pos.insufficientMaterial())
 				gameOverMsg = "Game drawn by insufficient material.";
-			
 			// Check for draw by repetition
 			if (repeated) {
 				gameOverMsg = "Game drawn by threefold repetition.";
@@ -173,45 +186,49 @@ public class Savant implements Definitions {
 			if (!gameOverMsg.isEmpty())
 				break;
 			
-			/*if (board.moveNumber >= 15) {
-				Engine.timeControl = 1.5;
-				if (board.moveNumber >= 30) {
+			if (pos.moveNumber >= 15) {
+				Engine.timeControl = 2.0;
+				if (pos.moveNumber >= 30) {
 					Engine.timeControl = 1.0;
-					if (board.moveNumber >= 45)
-						Engine.timeControl = 0.7;
+					if (pos.moveNumber >= 45)
+						Engine.timeControl = 0.5;
 				}
-			}*/
+			}
 			
-			boolean engineTurn =   (board.sideToMove == WHITE && playWhite)
-								|| (board.sideToMove == BLACK && playBlack);
+			boolean engineTurn =   (pos.sideToMove == WHITE && playWhite)
+								|| (pos.sideToMove == BLACK && playBlack);
 			if (!engineTurn)
-				System.out.print((board.sideToMove == WHITE ? "W" : "B") + ": ");
+				System.out.print((pos.sideToMove == WHITE ? "W" : "B") + ": ");
 			
-			String input = (engineTurn ? "go" : scan.next()).toLowerCase();
+			String command = (engineTurn ? "go" : input.next()).toLowerCase();
 			Move move = null;
 			
-			switch (input) {
+			switch (command) {
+			
+			case "quit":
+				System.exit(0);
+				break;
 				
 			case "think":
-				Engine.search(board);
+				Engine.search(pos);
 				break;
 				
 			case "go":
 				engineTurn = true;
 				if (Engine.useBook && inOpening)
-					move = Engine.getMoveObject(Engine.getBookMove(openingLine), board);
+					move = Engine.getMoveObject(Engine.getBookMove(openingLine), pos);
 				if (move == null) {
 					inOpening = false;
-					Engine.search(board);
+					Engine.search(pos);
 					move = Engine.pv.get(0);
 				}
 				break;
 				
 			case "undo":
-				reptable[(int) (board.zobrist % HASH_SIZE_REP)] = null;
+				reptable[(int) (pos.zobrist % HASH_SIZE_REP)] = null;
 				if (!moveHistory.isEmpty()) {
-					board.unmakeMove(moveHistory.pop());
-					board.print();
+					pos.unmakeMove(moveHistory.pop());
+					pos.print();
 				}
 				playWhite = false;
 				playBlack = false;
@@ -233,34 +250,34 @@ public class Savant implements Definitions {
 				break;
 				
 			case "fen":
-				System.out.println(board.getFEN());
+				System.out.println(pos.getFEN());
 				break;
 				
 			case "display":
 			case "disp":
 			case "print":
-				board.print();
+				pos.print();
 				break;
 				
 			default: // attempt to read move
-				move = Engine.getMoveObject(input, board);
+				move = Engine.getMoveObject(command, pos);
 				if (move == null)
 					System.out.println("Invalid move.");
 				break;
 			}
 
 			if (move != null) {
-				board.makeMove(move);
+				pos.makeMove(move);
 				moveHistory.push(move);
 				if (inOpening)
 					openingLine += move + " ";
 				
-				// Add move to repetition hashtable
-				int hashKey = (int) (board.zobrist % HASH_SIZE_REP);
+				// Add move to repetition hash table
+				int hashKey = (int) (pos.zobrist % HASH_SIZE_REP);
 				if (reptable[hashKey] == null)
-					reptable[hashKey] = new HashtableEntry(board.zobrist);
+					reptable[hashKey] = new HashtableEntry(pos.zobrist);
 				else {
-					if (board.zobrist == reptable[hashKey].zobrist)
+					if (pos.zobrist == reptable[hashKey].zobrist)
 						reptable[hashKey].count++;
 				}
 				
@@ -273,46 +290,12 @@ public class Savant implements Definitions {
 				}
 				
 				if (Engine.showBoard)
-					board.print();
+					pos.print();
 			}
 			System.out.println();
 		}
 		
 		System.out.println(gameOverMsg);
-		scan.close();
+		input.close();
 	}
-	
-	/**
-	 * Perft checker
-	 * @param board
-	 * @param depth
-	 * @return
-	 */
-	@SuppressWarnings("unused")
-	private static long miniMax(Board board, int depth) {
-	  long nodes = 0;
-	  if (depth == 0) {
-		  return 1;
-	  }
-	  ArrayList<Move> moveList = board.generateMoves(false);
-	  moveList = board.filterLegal(moveList);
-	  for (Move move : moveList) {
-	    board.makeMove(move);
-	    nodes += miniMax(board, depth - 1);
-	    board.unmakeMove(move);
-	  }
-	  
-	  return nodes;
-	}
-	
-	// Perft divider
-	/*ArrayList<Move> moveList = board.generateMoves(false);
-	for (Move move : moveList) {
-		System.out.print(move + ": ");
-		board.makeMove(move);
-
-		System.out.println(miniMax(board, 1));
-		board.unmakeMove(move);
-	}*/
-
 }
