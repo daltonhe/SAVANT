@@ -4,51 +4,47 @@
  * created 10-08-18
  */
 public class Move implements Definitions, Comparable<Move> {
-	public int start;
-	public int target;
-	public int piece;
-	public int captured;
-	public String prevCastling;
-	public int prevEnpassant;
-	public int prevFiftyMoves;
-	public int type;
-	public int priority = 0;
-	public int history = 0;
-	public String modifier = "";
-	
+	public int start;           // starting index of the moving piece
+	public int target;          // target index of the moving piece
+	public int piece;           // piece type of the moving piece
+	public int captured;        // piece type of the captured piece (0 if none)
+	public int prevCastling;    // castling rights prior to the move being made
+	public int prevEnpassant;   // enpassant square index prior to the move being made
+	public int prevFiftyMoves;  // fifty moves count prior to the move being made
+	public int type;            // type of the move (see Definitions interface)
+	public int priority;        // priority of the move, used for move ordering
+	public int historyCount;    // history heuristic weight, used for move ordering
+	public String modifier;     // algebraic notation modifier
+
 	/**
 	 * Creates a move with the given parameters.
-	 * @param start - Starting index of the moving piece
-	 * @param target - Index to which the piece is moving
-	 * @param piece - Type of the moving piece
-	 * @param captured - Type of the captured piece (0 if none)
-	 * @param prevCastling - Castling rights before this move (needed to unmake move)
-	 * @param prevEnpassant - Enpassant square before this move
-	 * @param prevFiftyMoves - Fifty move count before this move
-	 * @param type - Move type (see Definitions interface)
 	 */
-	public Move(int start, int target, int piece, int captured, String prevCastling, 
+	public Move(int start, int target, int piece, int captured, int prevCastling,
 			int prevEnpassant, int prevFiftyMoves, int type) {
-		this.start = start;
-		this.target = target;
-		this.piece = piece;
-		this.captured = captured;
-		this.prevCastling = prevCastling;
-		this.prevEnpassant = prevEnpassant;
+		this.start          = start;
+		this.target         = target;
+		this.piece          = piece;
+		this.captured       = captured;
+		this.prevCastling   = prevCastling;
+		this.prevEnpassant  = prevEnpassant;
 		this.prevFiftyMoves = prevFiftyMoves;
-		this.type = type;
+		this.type           = type;
+		this.priority       = 0;
+		this.historyCount   = 0;
+		this.modifier       = "";
 	}
 	
 	/**
-	 * Returns the algebraic form notation of the move.
+	 * Returns the short form algebraic notation of the move (e.g. e4, 0-0, Bxf7).
 	 */
 	public String toString() {
-		String result = "";
 		if (type == CASTLE_SHORT)
 			return "0-0";
 			
 		if (type == CASTLE_LONG)
 			return "0-0-0";
+		
+		String result = "";
 		
 		if (type == PROMOTION || Math.abs(piece) == PAWN) {
 			if (captured != 0)
@@ -62,35 +58,41 @@ public class Move implements Definitions, Comparable<Move> {
 		if (captured != 0)
 			result += "x";
 		
-		result += Board.indexToAlgebraic(target);
+		result += Position.indexToAlgebraic(target);
 		
 		if (type == PROMOTION)
 			result += "=Q";
-		else if (type == ENPASSANT)
+	   
+		if (type == ENPASSANT)
 			result += " e.p.";
 
 		return result;
 	}
 	
 	/**
-	 * 
-	 * @return
+	 * Returns the long form algebraic notation of the move (e.g. e2e4).
 	 */
 	public String longNotation() {
-		return Board.indexToAlgebraic(start) + Board.indexToAlgebraic(target);
+		return Position.indexToAlgebraic(start) + Position.indexToAlgebraic(target);
 	}
-
+	
+	/**
+	 * Returns a positive integer if the given move has higher sort priority, and a negative
+	 * integer if it has lower sort priority.
+	 */
 	public int compareTo(Move other) {
 		if (other.priority != this.priority)
 			return other.priority - this.priority;
 
-		if (other.history != this.history)
-			return other.history - this.history;
+		if (other.historyCount != this.historyCount)
+			return other.historyCount - this.historyCount;
 		
 		return Math.abs(this.piece) - Math.abs(other.piece);
 	}
-	
-	
+
+	/**
+	 * Returns true if the given move is the same as this move.
+	 */
 	public boolean equals(Move other) {
 		return (other.start == this.start && other.target == this.target);
 	}
