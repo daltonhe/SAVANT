@@ -61,7 +61,7 @@ public class Move implements Definitions, Comparable<Move> {
 		result += Position.indexToAlgebraic(target);
 		
 		if (type == PROMOTION)
-			result += "=Q";
+			result += "=" + "NBRQ".charAt(Math.abs(piece) - 2);
 	   
 		if (type == ENPASSANT)
 			result += " e.p.";
@@ -73,7 +73,12 @@ public class Move implements Definitions, Comparable<Move> {
 	 * Returns the long form algebraic notation of the move (e.g. e2e4).
 	 */
 	public String longNotation() {
-		return Position.indexToAlgebraic(start) + Position.indexToAlgebraic(target);
+		String result = Position.indexToAlgebraic(start) + Position.indexToAlgebraic(target);
+		
+		if (type == PROMOTION)
+			result += "nbrq".charAt(Math.abs(piece) - 2);
+		
+		return result;
 	}
 	
 	/**
