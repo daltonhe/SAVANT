@@ -106,6 +106,8 @@ import java.util.Stack;
  * 		  Added special evaluator for use in mating with KX vs K
  * 11-10: Added UCI support
  * 		  Fixed a bug where getMoveObject failed to recognize promotion inputs
+ * 11-11: Changed formula for calculating aspiration window
+ * 		  
  */
 
 /**
@@ -114,7 +116,6 @@ import java.util.Stack;
 public class Savant implements Definitions {
 	// TODO: fix opening book after user undo
 	// TODO: in-tree repetition detection
-	// TODO: expand opening book
 	// TODO: mobility area
 	// TODO: backward pawns
 	// TODO: blockage detection
@@ -123,8 +124,10 @@ public class Savant implements Definitions {
 	// TODO: bishops of opposite colors
 	// TODO: piece lists
 	// TODO: regex validation for fen
-	// TODO: eval output during opening moves
-	// TODO: pass pawn pushes during quiescence
+	// TODO: passed pawn pushes during quiescence
+	// TODO: repetition parity
+	// TODO: king proximity to passed pawns
+	// TODO: hard time stop, time control
 	
 	// repetition hash table
 	public static HashtableEntry[] reptable = new HashtableEntry[HASH_SIZE_REP];
@@ -151,9 +154,7 @@ public class Savant implements Definitions {
 		Engine.minDepth      = 1;
 		Engine.maxDepth      = 40;
 		Engine.timeControlOn = true;
-		Engine.timeControl   = 0.1;
-		Engine.showThinking  = true;
-		Engine.showBoard     = true;
+		Engine.timeControl   = 1.0;
 		Engine.useBook       = true;
 		
 		if (args.length == 0)
@@ -167,6 +168,8 @@ public class Savant implements Definitions {
 	 * Run the program in UCI mode.
 	 */
 	public static void uciMode() throws IOException {
+		Engine.uciMode = true;
+		
 		BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
 		String openingLine   = "";
 		boolean inOpening    = true;
@@ -394,16 +397,14 @@ public class Savant implements Definitions {
 						reptable[hashKey].count++;
 				
 				if (engineTurn) {
-					if (Engine.showThinking && !inOpening)
+					if (!inOpening)
 						System.out.println();
-					System.out.print("SAVANT plays: ");
-					System.out.println(move + (Engine.showThinking ? "" : 
-						" [" + (Engine.eval / 100.0) + "]"));
+					System.out.print("SAVANT plays: " + move);
 				}
 				
-				if (Engine.showBoard)
-					pos.print();
+				pos.print();
 			}
+			
 			System.out.println();
 		}
 		
