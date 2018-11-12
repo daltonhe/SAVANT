@@ -279,19 +279,6 @@ public class Evaluate implements Definitions {
 				int bishopPawns = whitePawnFile[8][(rank + file) % 2];
 				pieces_mg += bishopPawns * PAWN_ON_BISHOP_COLOR_MG;
 				pieces_eg += bishopPawns * PAWN_ON_BISHOP_COLOR_EG;
-				// Give a penalty for a trapped bishop. This is to prevent the common
-				// mistake of greedily capturing a pawn, e.g. Bxa7 b6, where the bishop is
-				// then trapped.
-				/*if (   (index == SQ_a7 || index == SQ_b8 || index == SQ_a6)
-					&& board[index + 17] == B_PAWN) {
-					pieces_mg += TRAPPED_BISHOP;
-					pieces_eg += TRAPPED_BISHOP;
-				}
-				if (   (index == SQ_h7 || index == SQ_g8 || index == SQ_h6)
-					&& board[index + 15] == B_PAWN) {
-					pieces_mg += TRAPPED_BISHOP;
-					pieces_eg += TRAPPED_BISHOP;
-				}*/
 				// Bishop mobility
 				squares = mobilityDelta(board, side, index, DELTA_BISHOP, true);
 				mobility_mg += (squares - BISHOP_MAX_SQUARES / 2) * BISHOP_MOBILITY_MG;
@@ -302,16 +289,6 @@ public class Evaluate implements Definitions {
 				bishopPawns = blackPawnFile[8][(rank + file) % 2];
 				pieces_mg -= bishopPawns * PAWN_ON_BISHOP_COLOR_MG;
 				pieces_eg -= bishopPawns * PAWN_ON_BISHOP_COLOR_EG;
-				/*if (   (index == SQ_a2 || index == SQ_b1 || index == SQ_a3)
-					&& (board[index - 15] == W_PAWN)) {
-					pieces_mg -= TRAPPED_BISHOP;
-					pieces_eg -= TRAPPED_BISHOP;
-				}
-				if (   (index == SQ_h2 || index == SQ_g1 || index == SQ_h3)
-					&& board[index - 17] == W_PAWN) {
-					pieces_mg -= TRAPPED_BISHOP;
-					pieces_eg -= TRAPPED_BISHOP;
-				}*/
 				squares = mobilityDelta(board, side, index, DELTA_BISHOP, true);
 				mobility_mg -= (squares - BISHOP_MAX_SQUARES / 2) * BISHOP_MOBILITY_MG;
 				mobility_eg -= (squares - BISHOP_MAX_SQUARES / 2) * BISHOP_MOBILITY_EG;
@@ -337,12 +314,12 @@ public class Evaluate implements Definitions {
 					pieces_eg += ROOK_ON_7TH_EG;
 				}
 				// Give a penalty for a rook trapped by its own uncastled king
-				/*if (   (index == SQ_a1 || index == SQ_a2 || index == SQ_b1)
+				if (   (index == SQ_a1 || index == SQ_a2 || index == SQ_b1)
 					&& (whiteKingPos == SQ_c1 || whiteKingPos == SQ_b1))
 						pieces_mg += TRAPPED_ROOK;
 				if (   (index == SQ_h1 || index == SQ_h2 || index == SQ_g1)
 					&& (whiteKingPos == SQ_g1 || whiteKingPos == SQ_f1))
-						pieces_mg += TRAPPED_ROOK;*/
+						pieces_mg += TRAPPED_ROOK;
 				// Rook mobility
 				squares = mobilityDelta(board, side, index, DELTA_ROOK, true);
 				mobility_mg += (squares - ROOK_MAX_SQUARES / 2) * ROOK_MOBILITY_MG;
@@ -363,12 +340,12 @@ public class Evaluate implements Definitions {
 					pieces_mg -= ROOK_ON_7TH_MG;
 					pieces_eg -= ROOK_ON_7TH_EG;
 				}
-				/*if (   (index == SQ_a8 || index == SQ_a7 || index == SQ_b8)
+				if (   (index == SQ_a8 || index == SQ_a7 || index == SQ_b8)
 					&& (blackKingPos == SQ_c8 || blackKingPos == SQ_b8))
 						pieces_mg -= TRAPPED_ROOK;
 				if (   (index == SQ_h8 || index == SQ_h7 || index == SQ_g8)
 					&& (blackKingPos == SQ_g8 || blackKingPos == SQ_f8))
-						pieces_mg -= TRAPPED_ROOK;*/
+						pieces_mg -= TRAPPED_ROOK;
 				squares = mobilityDelta(board, side, index, DELTA_ROOK, true);
 				mobility_mg -= (squares - ROOK_MAX_SQUARES / 2) * ROOK_MOBILITY_MG;
 				mobility_eg -= (squares - ROOK_MAX_SQUARES / 2) * ROOK_MOBILITY_EG;

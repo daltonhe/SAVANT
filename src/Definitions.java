@@ -256,7 +256,6 @@ public interface Definitions {
 	public static final int ROOK_OPEN_FILE_EG        =  10;
 	public static final int ROOK_SEMIOPEN_FILE_MG    =  10;
 	public static final int ROOK_SEMIOPEN_FILE_EG    =  5;
-	public static final int TRAPPED_BISHOP		     = -100;
 	public static final int TRAPPED_ROOK             = -50;
 	public static final int ROOK_ON_7TH_MG           =  25;
 	public static final int ROOK_ON_7TH_EG           =  50;
