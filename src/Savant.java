@@ -106,8 +106,9 @@ import java.util.Stack;
  * 		  Added special evaluator for use in mating with KX vs K
  * 11-10: Added UCI support
  * 		  Fixed a bug where getMoveObject failed to recognize promotion inputs
- * 11-11: Changed formula for calculating aspiration window
- * 		  
+ * 11-11: Changed formula for calculating aspiration windows
+ * 11-12: Added time control support to UCI
+ *        Search now hard terminates when time is up
  */
 
 /**
@@ -121,20 +122,25 @@ public class Savant implements Definitions {
 	// TODO: blockage detection
 	// TODO: unstoppable passers
 	// TODO: king safety
-	// TODO: bishops of opposite colors
+	// TODO: bishops of opposite colors, other endgame scaling
 	// TODO: piece lists
-	// TODO: regex validation for fen
+	// TODO: regex input validation
 	// TODO: passed pawn pushes during quiescence
 	// TODO: repetition parity
 	// TODO: king proximity to passed pawns
 	// TODO: hard time stop, time control
+	// TODO: thorough evaluation tests
+	// TODO: blocked pawns
+	// TODO: filter underpromotions
 	
 	// repetition hash table
 	public static HashtableEntry[] reptable = new HashtableEntry[HASH_SIZE_REP];
-	public static Position pos = new Position();
+	public static Position pos              = new Position();
+	public static String openingLine        = "";
+	public static boolean inOpening         = true;
 	
 	/**
-	 * The main method, from which the game loop is run.
+	 * The main method, calls console mode or UCI mode.
 	 */
 	public static void main(String[] args) throws IOException {
 		//pos = new Position("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
@@ -151,18 +157,11 @@ public class Savant implements Definitions {
 		//pos = new Position("k7/P7/8/K7/8/8/8/8 w - - 0 1");
 		//pos = new Position("1k6/1P6/8/1K6/8/8/8/8 w - - 0 1");	
 		
-		Engine.minDepth      = 1;
-		Engine.maxDepth      = 40;
-		Engine.timeControlOn = true;
-		Engine.timeControl   = 1.0;
-		Engine.useBook       = true;
-		
 		if (args.length == 0)
 			consoleMode();
 		else if (args[0].charAt(0) == 'u')
 			uciMode();
 	}
-
 	
 	/**
 	 * Run the program in UCI mode.
@@ -171,8 +170,8 @@ public class Savant implements Definitions {
 		Engine.uciMode = true;
 		
 		BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
-		String openingLine   = "";
-		boolean inOpening    = true;
+		openingLine          = "";
+		inOpening            = true;
 		
 		while (true) {
 			String command = input.readLine();
@@ -219,6 +218,26 @@ public class Savant implements Definitions {
 			}
 			
 			if (command.startsWith("go")) {
+				String[] splitString = command.split(" ");
+				
+				int wtime = 0, btime = 0, winc = 0, binc = 0;
+				for (int i = 0; i < splitString.length; i++) {
+					try {
+						if (splitString[i].equals("wtime"))
+							wtime = Integer.parseInt(splitString[i + 1]);
+						else if (splitString[i].equals("btime"))
+							btime = Integer.parseInt(splitString[i + 1]);
+						else if(splitString[i].equals("winc"))
+							winc  = Integer.parseInt(splitString[i + 1]);
+						else if(splitString[i].equals("binc"))
+							binc  = Integer.parseInt(splitString[i + 1]);	
+					}
+					catch (ArrayIndexOutOfBoundsException ex) {}
+					catch (NumberFormatException ex) {}
+				}
+				
+				Engine.timeLeft  = (pos.sideToMove == WHITE ? wtime : btime);
+				Engine.increment = (pos.sideToMove == WHITE ? winc  : binc);
 				
 				Move move = null;
 				if (Engine.useBook && inOpening)
@@ -269,12 +288,13 @@ public class Savant implements Definitions {
 	 */
 	public static void consoleMode() throws FileNotFoundException {
 		Stack<Move> moveHistory = new Stack<Move>();
-		String openingLine      = "";
-		boolean inOpening       = true;
+		openingLine             = "";
+		inOpening               = true;
 		String gameOverMsg      = "";
-		boolean playWhite       = false;
-		boolean playBlack       = false;
+		boolean engineWhite     = false;
+		boolean engineBlack     = false;
 		Scanner input           = new Scanner(System.in);	
+		
 		pos.print();
 		System.out.println();
 		
@@ -302,17 +322,8 @@ public class Savant implements Definitions {
 			if (!gameOverMsg.isEmpty())
 				break;
 			
-			if (pos.moveNumber >= 15) {
-				Engine.timeControl = 2.0;
-				if (pos.moveNumber >= 30) {
-					Engine.timeControl = 1.0;
-					if (pos.moveNumber >= 45)
-						Engine.timeControl = 0.5;
-				}
-			}
-			
-			boolean engineTurn =   (pos.sideToMove == WHITE && playWhite)
-								|| (pos.sideToMove == BLACK && playBlack);
+			boolean engineTurn =   (pos.sideToMove == WHITE && engineWhite)
+								|| (pos.sideToMove == BLACK && engineBlack);
 			if (!engineTurn)
 				System.out.print((pos.sideToMove == WHITE ? "W" : "B") + ": ");
 			
@@ -347,23 +358,23 @@ public class Savant implements Definitions {
 					pos.unmakeMove(moveHistory.pop());
 					pos.print();
 				}
-				playWhite = false;
-				playBlack = false;
+				engineWhite = false;
+				engineBlack = false;
 				break;
 				
 			case "playout":
-				playWhite = true;
-				playBlack = true;
+				engineWhite = true;
+				engineBlack = true;
 				break;
 				
-			case "playwhite":
+			case "engineWhite":
 			case "playw":
-				playWhite = true;
+				engineWhite = true;
 				break;
 				
-			case "playblack":
+			case "engineBlack":
 			case "playb":
-				playBlack = true;
+				engineBlack = true;
 				break;
 				
 			case "fen":
@@ -399,7 +410,7 @@ public class Savant implements Definitions {
 				if (engineTurn) {
 					if (!inOpening)
 						System.out.println();
-					System.out.print("SAVANT plays: " + move);
+					System.out.println("SAVANT plays: " + move);
 				}
 				
 				pos.print();
