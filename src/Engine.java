@@ -13,10 +13,9 @@ import java.util.Scanner;
 public class Engine implements Definitions {
 	public static int minDepth             = 1;
 	public static int maxDepth             = 100;
+	public static boolean uciMode          = false;
 	public static boolean timeControlOn    = false;
 	public static double timeControl       = 1.0;
-	public static boolean showThinking     = true;
-	public static boolean showBoard        = true;
 	public static boolean useBook          = true;
 	public static int currentDepth;
 	public static int nullMovesMade;
@@ -57,15 +56,18 @@ public class Engine implements Definitions {
 		// The iterative deepening loop
 		for (currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
 			
-			if (currentDepth == 1	)
+			// For the first few depths, start with an infinite search window.
+			if (currentDepth < 5)
 				eval = alphaBeta(currentDepth, 0, -VALUE_INF, VALUE_INF, false, NODE_PV, pos);
 			
-			// We have a score from the previous depth, so try an aspirated search with a window
-			// around the previous iteration's eval.
+			// For later depths, try an aspirated search with a window around the previous
+			// iteration's eval.
 			else {
 				int delta = INITIAL_WINDOW_SIZE;
 				int alpha = Math.max(eval - delta, -VALUE_INF);
 				int beta  = Math.min(eval + delta, VALUE_INF);
+				// Start with a small aspiration window. If we fail high/low, re-search with a
+				// bigger window until we succeed.
 				while (true) {
 					eval = alphaBeta(currentDepth, 0, alpha, beta, false, NODE_PV, pos);
 					
@@ -80,7 +82,7 @@ public class Engine implements Definitions {
 					else
 						break;
 					
-					delta *= 1.5; // increase width
+					delta += delta / 4 + 5; // increase width
 					
 					assert(alpha >= -VALUE_INF && beta <= VALUE_INF);
 				}
@@ -94,29 +96,30 @@ public class Engine implements Definitions {
 			// Update the pv
 			pv = extractPV(pos);
 			
-			// Display engine thinking
-			if (showThinking && !pv.isEmpty()) {
-				String pvString = pv.toString().replace(",", "");
-				pvString        = pvString.substring(1, pvString.length() - 1);
+			// Update the GUI
+			String pvString = pv.toString().replace(",", "");
+			pvString        = pvString.substring(1, pvString.length() - 1);
+			if (uciMode)
 				System.out.println(  "info score cp " + eval
 								   + " depth "        + currentDepth
 								   + " nodes "        + nodes
 								   + " nps "          + 0
-								   + " time "         + ((int) (endTime - startTime))
+								   + " time "         + (int) timeElapsed
 								   + " pv "           + pvString);
-				
-				/*System.out.println("(d=" + currentDepth + ") " + pv.get(0) +
-						" [" + evalString + "] " + PVString + 
-						" (n=" + nodes + " t=" + timeElapsed + "s)");*/
-			}
+			else
+				System.out.println(  "(d=" + currentDepth + ") "
+								   + pv.get(0)
+								   + " [" + eval / 100.0 + "] "
+								   + pvString 
+								   + " (n=" + nodes + " t=" + decimalTime + "s)");
 			
-			
-			// If a forced mate was found, end the search
-			if (Math.abs(eval) > VALUE_MATE_THRESHOLD)
-				break;
-
-			// If time is up and we have searched to minDepth, end the search
-			if (timeControlOn && decimalTime > timeControl && currentDepth >= minDepth)
+			// Stop searching if:
+			// 1) A forced mate was found
+			// 2) We have only one legal move
+			// 3) Time is up and we have searched to the minDepth
+			if (   (Math.abs(eval) > VALUE_MATE_THRESHOLD)
+				|| (pos.filterLegal(pos.generateMoves(false)).size() == 1)
+				|| (timeControlOn && decimalTime > timeControl && currentDepth >= minDepth))
 				break;
 		}
 	}
