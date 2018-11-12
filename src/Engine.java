@@ -11,20 +11,24 @@ import java.util.Scanner;
  * created 10-22-18
  */
 public class Engine implements Definitions {
-	public static int minDepth             = 1;
-	public static int maxDepth             = 100;
-	public static boolean uciMode          = false;
-	public static boolean timeControlOn    = false;
-	public static double timeControl       = 1.0;
-	public static boolean useBook          = true;
-	public static int currentDepth;
-	public static int nullMovesMade;
-	public static int[][][] historyMoves;
-	public static HashtableEntry[] ttable;
-	public static HashtableEntry[] pvtable;
+	public static int maxDepth             = 100;   // max depth to search
+	public static boolean uciMode          = false; // true if we are in UCI mode
+	public static int timeLeft             = 60000; // total time remaining in milliseconds
+	public static int increment            = 1000;  // increment per move
+	public static int timePerMove          = 1000;  // time for this move
+	public static boolean useBook          = true;  // true if we are using the native opening book
+	public static int currentDepth;                 // current depth of search
+	public static long startTime;                   // time the search was started
+	public static boolean abortedSearch;	        // true if the search was ended early
+	public static int nullMovesMade;                // number of null moves made to this position
 	
+	public static int[][][] historyMoves;           // history heuristic move counter
+	public static HashtableEntry[] ttable;          // transposition table
+	public static HashtableEntry[] pvtable;         // hash table to store PV moves
+
 	public static ArrayList<Move> pv;
 	public static Move bestMove;
+	public static Move prevBestMove;
 	public static int eval;
 	public static long nodes;
 
@@ -33,12 +37,14 @@ public class Engine implements Definitions {
 	 */
 	public static void initializeSearch() {
 		currentDepth  = 0;
+		abortedSearch = false;
 		nullMovesMade = 0;
 		historyMoves  = new int[2][13][120];
 		ttable        = new HashtableEntry[HASH_SIZE_TT];
 		pvtable       = new HashtableEntry[HASH_SIZE_PV];
 		pv            = new ArrayList<Move>();
 		bestMove      = null;
+		prevBestMove  = null;
 		eval          = 0;
 		nodes         = 0;
 	}
@@ -50,8 +56,14 @@ public class Engine implements Definitions {
 	public static void search(Position pos) {
 		initializeSearch();
 		
+		// Calculate the time to use for this move
+		if (timeLeft > increment)
+			timePerMove = timeLeft / 40 + increment;
+		else
+			timePerMove = timeLeft / 40 + increment / 2;
+		
 		// Start the timer
-		long startTime = System.currentTimeMillis();
+		startTime = System.currentTimeMillis();
 		
 		// The iterative deepening loop
 		for (currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
@@ -70,6 +82,12 @@ public class Engine implements Definitions {
 				// bigger window until we succeed.
 				while (true) {
 					eval = alphaBeta(currentDepth, 0, alpha, beta, false, NODE_PV, pos);
+
+					// Use last iteration's move if the search was terminated early
+					if (abortedSearch) {
+						bestMove = prevBestMove;
+						break;
+					}
 					
 					// In case of failing low/high increase aspiration window and re-search,
 					// otherwise exit the loop.
@@ -82,19 +100,25 @@ public class Engine implements Definitions {
 					else
 						break;
 					
-					delta += delta / 4 + 5; // increase width
+					// Increase window width
+					delta += delta / 4 + 5;
 					
 					assert(alpha >= -VALUE_INF && beta <= VALUE_INF);
 				}
 			}
 			
-			// Stop the timer
+			// Stop searching if time is up
+			if (abortedSearch)
+				break;
+			
+			// Check the timer
 			long endTime = System.currentTimeMillis();
-			double timeElapsed = (endTime - startTime);
+			double timeElapsed = endTime - startTime;
 			double decimalTime = timeElapsed / 1000.0;
 			
-			// Update the pv
+			// Update the pv and previous best move
 			pv = extractPV(pos);
+			prevBestMove = bestMove;
 			
 			// Update the GUI
 			String pvString = pv.toString().replace(",", "");
@@ -108,18 +132,14 @@ public class Engine implements Definitions {
 								   + " pv "           + pvString);
 			else
 				System.out.println(  "(d=" + currentDepth + ") "
-								   + pv.get(0)
+								   + bestMove
 								   + " [" + eval / 100.0 + "] "
 								   + pvString 
 								   + " (n=" + nodes + " t=" + decimalTime + "s)");
 			
-			// Stop searching if:
-			// 1) A forced mate was found
-			// 2) We have only one legal move
-			// 3) Time is up and we have searched to the minDepth
+			// Stop searching if a forced mate was found, or we have only one legal move
 			if (   (Math.abs(eval) > VALUE_MATE_THRESHOLD)
-				|| (pos.filterLegal(pos.generateMoves(false)).size() == 1)
-				|| (timeControlOn && decimalTime > timeControl && currentDepth >= minDepth))
+				|| (pos.filterLegal(pos.generateMoves(false)).size() == 1))
 				break;
 		}
 	}
@@ -211,11 +231,19 @@ public class Engine implements Definitions {
 								 Position pos) {
 
 		// Enter quiescence search once we reach a leaf node
-		
 		if (ply <= 0)
 			return quiescence(alpha, beta, pos);
 		
 		nodes++;
+		if (nodes % 1000 == 0) {
+			if ((System.currentTimeMillis() - startTime) > timePerMove) {
+				abortedSearch = true;
+				return 0;
+			}
+		}
+		
+		if (abortedSearch)
+			return 0;
 		
 		int eval = 0;
 		boolean rootNode = (nodeType == NODE_PV && ply == currentDepth);
@@ -274,6 +302,7 @@ public class Engine implements Definitions {
 			&& !inCheck
 			&& beta < VALUE_MATE_THRESHOLD
 			&& !pos.isPawnEnding(pos.sideToMove)) {
+			
 			int R = 3; // depth reduction factor
 			pos.makePassingMove();
 			nullMovesMade++;
@@ -314,11 +343,19 @@ public class Engine implements Definitions {
 			}
 			
 			foundLegal = true;
-			boolean doFullSearch = false;
+			boolean doFullDepthSearch = false;
+			
+			// Extend the search for king moves that change castling rights
+			boolean canCastle = (pos.sideToMove == WHITE ? 
+					pos.canCastle(W_SHORT_CASTLE) || pos.canCastle(W_LONG_CASTLE)
+				  : pos.canCastle(B_SHORT_CASTLE) || pos.canCastle(B_LONG_CASTLE));
+			if (canCastle && move.piece * pos.sideToMove == KING && ply < 7) {
+				ply++;
+				ext++;
+			}
 			
 			// Late move reductions
 			if (   nodeType != NODE_PV
-				&& !inCheck
 				&& ply >= 3
 			    && movesTried >= 1 
 			    && move.captured == 0
@@ -326,19 +363,21 @@ public class Engine implements Definitions {
 				int R = 1;
 				//int R = (int) Math.sqrt(2 * (ply - 1) + Math.sqrt(2 * (movesTried - 1)));
 				eval = -alphaBeta(ply - R - 1, ext, -alpha - 1, -alpha, true, NODE_CUT, pos);
-				doFullSearch = (eval > alpha);
+				doFullDepthSearch = (eval > alpha);
 			}
 			else
-				doFullSearch = true;
+				doFullDepthSearch = true;
 			
-			if (doFullSearch) {
-				// Search first move to full depth
-				if (nodeType != NODE_PV || movesTried == 0)
-					eval = -alphaBeta(ply - 1, ext, -beta, -alpha, true, nodeType, pos);
+			if (doFullDepthSearch) {
+				// Search first move of PV nodes with full width
+				if (nodeType == NODE_PV && movesTried == 0)
+					eval = -alphaBeta(ply - 1, ext, -beta, -alpha, true, NODE_PV, pos);
 				else {
 					// Principal variation search
 					eval = -alphaBeta(ply - 1, ext, -alpha - 1, -alpha, true, NODE_CUT, pos);
-					// Do a full width search
+					// PVS failed high. Do a re-search if eval < beta, otherwise let the
+					// parent node fail low with value <= alpha. Re-search is done as a 
+					// PV node.
 					if (eval > alpha && eval < beta)
 						eval = -alphaBeta(ply - 1, ext, -beta, -alpha, true, NODE_PV, pos);
 				} 
@@ -374,6 +413,7 @@ public class Engine implements Definitions {
 				alpha = eval;
 			}
 			
+			// Increment move count
 			movesTried++;
 		}
 		
@@ -466,6 +506,7 @@ public class Engine implements Definitions {
 		if (hash != null)
 			hashMove = hash.move;
 		
+		// Go through the move list and assign priorities
 		for (Move move : moveList) {		
 			if (hashMove != null && move.longNotation().equals(hashMove))
 				move.priority = 121;
