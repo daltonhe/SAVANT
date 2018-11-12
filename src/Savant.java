@@ -1,4 +1,7 @@
+import java.io.BufferedReader;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Scanner;
 import java.util.Stack;
 /**
@@ -101,6 +104,8 @@ import java.util.Stack;
  *        Validated perft and sanity checked hash table
  *        Added node type parameter to search and made corrections to PVS implementation
  * 		  Added special evaluator for use in mating with KX vs K
+ * 11-10: Added UCI support
+ * 		  Fixed a bug where getMoveObject failed to recognize promotion inputs
  */
 
 /**
@@ -109,7 +114,6 @@ import java.util.Stack;
 public class Savant implements Definitions {
 	// TODO: fix opening book after user undo
 	// TODO: in-tree repetition detection
-	// TODO: efficient zobrist update
 	// TODO: expand opening book
 	// TODO: mobility area
 	// TODO: backward pawns
@@ -117,19 +121,19 @@ public class Savant implements Definitions {
 	// TODO: unstoppable passers
 	// TODO: king safety
 	// TODO: bishops of opposite colors
-	// TODO: UCI support
 	// TODO: piece lists
 	// TODO: regex validation for fen
+	// TODO: eval output during opening moves
+	// TODO: pass pawn pushes during quiescence
 	
 	// repetition hash table
 	public static HashtableEntry[] reptable = new HashtableEntry[HASH_SIZE_REP];
+	public static Position pos = new Position();
 	
 	/**
 	 * The main method, from which the game loop is run.
 	 */
-	public static void main(String[] args) throws FileNotFoundException {
-		Position pos = new Position();
-		
+	public static void main(String[] args) throws IOException {
 		//pos = new Position("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
 		//pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
 		//pos = new Position("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
@@ -144,14 +148,123 @@ public class Savant implements Definitions {
 		//pos = new Position("k7/P7/8/K7/8/8/8/8 w - - 0 1");
 		//pos = new Position("1k6/1P6/8/1K6/8/8/8/8 w - - 0 1");	
 		
-		Engine.minDepth      = 9;
-		Engine.maxDepth      = 25;
+		Engine.minDepth      = 1;
+		Engine.maxDepth      = 40;
 		Engine.timeControlOn = true;
-		Engine.timeControl   = 4.0;
+		Engine.timeControl   = 0.1;
 		Engine.showThinking  = true;
 		Engine.showBoard     = true;
-		Engine.useBook       = (pos.getFEN().equals(INITIAL_FEN));
+		Engine.useBook       = true;
 		
+		if (args.length == 0)
+			consoleMode();
+		else if (args[0].charAt(0) == 'u')
+			uciMode();
+	}
+
+	
+	/**
+	 * Run the program in UCI mode.
+	 */
+	public static void uciMode() throws IOException {
+		BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
+		String openingLine   = "";
+		boolean inOpening    = true;
+		
+		while (true) {
+			String command = input.readLine();
+			
+			if (command.equals("uci")) {
+				System.out.println("id name SAVANT v1.0");
+				System.out.println("id author Dalton He");
+				System.out.println("uciok");
+			}
+				
+			if (command.equals("isready"))
+				System.out.println("readyok");
+				
+			if (command.equals("quit"))
+				System.exit(0);
+				
+			if (command.equals("ucinewgame")) {
+				reptable  = new HashtableEntry[HASH_SIZE_REP];
+				inOpening = true;
+			}
+				
+			if (command.startsWith("position")) {
+				if (command.contains("startpos"))
+					pos = new Position();
+				else
+					pos = new Position(extractFEN(command));
+				
+				String[] moveList = extractMoves(command);
+				openingLine = "";
+				if (moveList != null) {
+					for (int i = 0; i < moveList.length; i++) {
+						Move move = Engine.getMoveObject(moveList[i], pos);
+						pos.makeMove(move);
+						openingLine += move + " ";
+						
+						// Add position to repetition hash table
+						int hashKey = (int) (pos.zobrist % HASH_SIZE_REP);
+						if (reptable[hashKey] == null)
+							reptable[hashKey] = new HashtableEntry(pos.zobrist);
+						else if (pos.zobrist == reptable[hashKey].zobrist)
+								reptable[hashKey].count++;
+					}
+				}
+			}
+			
+			if (command.startsWith("go")) {
+				
+				Move move = null;
+				if (Engine.useBook && inOpening)
+					move = Engine.getMoveObject(Engine.getBookMove(openingLine), pos);
+				
+				if (move == null) {
+					inOpening = false;
+					Engine.search(pos);
+					move = Engine.bestMove;
+				}
+				
+				pos.makeMove(move);
+				
+				System.out.println("bestmove " + move.longNotation());
+			}
+		}
+	}
+	
+	/**
+	 * Extracts the FEN string from the given UCI position command.
+	 */
+	private static String extractFEN(String command) {
+		String[] splitString = command.split(" ");
+		String fen = "";
+		
+		fen += splitString[2] + " "; // Pieces
+		fen += splitString[3] + " "; // Side to move
+		fen += splitString[4] + " "; // Castling rights
+		fen += splitString[5] + " "; // Enpassant square
+		fen += splitString[6] + " "; // Half moves
+		fen += splitString[7];       // Full moves
+
+		return fen;
+	}
+	
+	/**
+	 * Extracts the moves from the given UCI position command.
+	 */
+	private static String[] extractMoves(String command) {
+		if (!command.contains("moves"))
+			return null;
+		
+		return command.substring(command.indexOf("moves") + 6).split(" ");
+	}
+	
+	/**
+	 * Run the program in console mode.
+	 */
+	public static void consoleMode() throws FileNotFoundException {
 		Stack<Move> moveHistory = new Stack<Move>();
 		String openingLine      = "";
 		boolean inOpening       = true;
@@ -159,19 +272,20 @@ public class Savant implements Definitions {
 		boolean playWhite       = false;
 		boolean playBlack       = false;
 		Scanner input           = new Scanner(System.in);	
-		
 		pos.print();
 		System.out.println();
 		
 		// Game loop
 		while (true) {
+			
 			HashtableEntry rentry = Engine.getEntry(pos.zobrist, reptable);
 			boolean repeated = (rentry != null && rentry.count >= 3);
 
 			// Check for mate/stalemate,  or draw by repetition
 			if (pos.filterLegal(pos.generateMoves(false)).isEmpty()) {
 				if (pos.inCheck(pos.sideToMove))
-					gameOverMsg = (pos.sideToMove == WHITE ? "Black" : "White") + " wins by checkmate.";
+					gameOverMsg = (pos.sideToMove == WHITE ? "Black" : "White") + 
+								  " wins by checkmate.";
 				else
 					gameOverMsg = "Game drawn by stalemate.";
 			}	
@@ -179,10 +293,9 @@ public class Savant implements Definitions {
 			if (pos.insufficientMaterial())
 				gameOverMsg = "Game drawn by insufficient material.";
 			// Check for draw by repetition
-			if (repeated) {
+			if (repeated)
 				gameOverMsg = "Game drawn by threefold repetition.";
-			}
-			
+				
 			if (!gameOverMsg.isEmpty())
 				break;
 			
@@ -217,10 +330,11 @@ public class Savant implements Definitions {
 				engineTurn = true;
 				if (Engine.useBook && inOpening)
 					move = Engine.getMoveObject(Engine.getBookMove(openingLine), pos);
+				
 				if (move == null) {
 					inOpening = false;
 					Engine.search(pos);
-					move = Engine.pv.get(0);
+					move = Engine.bestMove;
 				}
 				break;
 				
@@ -272,14 +386,12 @@ public class Savant implements Definitions {
 				if (inOpening)
 					openingLine += move + " ";
 				
-				// Add move to repetition hash table
+				// Add position to repetition hash table
 				int hashKey = (int) (pos.zobrist % HASH_SIZE_REP);
 				if (reptable[hashKey] == null)
 					reptable[hashKey] = new HashtableEntry(pos.zobrist);
-				else {
-					if (pos.zobrist == reptable[hashKey].zobrist)
+				else if (pos.zobrist == reptable[hashKey].zobrist)
 						reptable[hashKey].count++;
-				}
 				
 				if (engineTurn) {
 					if (Engine.showThinking && !inOpening)

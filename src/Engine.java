@@ -25,6 +25,7 @@ public class Engine implements Definitions {
 	public static HashtableEntry[] pvtable;
 	
 	public static ArrayList<Move> pv;
+	public static Move bestMove;
 	public static int eval;
 	public static long nodes;
 
@@ -32,11 +33,15 @@ public class Engine implements Definitions {
 	 * Resets engine fields in preparation for a new search.
 	 */
 	public static void initializeSearch() {
+		currentDepth  = 0;
 		nullMovesMade = 0;
-		nodes         = 0;
 		historyMoves  = new int[2][13][120];
 		ttable        = new HashtableEntry[HASH_SIZE_TT];
 		pvtable       = new HashtableEntry[HASH_SIZE_PV];
+		pv            = new ArrayList<Move>();
+		bestMove      = null;
+		eval          = 0;
+		nodes         = 0;
 	}
 	
 	/**
@@ -83,27 +88,35 @@ public class Engine implements Definitions {
 			
 			// Stop the timer
 			long endTime = System.currentTimeMillis();
-			double timeElapsed = (endTime - startTime) / 1000.0;
+			double timeElapsed = (endTime - startTime);
+			double decimalTime = timeElapsed / 1000.0;
 			
 			// Update the pv
 			pv = extractPV(pos);
 			
 			// Display engine thinking
 			if (showThinking && !pv.isEmpty()) {
-				String PVString = pv.toString().replace(",", "");
-				PVString = PVString.substring(1, PVString.length() - 1);
-				String evalString = "" + (eval / 100.0);
-				System.out.println("(d=" + currentDepth + ") " + pv.get(0) +
+				String pvString = pv.toString().replace(",", "");
+				pvString        = pvString.substring(1, pvString.length() - 1);
+				System.out.println(  "info score cp " + eval
+								   + " depth "        + currentDepth
+								   + " nodes "        + nodes
+								   + " nps "          + 0
+								   + " time "         + ((int) (endTime - startTime))
+								   + " pv "           + pvString);
+				
+				/*System.out.println("(d=" + currentDepth + ") " + pv.get(0) +
 						" [" + evalString + "] " + PVString + 
-						" (n=" + nodes + " t=" + timeElapsed + "s)");
+						" (n=" + nodes + " t=" + timeElapsed + "s)");*/
 			}
+			
 			
 			// If a forced mate was found, end the search
 			if (Math.abs(eval) > VALUE_MATE_THRESHOLD)
 				break;
 
 			// If time is up and we have searched to minDepth, end the search
-			if (timeControlOn && timeElapsed > timeControl && currentDepth >= minDepth)
+			if (timeControlOn && decimalTime > timeControl && currentDepth >= minDepth)
 				break;
 		}
 	}
@@ -143,9 +156,8 @@ public class Engine implements Definitions {
 		ArrayList<Move> moveList = pos.filterLegal(pos.generateMoves(false));
 		for (Move move : moveList) {
 			Engine.addAlgebraicModifier(move, moveList);
-			String longNotation = Position.indexToAlgebraic(move.start) + 
-					Position.indexToAlgebraic(move.target);
-			if (notation.equals(longNotation) || notation.equalsIgnoreCase(move.toString()))
+			if (   notation.equalsIgnoreCase(move.longNotation()) 
+				|| notation.equalsIgnoreCase(move.toString()))
 				return move;
 		}
 		return null;
@@ -265,6 +277,7 @@ public class Engine implements Definitions {
 			eval = -alphaBeta(ply - R - 1, ext, -beta, -beta + 1, false, NODE_CUT, pos);
 			pos.makePassingMove();
 			nullMovesMade--;
+			
 			// Fail high
 			if (eval >= beta) {
 				// Do not return unproven mate scores
@@ -349,6 +362,8 @@ public class Engine implements Definitions {
 			// New best move
 			if (eval > alpha) {
 				bestMove = move.longNotation();
+				if (rootNode)
+					Engine.bestMove = move;
 				
 				int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
 				pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation()); 
@@ -451,7 +466,7 @@ public class Engine implements Definitions {
 		for (Move move : moveList) {		
 			if (hashMove != null && move.longNotation().equals(hashMove))
 				move.priority = 121;
-			else if (move.type == PROMOTION)
+			else if (move.type == PROMOTION && move.piece * pos.sideToMove == QUEEN)
 				move.priority = 120;
 			// MVV/LVA
 			else if (move.captured != 0)
