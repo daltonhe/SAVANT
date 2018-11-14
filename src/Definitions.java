@@ -11,12 +11,13 @@ public interface Definitions {
 	public static final int BLACK = -1;
 	
 	// Pieces (generic)
-	public static final int PAWN   = 1;
-	public static final int KNIGHT = 2;
-	public static final int BISHOP = 3;
-	public static final int ROOK   = 4;
-	public static final int QUEEN  = 5;
-	public static final int KING   = 6;
+	public static final int PIECE_NONE = 0;
+	public static final int PAWN       = 1;
+	public static final int KNIGHT     = 2;
+	public static final int BISHOP     = 3;
+	public static final int ROOK       = 4;
+	public static final int QUEEN      = 5;
+	public static final int KING       = 6;
 	
 	public static final String PIECE_STR = "kqrbnp.PNBRQK";
 	
@@ -73,19 +74,25 @@ public interface Definitions {
 	public static final int VALUE_INF            = 10001;
 	public static final int VALUE_MATE           = 10000;
 	public static final int VALUE_MATE_THRESHOLD = 9900;
+	public static final int VALUE_KNOWN_WIN      = 1000;
 	public static final int VALUE_DRAW           = 0;
 	public static final int VALUE_CONTEMPT       = 20;
 	
-	public static final int NODE_PV              = 0;
-	public static final int NODE_CUT             = 1;
+	public static final int NODE_PV              =  0;
+	public static final int NODE_CUT             =  1;
+	public static final int NODE_ALL             = -1;
 
-	public static final int DELTA_MARGIN         = 200;
 	public static final int INITIAL_WINDOW_SIZE  = 10;
+	public static final int DELTA_MARGIN         = 200;
+	public static final int FUTILITY_MARGIN      = 325;
+	public static final int FUTILITY_EXT_MARGIN  = 500;
+	
+	public static final int TIME_INF = 9999000;
 	
 	// Transposition table
-	public static final int HASH_SIZE_TT  = 524288;
+	public static final int HASH_SIZE_TT  = 131072;
 	public static final int HASH_SIZE_REP = 32768;
-	public static final int HASH_SIZE_PV  = 32768;
+	public static final int HASH_SIZE_PV  = 131072;
 	
 	public static final int BOUND_EXACT = 0;
 	public static final int BOUND_LOWER = 1;
@@ -102,10 +109,9 @@ public interface Definitions {
 	public static final int ROOK_MG   = 500,  ROOK_EG   = 500;
 	public static final int QUEEN_MG  = 975,  QUEEN_EG  = 975;
 	
-	public static final int PIECE_VALUE_MG[] =
-		{0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
-	public static final int PIECE_VALUE_EG[] =
-		{0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
+	public static final int PIECE_VALUE_MG[]   = {0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
+	public static final int PIECE_VALUE_EG[]   = {0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
+	public static final int PIECE_UNIT_VALUE[] = {0, 0, 3, 3, 5, 9, 0};
 	
 	public static final int PSQT_MG[][][] = {
 		    {{}},
@@ -117,8 +123,7 @@ public interface Definitions {
 		    	{-7, -3, 10, 12, 12, 10, -3, -7},    	
 		    	{-8, -1, 11, 11, 11, 11, -1, -8},	
 		    	{-5,  3,  3,  8,  8,  3,  3, -5},
-		    	{ 0,  0,  0,  0,  0,  0,  0,  0}
-		    },
+		    	{ 0,  0,  0,  0,  0,  0,  0,  0}},
 		    { // Knight
 		    	{-100, -40, -26, -16, -16, -26, -40,-100},
 		    	{ -33, -10,   3,  18,  18,   3, -10, -33},
@@ -127,9 +132,7 @@ public interface Definitions {
 		    	{ -14,   2,  20,  23,  23,  20,   2, -14},
 		    	{ -32, -10,   2,   9,   9,   2, -10, -32},
 		    	{ -39, -19, -12,  -4,  -4, -12, -19, -39},
-		    	{ -84, -48, -40, -39, -39, -40, -48, -84}
-		    },
-		    
+		    	{ -84, -48, -40, -39, -39, -40, -48, -84} },
 		    { // Bishop
 		    	{-23, -3, -8, -14, -14, -8, -3, -23},
 		    	{ -9, -6,  3,  -5,  -5,  3, -6,  -9},
@@ -138,8 +141,7 @@ public interface Definitions {
 		    	{  2,  4,  9,  20,  20,  9,  4,   2},
 		    	{ -4, 11, -1,   6,   6, -1, 11,  -4},
 		    	{-12,  4,  7,   0,   0,  7,  4, -12},
-		    	{-24, -3, -5, -17,- 17, -5, -3, -24}
-		    },
+		    	{-24, -3, -5, -17,- 17, -5, -3, -24}},
 		    { // Rook
 		    	{-12, -7, -5, -2, -2, -5, -7, -12},
 		    	{ -6,  2,  4,  6,  6,  4,  2,  -6},
@@ -148,8 +150,7 @@ public interface Definitions {
 		    	{-11, -3,  0,  1,  1,  0, -3, -11},
 		    	{-10, -4, -2,  1,  1, -2, -4, -10},
 		    	{-10, -4, -1,  0,  0, -1, -4, -10},
-		    	{-12, -8, -5,  3,  3, -5, -8, -12}
-		    },
+		    	{-12, -8, -5,  3,  3, -5, -8, -12}},
 		    { // Queen
 		    	{ 0, -2,  0,  0,  0,  0, -2,  0},
 		    	{-1,  3,  3,  3,  3,  3,  3, -1},
@@ -158,8 +159,7 @@ public interface Definitions {
 		    	{ 0,  4,  5,  3,  3,  5,  4,  0},
 		    	{-1,  3,  4,  4,  4,  4,  3, -1},
 		    	{-2,  3,  4,  4,  4,  4,  3, -2},
-		    	{ 0, -2, -1,  0,  0, -1, -2,  0}
-		    },
+		    	{ 0, -2, -1,  0,  0, -1, -2,  0}},
 		    { // King
 		    	{ 32,  43,  24,  0,  0,  24,  43,  32},
 		    	{ 43,  60,  32, 12, 12,  32,  60,  43},
@@ -168,8 +168,7 @@ public interface Definitions {
 		    	{ 84,  95,  68, 54, 54,  68,  95,  84},
 		    	{ 99, 126,  84, 60, 60,  84, 126,  99},
 		    	{138, 152, 120, 91, 91, 120, 152, 138},
-		    	{136, 162, 136, 95, 95, 136, 162, 136}
-		    }
+		    	{136, 162, 136, 95, 95, 136, 162, 136}}
 		};
 		public static final int PSQT_EG[][][] = {
 			{{}},
@@ -181,8 +180,7 @@ public interface Definitions {
 		    	{ 3, -2, -4,  1,  1, -4, -2,  3},
 		    	{-1,  1,  3,  0,  0,  3,  1, -1},
 		    	{-1,  0,  3,  1,  1,  3,  0, -1},
-		    	{ 0,  0,  0,  0,  0,  0,  0,  0}
-		    },
+		    	{ 0,  0,  0,  0,  0,  0,  0,  0}},
 		    { // Knight
 		    	{-49, -44, -26, -8, -8, -26, -44, -49},
 		    	{-32, -22, -18,  8,  8, -18, -22, -32},
@@ -191,8 +189,7 @@ public interface Definitions {
 		    	{-18,   0,   6, 17, 17,   6,   0, -18},
 		    	{-19, -16,  -2, 13, 13,  -2, -16, -19},
 		    	{-35, -28,  -7,  3,  3, -30,  -7, -35},
-		    	{-52, -37, -23, -9, -9, -23, -37, -52}
-		    },
+		    	{-52, -37, -23, -9, -9, -23, -37, -52}},
 		    { // Bishop
 		    	{-27, -16, -18, -8, -8, -18, -16, -27},
 		    	{-17,  -5,  -6,  3,  3,  -6,  -5, -17},
@@ -201,8 +198,7 @@ public interface Definitions {
 		    	{-13,  -1,  -2,  8,  8,  -2,  -1, -13},
 		    	{-11,   0,  -1,  8,  8,  -1,   0, -11},
 		    	{-17,  -4,  -7,  2,  2,  -7,  -4, -17},
-		    	{-29, -15, -18, -9, -9, -18, -15, -29}
-		    },
+		    	{-29, -15, -18, -9, -9, -18, -15, -29}},
 		    { // Rook
 		    	{0, 0, 0, 0, 0, 0, 0, 0},
 		    	{0, 0, 0, 0, 0, 0, 0, 0},
@@ -211,8 +207,7 @@ public interface Definitions {
 		    	{0, 0, 0, 0, 0, 0, 0, 0},
 		    	{0, 0, 0, 0, 0, 0, 0, 0},
 		    	{0, 0, 0, 0, 0, 0, 0, 0},
-		    	{0, 0, 0, 0, 0, 0, 0, 0}
-		    },
+		    	{0, 0, 0, 0, 0, 0, 0, 0}},
 		    { // Queen
 		    	{-37, -27, -21, -15, -15, -21,  27, -37},
 		    	{-27, -15, -10,  -3,  -3, -10, -15, -27},
@@ -221,8 +216,7 @@ public interface Definitions {
 		    	{-14,  -2,   4,   9,   9,   4,  -2, -14},
 		    	{-19,  -8,  -4,   2,   2,  -4,  -8, -19},
 		    	{-28, -15, -10,  -2,  -2, -10, -15, -28},
-		    	{-35, -28, -21, -14, -14, -21, -28, -35}
-		    },
+		    	{-35, -28, -21, -14, -14, -21, -28, -35}},
 		    { // King
 		    	{ 2, 30, 37, 37, 37, 37, 30,  2},
 		    	{20, 49, 64, 70, 70, 64, 49, 20},
@@ -231,8 +225,7 @@ public interface Definitions {
 		    	{51, 76, 84, 84, 84, 84, 76, 51},
 		    	{43, 69, 82, 86, 86, 82, 69, 43},
 		    	{28, 49, 69, 65, 65, 69, 49, 28},
-		    	{ 0, 20, 40, 46, 46, 40, 20,  0}
-		    }
+		    	{ 0, 20, 40, 46, 46, 40, 20,  0}}
 		};
 	
 	public static final int TEMPO                    =  10;
@@ -245,7 +238,7 @@ public interface Definitions {
 	public static final int KNIGHT_PAWN_SYNERGY	     =  6;
 	public static final int ROOK_PAWN_SYNERGY        = -12;
 	public static final int DOUBLED_PAWN_MG          = -10;
-	public static final int DOUBLED_PAWN_EG          = -30;
+	public static final int DOUBLED_PAWN_EG          = -25;
 	public static final int ISOLATED_PAWN_MG         = -10;
 	public static final int ISOLATED_PAWN_EG         = -20;
 	public static final int SUPPORTED_PAWN           =  8;
@@ -312,7 +305,7 @@ public interface Definitions {
 		{ 90, 70, 60, 50, 50, 60, 70, 90 },
 		{100, 90, 80, 70, 70, 80, 90, 100}
 	};
-	public static final int KING_PROXIMITY[] = {0, 0, 100, 80, 60, 40, 20, 10};
+	public static final int KINGS_PROXIMITY[] = {0, 0, 100, 80, 60, 40, 20, 10};
 	
 	/*public static final int MOBILITY_MG[][] = {
 		{},
