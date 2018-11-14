@@ -107,8 +107,24 @@ import java.util.Stack;
  * 11-10: Added UCI support
  * 		  Fixed a bug where getMoveObject failed to recognize promotion inputs
  * 11-11: Changed formula for calculating aspiration windows
+ * 		  Search is now stopped early when there is only one legal move
  * 11-12: Added time control support to UCI
  *        Search now hard terminates when time is up
+ *        Implemented internal iterative deepening
+ *        Added static eval restriction to null move pruning
+ *        Added dynamic LMR reduction factor based on node type, ply, and moves searched
+ *        Endgame eval score is now scaled down when draw due to insufficient material is likely
+ *        Zobrist keys are now the same irrespective of the side to move (for the repetition
+ *        	hash table only)
+ * 11-13: Added bonuses for king proximity to passed pawns in the endgame
+ * 		  Reverted to tempo bonus being applied at all stages of the game
+ * 11-14: Implemented in-tree repetition detection
+ * 		  Repetition hash table is now stored as a field in the Position class
+ *        Moved null move parameters to Position class
+ *        Fixed a bug where the inCheck flag was set incorrectly during search
+ *        Delta pruning margin is now calculated correctly for promotions
+ *        Delta pruning is now switched off in the late endgame
+ *        Implemented futility pruning and extended futility pruning
  */
 
 /**
@@ -116,35 +132,36 @@ import java.util.Stack;
  */
 public class Savant implements Definitions {
 	// TODO: fix opening book after user undo
-	// TODO: in-tree repetition detection
 	// TODO: mobility area
 	// TODO: backward pawns
 	// TODO: blockage detection
-	// TODO: unstoppable passers
+	// TODO: passed pawn eval
 	// TODO: king safety
-	// TODO: bishops of opposite colors, other endgame scaling
 	// TODO: piece lists
 	// TODO: regex input validation
-	// TODO: passed pawn pushes during quiescence
-	// TODO: repetition parity
-	// TODO: king proximity to passed pawns
-	// TODO: hard time stop, time control
-	// TODO: thorough evaluation tests
+	// TODO: run thorough evaluation tests
 	// TODO: blocked pawns
-	// TODO: filter underpromotions
-	
-	// repetition hash table
-	public static HashtableEntry[] reptable = new HashtableEntry[HASH_SIZE_REP];
-	public static Position pos              = new Position();
-	public static String openingLine        = "";
-	public static boolean inOpening         = true;
+	// TODO: null verification search
+	// TODO: material imbalance
+	// TODO: checks in quiescence
+	// TODO: passed pawn pushes during quiescence
+	// TODO: time management
+	// TODO: SEE
+	// TODO: download more UCI engines
+	// TODO: simple KP endgame eval
+	// TODO: reuse transposition table (ancient nodes)
+	// TODO: preservation of PV
+
+	public static Position pos        = new Position();
+	public static String openingLine  = "";
+	public static boolean inOpening   = true;
 	
 	/**
 	 * The main method, calls console mode or UCI mode.
 	 */
 	public static void main(String[] args) throws IOException {
 		//pos = new Position("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
-		//pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
+		pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
 		//pos = new Position("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
 		
 		//pos = new Position("k7/8/8/8/q7/8/8/1R3R1K w - - 0 1");
@@ -188,31 +205,29 @@ public class Savant implements Definitions {
 			if (command.equals("quit"))
 				System.exit(0);
 				
-			if (command.equals("ucinewgame")) {
-				reptable  = new HashtableEntry[HASH_SIZE_REP];
+			if (command.equals("ucinewgame"))
 				inOpening = true;
-			}
 				
 			if (command.startsWith("position")) {
 				if (command.contains("startpos"))
 					pos = new Position();
 				else
 					pos = new Position(extractFEN(command));
-				
+								
 				String[] moveList = extractMoves(command);
 				openingLine = "";
+				pos.reptable = new HashtableEntry[HASH_SIZE_REP];
+				pos.saveRep();
 				if (moveList != null) {
 					for (int i = 0; i < moveList.length; i++) {
-						Move move = Engine.getMoveObject(moveList[i], pos);
+						Move move = Engine.getMoveObject(pos, moveList[i]);
 						pos.makeMove(move);
 						openingLine += move + " ";
 						
-						// Add position to repetition hash table
-						int hashKey = (int) (pos.zobrist % HASH_SIZE_REP);
-						if (reptable[hashKey] == null)
-							reptable[hashKey] = new HashtableEntry(pos.zobrist);
-						else if (pos.zobrist == reptable[hashKey].zobrist)
-								reptable[hashKey].count++;
+						if (move.captured != 0 || Math.abs(move.piece) == PAWN)
+							pos.reptable = new HashtableEntry[HASH_SIZE_REP];
+						
+						pos.saveRep();
 					}
 				}
 			}
@@ -227,9 +242,9 @@ public class Savant implements Definitions {
 							wtime = Integer.parseInt(splitString[i + 1]);
 						else if (splitString[i].equals("btime"))
 							btime = Integer.parseInt(splitString[i + 1]);
-						else if(splitString[i].equals("winc"))
+						else if (splitString[i].equals("winc"))
 							winc  = Integer.parseInt(splitString[i + 1]);
-						else if(splitString[i].equals("binc"))
+						else if (splitString[i].equals("binc"))
 							binc  = Integer.parseInt(splitString[i + 1]);	
 					}
 					catch (ArrayIndexOutOfBoundsException ex) {}
@@ -241,7 +256,7 @@ public class Savant implements Definitions {
 				
 				Move move = null;
 				if (Engine.useBook && inOpening)
-					move = Engine.getMoveObject(Engine.getBookMove(openingLine), pos);
+					move = Engine.getMoveObject(pos, Engine.getBookMove(openingLine));
 				
 				if (move == null) {
 					inOpening = false;
@@ -287,6 +302,7 @@ public class Savant implements Definitions {
 	 * Run the program in console mode.
 	 */
 	public static void consoleMode() throws FileNotFoundException {
+		pos.reptable = new HashtableEntry[HASH_SIZE_REP];
 		Stack<Move> moveHistory = new Stack<Move>();
 		openingLine             = "";
 		inOpening               = true;
@@ -301,7 +317,7 @@ public class Savant implements Definitions {
 		// Game loop
 		while (true) {
 			
-			HashtableEntry rentry = Engine.getEntry(pos.zobrist, reptable);
+			HashtableEntry rentry = Engine.getEntry(pos.zobrist, pos.reptable);
 			boolean repeated = (rentry != null && rentry.count >= 3);
 
 			// Check for mate/stalemate,  or draw by repetition
@@ -343,7 +359,7 @@ public class Savant implements Definitions {
 			case "go":
 				engineTurn = true;
 				if (Engine.useBook && inOpening)
-					move = Engine.getMoveObject(Engine.getBookMove(openingLine), pos);
+					move = Engine.getMoveObject(pos, Engine.getBookMove(openingLine));
 				
 				if (move == null) {
 					inOpening = false;
@@ -353,7 +369,7 @@ public class Savant implements Definitions {
 				break;
 				
 			case "undo":
-				reptable[(int) (pos.zobrist % HASH_SIZE_REP)] = null;
+				pos.reptable[(int) (pos.zobrist % HASH_SIZE_REP)] = null;
 				if (!moveHistory.isEmpty()) {
 					pos.unmakeMove(moveHistory.pop());
 					pos.print();
@@ -367,13 +383,11 @@ public class Savant implements Definitions {
 				engineBlack = true;
 				break;
 				
-			case "engineWhite":
-			case "playw":
+			case "playwhite":
 				engineWhite = true;
 				break;
 				
-			case "engineBlack":
-			case "playb":
+			case "playblack":
 				engineBlack = true;
 				break;
 				
@@ -381,14 +395,12 @@ public class Savant implements Definitions {
 				System.out.println(pos.getFEN());
 				break;
 				
-			case "display":
-			case "disp":
 			case "print":
 				pos.print();
 				break;
 				
 			default: // attempt to read move
-				move = Engine.getMoveObject(command, pos);
+				move = Engine.getMoveObject(pos, command);
 				if (move == null)
 					System.out.println("Invalid move.");
 				break;
@@ -400,12 +412,7 @@ public class Savant implements Definitions {
 				if (inOpening)
 					openingLine += move + " ";
 				
-				// Add position to repetition hash table
-				int hashKey = (int) (pos.zobrist % HASH_SIZE_REP);
-				if (reptable[hashKey] == null)
-					reptable[hashKey] = new HashtableEntry(pos.zobrist);
-				else if (pos.zobrist == reptable[hashKey].zobrist)
-						reptable[hashKey].count++;
+				pos.saveRep();
 				
 				if (engineTurn) {
 					if (!inOpening)

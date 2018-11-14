@@ -11,26 +11,26 @@ import java.util.Scanner;
  * created 10-22-18
  */
 public class Engine implements Definitions {
-	public static int maxDepth             = 100;   // max depth to search
-	public static boolean uciMode          = false; // true if we are in UCI mode
-	public static int timeLeft             = 60000; // total time remaining in milliseconds
-	public static int increment            = 1000;  // increment per move
-	public static int timePerMove          = 1000;  // time for this move
-	public static boolean useBook          = true;  // true if we are using the native opening book
-	public static int currentDepth;                 // current depth of search
-	public static long startTime;                   // time the search was started
-	public static boolean abortedSearch;	        // true if the search was ended early
-	public static int nullMovesMade;                // number of null moves made to this position
+	public static int maxDepth    = 100;      // max depth to search
+	public static boolean uciMode = false;    // true if we are in UCI mode
+	public static int timeLeft    = 60000; // total time remaining
+	public static int increment   = 1000;     // increment per move
+	public static int timePerMove = 100; 	  // time for this move
+	public static boolean useBook = true; 	  // true if using native opening book
 	
-	public static int[][][] historyMoves;           // history heuristic move counter
-	public static HashtableEntry[] ttable;          // transposition table
-	public static HashtableEntry[] pvtable;         // hash table to store PV moves
+	public static int currentDepth;           // current depth of search
+	public static long startTime;             // time the search was started
+	public static boolean abortedSearch;      // true if the search was ended early
+	
+	public static int[][][] historyMoves;     // history heuristic move counter
+	public static HashtableEntry[] ttable;	  // transposition table
+	public static HashtableEntry[] pvtable;   // hash table to store PV moves
 
-	public static ArrayList<Move> pv;
-	public static Move bestMove;
-	public static Move prevBestMove;
-	public static int eval;
-	public static long nodes;
+	public static ArrayList<Move> pv;         // the principal variation
+	public static Move bestMove;              // best move so far
+	public static Move prevBestMove;          // last iteration's best move
+	public static int eval;                   // score of the position
+	public static long nodes;                 // number of nodes searched
 
 	/**
 	 * Resets engine fields in preparation for a new search.
@@ -38,7 +38,6 @@ public class Engine implements Definitions {
 	public static void initializeSearch() {
 		currentDepth  = 0;
 		abortedSearch = false;
-		nullMovesMade = 0;
 		historyMoves  = new int[2][13][120];
 		ttable        = new HashtableEntry[HASH_SIZE_TT];
 		pvtable       = new HashtableEntry[HASH_SIZE_PV];
@@ -58,7 +57,7 @@ public class Engine implements Definitions {
 		
 		// Calculate the time to use for this move
 		if (timeLeft > increment)
-			timePerMove = timeLeft / 40 + increment;
+			timePerMove = timeLeft / 40;
 		else
 			timePerMove = timeLeft / 40 + increment / 2;
 		
@@ -70,7 +69,7 @@ public class Engine implements Definitions {
 			
 			// For the first few depths, start with an infinite search window.
 			if (currentDepth < 5)
-				eval = alphaBeta(currentDepth, 0, -VALUE_INF, VALUE_INF, false, NODE_PV, pos);
+				eval = alphaBeta(pos, currentDepth, 0, -VALUE_INF, VALUE_INF, true, NODE_PV);
 			
 			// For later depths, try an aspirated search with a window around the previous
 			// iteration's eval.
@@ -81,7 +80,7 @@ public class Engine implements Definitions {
 				// Start with a small aspiration window. If we fail high/low, re-search with a
 				// bigger window until we succeed.
 				while (true) {
-					eval = alphaBeta(currentDepth, 0, alpha, beta, false, NODE_PV, pos);
+					eval = alphaBeta(pos, currentDepth, 0, alpha, beta, true, NODE_PV);
 
 					// Use last iteration's move if the search was terminated early
 					if (abortedSearch) {
@@ -138,8 +137,8 @@ public class Engine implements Definitions {
 								   + " (n=" + nodes + " t=" + decimalTime + "s)");
 			
 			// Stop searching if a forced mate was found, or we have only one legal move
-			if (   (Math.abs(eval) > VALUE_MATE_THRESHOLD)
-				|| (pos.filterLegal(pos.generateMoves(false)).size() == 1))
+			if (   Math.abs(eval) > VALUE_MATE_THRESHOLD)
+				//|| pos.filterLegal(pos.generateMoves(false)).size() == 1)
 				break;
 		}
 	}
@@ -172,7 +171,7 @@ public class Engine implements Definitions {
 	 * Gets the move object with the given algebraic notation (case insensitive, accepts both
 	 * short and long algebraic forms). Returns null if the move is not found.
 	 */
-	public static Move getMoveObject(String notation, Position pos) {
+	public static Move getMoveObject(Position pos, String notation) {
 		if (notation == null || notation.isBlank())
 			return null;
 
@@ -192,20 +191,27 @@ public class Engine implements Definitions {
 	public static ArrayList<Move> extractPV(Position pos) {
 		ArrayList<Move> PV = new ArrayList<Move>();
 		HashtableEntry hash = getEntry(pos.zobrist, pvtable);
-		int i = 0;
-		while (i < currentDepth + 9 && hash != null && hash.move != null) {
-			Move move = getMoveObject(hash.move, pos);
-			// in case of a key collision the stored move may be invalid
+		while (hash != null && hash.move != null) {
+			Move move = getMoveObject(pos, hash.move);
+			// In the rare case of a key collision the stored move may be invalid
 			if (move == null)
 				break;
-
+			
 			PV.add(move);
 			pos.makeMove(move);
+			
+			// Check for a repetition cycle
+			long zobrist = pos.zobrist;
+			if (pos.sideToMove == BLACK)
+				zobrist ^= Zobrist.side;
+			HashtableEntry rentry = getEntry(zobrist, pos.reptable);
+			if (rentry != null && rentry.count >= 2)
+				break;
 
 			hash = getEntry(pos.zobrist, pvtable);
-			i++;
 		}
 		
+		// Unmake all the moves
 		for (int j = PV.size() - 1; j >= 0; j--)
 			pos.unmakeMove(PV.get(j));
 
@@ -214,48 +220,59 @@ public class Engine implements Definitions {
 
 	/**
 	 * The alpha-beta recursive search.
+	 * @param pos     - The position we are searching
 	 * @param ply     - Remaining number of plies to search
 	 * @param ext     - Number of plies we have extended the search
 	 * @param alpha   - Highest score that we have found (lower bound)
 	 * @param beta    - Lowest score that our opponent can guarantee (upper bound)
 	 * @param canNull - true if we should try a null move, false if the last move was a null move
-	 * @param pos     - The position object
 	 * @return          The score of the position from the perspective of the side to move
 	 */
-	private static int alphaBeta(int ply,
+	private static int alphaBeta(Position pos,
+								 int ply,
 								 int ext,
 								 int alpha,
 								 int beta,
 								 boolean canNull,
-								 int nodeType,
-								 Position pos) {
-
-		// Enter quiescence search once we reach a leaf node
-		if (ply <= 0)
-			return quiescence(alpha, beta, pos);
+								 int nodeType) {
 		
-		nodes++;
+		assert(nodeType == NODE_PV || nodeType == NODE_CUT || nodeType == NODE_ALL);
+		
+		// Check if time is up every 1000 nodes
+		if (abortedSearch)
+			return 0;
+		
 		if (nodes % 1000 == 0) {
 			if ((System.currentTimeMillis() - startTime) > timePerMove) {
 				abortedSearch = true;
 				return 0;
 			}
 		}
+
+		// Enter quiescence search once we reach a leaf node
+		if (ply <= 0)
+			return quiescence(pos, alpha, beta);
 		
-		if (abortedSearch)
-			return 0;
+		// Increment node count
+		nodes++;
 		
-		int eval = 0;
 		boolean rootNode = (nodeType == NODE_PV && ply == currentDepth);
+		int eval = 0;
 
 		if (!rootNode) {
-			// Check for draw by 50 move rule
-			if (pos.fiftyMoves >= 100)
-				return VALUE_DRAW;
-			
-			// Check for draw by repetition
-			if (nullMovesMade == 0) {
-				HashtableEntry rentry = getEntry(pos.zobrist, Savant.reptable);
+			// Check for draw by repetition or 50 move rule
+			if (pos.nullCount == 0) {				
+				if (pos.fiftyMoves >= 100)
+					return VALUE_DRAW;
+				
+				long zobrist = pos.zobrist;
+				
+				// fix parity issue so that zobrist keys are the same irrespective of the 
+				// side to move
+				if (pos.sideToMove == BLACK)
+					zobrist ^= Zobrist.side;
+				
+				HashtableEntry rentry = getEntry(zobrist, pos.reptable);
 				if (rentry != null && rentry.count >= 2)
 					return VALUE_DRAW;
 			}
@@ -273,42 +290,44 @@ public class Engine implements Definitions {
 			if (alpha >= beta)
 				return alpha;
 		}
-		
+				
 		// At non-PV nodes check for an early transposition table cutoff
 		HashtableEntry ttentry = getEntry(pos.zobrist, ttable);
-		if (nodeType != NODE_PV && ttentry != null && ttentry.depth >= (ply - ext)) {
+		if (   nodeType != NODE_PV 
+			&& ttentry != null 
+			&& ttentry.depth >= ply) {
 			if (    ttentry.type == BOUND_EXACT
 				|| (ttentry.type == BOUND_UPPER && ttentry.eval * pos.sideToMove <= alpha)
-				|| (ttentry.type == BOUND_LOWER && ttentry.eval * pos.sideToMove >= beta))
+				|| (ttentry.type == BOUND_LOWER && ttentry.eval * pos.sideToMove >= beta)) {
 				return ttentry.eval * pos.sideToMove;
+			}
 		}
 		
 		// Extend the search if we are in check
-		boolean inCheck = (canNull ? pos.inCheck(pos.sideToMove) : false);
-		int maxExt = currentDepth / 4 + 3;
-		if (!rootNode && inCheck && ext < maxExt) {
+		boolean inCheck = pos.inCheck(pos.sideToMove);
+		//int maxExt = currentDepth / 4 + 5;
+		if (ply < currentDepth && inCheck) {
 			ply++;
 			ext++;
 		}
 		
-		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
-		
-		// Use null move pruning if we are not in a PV node, the side to move is not in check,
-		// and the side to move has non-pawns left. Obviously do not allow more than one null
-		// move in a row.
+		// Null move pruning
 		if (   canNull
 			&& nodeType != NODE_PV
 			&& ply >= 2
 			&& !inCheck
 			&& beta < VALUE_MATE_THRESHOLD
-			&& !pos.isPawnEnding(pos.sideToMove)) {
+			&& !pos.isPawnEnding(pos.sideToMove)
+			&& (ply <= 4 || Evaluate.staticEval(pos) * pos.sideToMove >= beta)) {
+			
+			pos.makePassingMove();
+			pos.nullCount++;
 			
 			int R = 3; // depth reduction factor
+			eval = -alphaBeta(pos, ply - R - 1, ext, -beta, -beta + 1, false, -nodeType);
+			
 			pos.makePassingMove();
-			nullMovesMade++;
-			eval = -alphaBeta(ply - R - 1, ext, -beta, -beta + 1, false, NODE_CUT, pos);
-			pos.makePassingMove();
-			nullMovesMade--;
+			pos.nullCount--;
 			
 			// Fail high
 			if (eval >= beta) {
@@ -316,23 +335,39 @@ public class Engine implements Definitions {
 				if (eval >= VALUE_MATE_THRESHOLD)
 					eval = beta;
 				
-				// Update transposition table
-				addEntry(pos.zobrist, null, ply - ext, eval * pos.sideToMove, BOUND_LOWER);
-				return beta;
+				if (Math.abs(beta) < VALUE_KNOWN_WIN) {
+					// Update transposition table
+					addEntry(pos.zobrist, null, ply, eval * pos.sideToMove, BOUND_LOWER);	
+					
+					return beta;
+				}
 			}
 		}
 		
+		// Internal iterative deepening at PV nodes if we have no hash move
+		if (nodeType == NODE_PV && ply >= 3 && (ttentry == null || ttentry.move == null)) {
+			eval = alphaBeta(pos, ply - 2, 0, alpha, beta, false, nodeType);
+			if (eval <= alpha)
+				eval = alphaBeta(pos, ply - 2, 0, -VALUE_INF, VALUE_INF, false, nodeType);
+			ttentry = getEntry(pos.zobrist, ttable);
+		}
+		
+		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
+		
 		// Generate moves and sort
 		ArrayList<Move> moveList = pos.generateMoves(false);
-		sortMoves(moveList, pos);
+		sortMoves(pos, moveList, ttentry);
 
 		boolean foundLegal = false;
 		String bestMove = null;
 		int movesTried = 0;
 		
+		// Static evaluation of the position
+		int standPat = Evaluate.staticEval(pos) * pos.sideToMove;
+		
 		// Loop through all the moves
 		for (Move move : moveList) {
-			
+
 			// Make the move
 			pos.makeMove(move);
 			
@@ -344,42 +379,63 @@ public class Engine implements Definitions {
 			
 			foundLegal = true;
 			boolean doFullDepthSearch = false;
+			boolean givesCheck = pos.inCheck(pos.sideToMove);
 			
-			// Extend the search for king moves that change castling rights
-			boolean canCastle = (pos.sideToMove == WHITE ? 
-					pos.canCastle(W_SHORT_CASTLE) || pos.canCastle(W_LONG_CASTLE)
-				  : pos.canCastle(B_SHORT_CASTLE) || pos.canCastle(B_LONG_CASTLE));
-			if (canCastle && move.piece * pos.sideToMove == KING && ply < 7) {
-				ply++;
-				ext++;
+			// Futility pruning
+			if (   !inCheck 
+				&& !givesCheck
+				&& move.type != PROMOTION
+				&& move.captured == PIECE_NONE
+				&& Math.abs(alpha) < VALUE_KNOWN_WIN
+				&& Math.abs(beta) < VALUE_KNOWN_WIN) {
+				if (   (ply == 1 && standPat <= alpha - FUTILITY_MARGIN)
+					|| (ply == 2 && standPat <= alpha - FUTILITY_EXT_MARGIN)) {
+					pos.unmakeMove(move);
+					continue;
+				}
 			}
 			
 			// Late move reductions
 			if (   nodeType != NODE_PV
+				&& !inCheck
+				&& !givesCheck
 				&& ply >= 3
 			    && movesTried >= 1 
-			    && move.captured == 0
-			    && move.type != PROMOTION) {
-				int R = 1;
-				//int R = (int) Math.sqrt(2 * (ply - 1) + Math.sqrt(2 * (movesTried - 1)));
-				eval = -alphaBeta(ply - R - 1, ext, -alpha - 1, -alpha, true, NODE_CUT, pos);
+			    && move.type != PROMOTION
+			    && move.captured == PIECE_NONE) {
+				//int R = 1;
+				//int R = (int) (Math.sqrt((double) (ply - 1)) + Math.sqrt((double) (movesTried - 1)));
+				
+				// Increase reduction for later moves
+				int R = (movesTried <= 7 ? 1 : ply / 3);
+				
+				// Increase reduction for cut nodes, decrease reduction for PV nodes
+				if (nodeType == NODE_CUT)
+					R++;
+				
+				// Increase reduction if hash move is a capture
+				/*if (ttentry != null && ttentry.move != null && ttentry.move.contains("x"))
+					R++;*/
+			
+				eval = -alphaBeta(pos, ply - R - 1, ext, -alpha - 1, -alpha, true, NODE_CUT);
+				
 				doFullDepthSearch = (eval > alpha);
 			}
 			else
 				doFullDepthSearch = true;
 			
 			if (doFullDepthSearch) {
-				// Search first move of PV nodes with full width
-				if (nodeType == NODE_PV && movesTried == 0)
-					eval = -alphaBeta(ply - 1, ext, -beta, -alpha, true, NODE_PV, pos);
+				// Search first move with full width
+				if (nodeType != NODE_PV || movesTried == 0)
+					eval = -alphaBeta(pos, ply - 1, ext, -beta, -alpha, true, -nodeType);
 				else {
 					// Principal variation search
-					eval = -alphaBeta(ply - 1, ext, -alpha - 1, -alpha, true, NODE_CUT, pos);
+					eval = -alphaBeta(pos, ply - 1, ext, -alpha - 1, -alpha, true, NODE_CUT);
 					// PVS failed high. Do a re-search if eval < beta, otherwise let the
 					// parent node fail low with value <= alpha. Re-search is done as a 
 					// PV node.
 					if (eval > alpha && eval < beta)
-						eval = -alphaBeta(ply - 1, ext, -beta, -alpha, true, NODE_PV, pos);
+						eval = -alphaBeta(pos, ply - 1, ext, -beta, -alpha, true, NODE_PV);
 				} 
 			}
 			
@@ -391,10 +447,10 @@ public class Engine implements Definitions {
 			// Fail high
 			if (eval >= beta) {
 				// Update transposition table
-				addEntry(pos.zobrist, move.longNotation(), ply - ext, eval * pos.sideToMove, BOUND_LOWER);
+				addEntry(pos.zobrist, move.longNotation(), ply, eval * pos.sideToMove, BOUND_LOWER);
 				
 				// Update history moves
-				if (move.captured == 0) {
+				if (move.captured == PIECE_NONE) {
 					int side = (pos.sideToMove == WHITE ? 0 : 1);
 					historyMoves[side][move.piece + 6][move.target] += ply * ply;
 				}
@@ -415,6 +471,10 @@ public class Engine implements Definitions {
 			
 			// Increment move count
 			movesTried++;
+			
+			// Switch node type
+			if (nodeType == NODE_CUT)
+				nodeType = NODE_ALL;
 		}
 		
 		assert(movesTried > 0 || !foundLegal);
@@ -429,9 +489,9 @@ public class Engine implements Definitions {
 		
 		// Update transposition table
 		if (bestMove != null)
-			addEntry(pos.zobrist, bestMove, ply - ext, alpha * pos.sideToMove, BOUND_EXACT);
+			addEntry(pos.zobrist, bestMove, ply, alpha * pos.sideToMove, BOUND_EXACT);
 		else
-			addEntry(pos.zobrist, null, ply - ext, alpha * pos.sideToMove, BOUND_UPPER);
+			addEntry(pos.zobrist, null, ply, alpha * pos.sideToMove, BOUND_UPPER);
 		
 		assert(alpha > -VALUE_INF && alpha < VALUE_INF);
 		
@@ -441,30 +501,35 @@ public class Engine implements Definitions {
 	/**
 	 * The quiescence search.
 	 */
-	private static int quiescence(int alpha, int beta, Position pos) {
+	private static int quiescence(Position pos, int alpha, int beta) {
 		
 		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
 		
-		// Get a static evaluation first
-		int standPat = Evaluate.staticEval(pos.board, pos.sideToMove) * pos.sideToMove;
+		// Get a standing evaluation first
+		int standPat = Evaluate.staticEval(pos) * pos.sideToMove;
+		
 		// Fail high
 		if (standPat >= beta)
 			return beta;
-		
-		// Delta pruning: if the capture plus the delta margin can impossibly raise alpha,
-		// prune it
-		if (standPat + QUEEN_MG <= alpha)
-			return alpha;
 
 		if (standPat > alpha)
 			alpha = standPat;
 
 		// Generate captures and promotions only
 		ArrayList<Move> moveList = pos.generateMoves(true);
-		sortMoves(moveList, pos);
+		sortMoves(pos, moveList, null);
 		
 		// Loop through all the moves
-		for (Move move : moveList) { 
+		for (Move move : moveList) {
+			
+			// Delta pruning
+			if (pos.pieceCount > 6) {
+				int materialGain = PIECE_VALUE_EG[Math.abs(move.captured)];
+				if (move.type == PROMOTION)
+					materialGain += (PIECE_VALUE_EG[Math.abs(move.piece)] - PAWN_EG);
+				if (standPat + materialGain <= alpha - DELTA_MARGIN)
+					continue;
+			}
 			
 			// Make the move
 			pos.makeMove(move);
@@ -477,7 +542,7 @@ public class Engine implements Definitions {
 				continue;
 			}
 			
-			int eval = -quiescence(-beta, -alpha, pos);
+			int eval = -quiescence(pos, -beta, -alpha);
 			
 			// Unmake the move
 			pos.unmakeMove(move);
@@ -499,24 +564,26 @@ public class Engine implements Definitions {
 	/**
 	 * Sorts the given move list to improve pruning by the alpha-beta search.
 	 */
-	public static void sortMoves(ArrayList<Move> moveList, Position pos) {
-		// Get the hash move if it exists
-		String hashMove = null;
-		HashtableEntry hash = getEntry(pos.zobrist, ttable);
-		if (hash != null)
-			hashMove = hash.move;
+	public static void sortMoves(Position pos, ArrayList<Move> moveList, HashtableEntry ttentry) {
+		String hashMove = (ttentry != null ? ttentry.move : null);
 		
 		// Go through the move list and assign priorities
 		for (Move move : moveList) {		
 			if (hashMove != null && move.longNotation().equals(hashMove))
 				move.priority = 121;
-			else if (move.type == PROMOTION && move.piece * pos.sideToMove == QUEEN)
-				move.priority = 120;
+			else if (move.type == PROMOTION) {
+				if (Math.abs(move.piece) == QUEEN)
+					move.priority = 120;
+				else
+					move.priority = 4;
+			}
+				
 			// MVV/LVA
-			else if (move.captured != 0)
+			else if (move.captured != PIECE_NONE)
 				move.priority = Math.abs(move.captured) * 10 - Math.abs(move.piece);
 			else if (move.type == CASTLE_SHORT || move.type == CASTLE_LONG)
-				move.priority = 4;
+				move.priority = 3;
+			
 			// History move ordering
 			int side = (pos.sideToMove == WHITE ? 0 : 1);
 			move.historyCount = historyMoves[side][move.piece + 6][move.target];
@@ -541,13 +608,19 @@ public class Engine implements Definitions {
 	 * Adds an entry to the transposition table.
 	 */
 	public static void addEntry(long zobrist, String move, int depth, int eval, int type) {
+		if (depth < 1)
+			return;
+		
 		int hashKey = (int) (zobrist % HASH_SIZE_TT);
-		HashtableEntry hash = ttable[hashKey];
+		HashtableEntry hash = ttable[hashKey];	
 		
 		// If an entry exists with higher depth, do not replace
-		if (hash != null && zobrist == hash.zobrist && depth < hash.depth)
+		if (hash != null && zobrist == hash.zobrist && depth < hash.depth) {
+			if (hash.move == null && move != null)
+				ttable[hashKey].move = move;
 			return;
-
+		}
+		
 		ttable[hashKey] = new HashtableEntry(zobrist, move, depth, eval, type);
 	}
 	
