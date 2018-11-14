@@ -7,16 +7,19 @@ import java.util.Scanner;
  * created 10-07-18
  */
 public class Position implements Definitions {
-	public int[] board;      // 0x88 board array of pieces
-	public int sideToMove;   // the side to move
-	public int castling;     // castling rights for the position, stored as 4 bits (0bKQkq)
-	public int enpassant;    // index of the enpassant square (-2 if none)
-	public int fiftyMoves;   // fifty moves rule half-move clock
-	public int moveNumber;   // full-move count
-	public int whiteKingPos; // index of the white king
-	public int blackKingPos; // index of the black king
-	public int pieceCount;   // total number of pieces left on board
-	public long zobrist;     // zobrist key of the position
+	public int[] board;    // 0x88 board array of pieces
+	public int sideToMove; // the side to move
+	public int castling;   // castling rights for the position, stored as 4 bits (0bKQkq)
+	public int enpassant;  // index of the enpassant square (-2 if none)
+	public int fiftyMoves; // fifty moves rule half-move clock
+	public int moveNumber; // full-move count
+	public int kingPos_w;  // index of the white king
+	public int kingPos_b;  // index of the black king
+	public int pieceCount; // total number of pieces left on board
+	public long zobrist;   // zobrist key of the position
+	
+	public HashtableEntry[] reptable; // hash table of previous positions
+	public int nullCount;             // number of null moves made to this position
 	
 	/**
 	 * Initializes the starting position.
@@ -49,9 +52,9 @@ public class Position implements Definitions {
 						continue;
 					
 					if (ch == 'K')
-						whiteKingPos = index;
+						kingPos_w = index;
 					else if (ch == 'k')
-						blackKingPos = index;
+						kingPos_b = index;
 	
 					board[index] = PIECE_STR.indexOf(ch) - 6;
 					pieceCount++;
@@ -101,10 +104,19 @@ public class Position implements Definitions {
 		enpassant    = SQ_NONE;
 		fiftyMoves   = 0;
 		moveNumber   = 1;
-		whiteKingPos = SQ_NONE;
-		blackKingPos = SQ_NONE;
+		kingPos_w = SQ_NONE;
+		kingPos_b = SQ_NONE;
 		pieceCount   = 0;
 		zobrist      = 0;
+		reptable     = new HashtableEntry[HASH_SIZE_REP];
+		nullCount    = 0;
+	}
+	
+	/**
+	 * Returns true if index corresponds to a square on the board.
+	 */
+	public static boolean isLegalIndex(int index) {
+		return (index & 0x88) == 0;
 	}
 	
 	/**
@@ -119,6 +131,10 @@ public class Position implements Definitions {
 	 * Makes the given move on the board.
 	 */
 	public void makeMove(Move move) {
+		// Save the current position in the repetition hash table
+		if (nullCount == 0)
+			saveRep();
+		
 		zobrist ^= Zobrist.castling[castling];
 		
 		if (move.type == CASTLE_SHORT)
@@ -148,9 +164,9 @@ public class Position implements Definitions {
 			}
 
 			if (move.piece == W_KING)
-				whiteKingPos = move.target;
+				kingPos_w = move.target;
 			else if (move.piece == B_KING)
-				blackKingPos = move.target;
+				kingPos_b = move.target;
 			
 			if (castling != 0)
 				updateCastlingRights();
@@ -233,10 +249,14 @@ public class Position implements Definitions {
 				pieceCount++;
 
 			if (move.piece == W_KING)
-				whiteKingPos = move.start;
+				kingPos_w = move.start;
 			else if (move.piece == B_KING)
-				blackKingPos = move.start;
+				kingPos_b = move.start;
 		}
+		
+		// Remove the current position from the repetition hash table
+		if (nullCount == 0)
+			deleteRep();
 	}
 	
 	/**
@@ -252,7 +272,7 @@ public class Position implements Definitions {
 			zobrist     ^= Zobrist.pieces[W_KING + 6][SQ_g1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_f1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_h1];
-			whiteKingPos = SQ_g1;
+			kingPos_w = SQ_g1;
 			castling    &= ~W_ALL_CASTLING;
 		} else {
 			board[SQ_e8] = 0;
@@ -263,7 +283,7 @@ public class Position implements Definitions {
 			zobrist     ^= Zobrist.pieces[B_KING + 6][SQ_g8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_f8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_h8];
-			blackKingPos = SQ_g8;
+			kingPos_b = SQ_g8;
 			castling    &= ~B_ALL_CASTLING;
 		}
 	}
@@ -281,7 +301,7 @@ public class Position implements Definitions {
 			zobrist     ^= Zobrist.pieces[W_KING + 6][SQ_c1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_a1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_d1];
-			whiteKingPos = SQ_c1;
+			kingPos_w = SQ_c1;
 			castling    &= ~W_ALL_CASTLING;
 		}
 		else {
@@ -293,7 +313,7 @@ public class Position implements Definitions {
 			zobrist     ^= Zobrist.pieces[B_KING + 6][SQ_c8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_a8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_d8];
-			blackKingPos = SQ_c8;
+			kingPos_b = SQ_c8;
 			castling    &= ~B_ALL_CASTLING;
 		}
 	}
@@ -311,7 +331,7 @@ public class Position implements Definitions {
 			zobrist     ^= Zobrist.pieces[W_KING + 6][SQ_g1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_f1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_h1];
-			whiteKingPos = SQ_e1;
+			kingPos_w = SQ_e1;
 		}
 		else {
 			board[SQ_e8] = B_KING;
@@ -322,7 +342,7 @@ public class Position implements Definitions {
 			zobrist     ^= Zobrist.pieces[B_KING + 6][SQ_g8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_f8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_h8];
-			blackKingPos = SQ_e8;
+			kingPos_b = SQ_e8;
 		}
 	}
 	
@@ -339,7 +359,7 @@ public class Position implements Definitions {
 			zobrist     ^= Zobrist.pieces[W_KING + 6][SQ_c1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_a1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_d1];
-			whiteKingPos = SQ_e1;
+			kingPos_w = SQ_e1;
 		}
 		else {
 			board[SQ_a8] = B_ROOK;
@@ -350,7 +370,7 @@ public class Position implements Definitions {
 			zobrist     ^= Zobrist.pieces[B_KING + 6][SQ_c8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_a8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_d8];
-			blackKingPos = SQ_e8;
+			kingPos_b = SQ_e8;
 		}
 	}
 	
@@ -378,6 +398,41 @@ public class Position implements Definitions {
 	}
 	
 	/**
+	 * Adds an entry for the current position to the repetition hash table.
+	 */
+	public void saveRep() {
+		// fix parity issue so that zobrist keys are the same irrespective of the side to move
+		long rzobrist = zobrist;
+		if (sideToMove == BLACK)
+			rzobrist ^= Zobrist.side;
+		
+		int hashKey = (int) (rzobrist % HASH_SIZE_REP);
+		if (reptable[hashKey] == null || rzobrist != reptable[hashKey].zobrist)
+			reptable[hashKey] = new HashtableEntry(rzobrist);
+		else
+			reptable[hashKey].count++;
+	}
+	
+	/**
+	 * Deletes an entry for the current position from the repetition hash table.
+	 */
+	public void deleteRep() {
+		// fix parity issue so that zobrist keys are the same irrespective of the side to move
+		long rzobrist = zobrist;
+		if (sideToMove == BLACK)
+			rzobrist ^= Zobrist.side;
+		
+		int hashKey = (int) (rzobrist % HASH_SIZE_REP);
+		if (reptable[hashKey] == null || rzobrist != reptable[hashKey].zobrist)
+			return;
+		
+		if (reptable[hashKey].count > 1)
+			reptable[hashKey].count--;
+		else
+			reptable[hashKey] = null;
+	}
+	
+	/**
 	 * Returns the castling right flag for castleType.
 	 */
 	public boolean canCastle(int castleType) {
@@ -389,7 +444,7 @@ public class Position implements Definitions {
 	 * @return True if side is in check, false otherwise
 	 */
 	public boolean inCheck(int side) {
-		int kingPos = (side == WHITE ? whiteKingPos : blackKingPos);
+		int kingPos = (side == WHITE ? kingPos_w : kingPos_b);
 		return isAttacked(kingPos, -side);
 	}
 	
@@ -404,7 +459,7 @@ public class Position implements Definitions {
 		boolean[] isSlider = {false, false, false, true, true, true, false};
 		
 		for (int index = SQ_a8; index <= SQ_h1; index++) {
-			if ((index & 0x88) != 0)
+			if (!isLegalIndex(index))
 				continue;
 
 			int piece = board[index] * sideToMove;
@@ -456,7 +511,7 @@ public class Position implements Definitions {
 		for (int i = 0; i < DELTA_PAWN.length; i++) {
 			int target = start + DELTA_PAWN[i] * sideToMove;
 			// Note: i = 1 means forward delta
-			if ((target & 0x88) != 0)
+			if (!isLegalIndex(target))
 				continue;
 
 			if ((i == 1 && board[target] == 0) || (i != 1 && board[target] * sideToMove < 0)) {
@@ -537,21 +592,28 @@ public class Position implements Definitions {
 	
 	/**
 	 * Generates moves using piece deltas and adds them to the move list.
-	 * @param start - Index of piece
-	 * @param delta - Piece delta for calculating target indices
-	 * @param sliding - True if the piece is a Bishop, Rook, or Queen
-	 * @param qs - True if only captures should be generated
+	 * @param start    - Index of piece
+	 * @param delta    - Piece delta for calculating target indices
+	 * @param slider   - True if the piece is a bishop, rook, or queen
+	 * @param qs       - True if only captures should be generated
 	 * @param moveList - The list of moves
 	 */
-	public void genDelta(int start, int[] delta, boolean sliding, boolean qs, ArrayList<Move> moveList) {
+	public void genDelta(int start, int[] delta, boolean slider, boolean qs, ArrayList<Move> moveList) {
 		for (int i = 0; i < delta.length; i++) {
 			int target = start + delta[i];
-			while ((target & 0x88) == 0 && board[target] * sideToMove <= 0) {
+			while (isLegalIndex(target) && board[target] * sideToMove <= 0) {
 				int captured = board[target];
 				if (!qs || captured != 0)
-					moveList.add(new Move(start, target, board[start], captured, castling, enpassant, fiftyMoves, NORMAL));
+					moveList.add(new Move(start,
+										  target,
+										  board[start],
+										  captured,
+										  castling,
+										  enpassant,
+										  fiftyMoves,
+										  NORMAL));
 
-				if (!sliding || captured != 0)
+				if (!slider || captured != PIECE_NONE)
 					break;
 
 				target += delta[i];
@@ -591,20 +653,20 @@ public class Position implements Definitions {
 	 * Scans the piece delta for an attacker and returns whether one was found.
 	 * @param start
 	 * @param delta
-	 * @param sliding
+	 * @param slider
 	 * @return
 	 */
-	public boolean attackDelta(int start, int[] delta, String attackers, boolean sliding) {	
+	public boolean attackDelta(int start, int[] delta, String attackers, boolean slider) {	
 		for (int i = 0; i < delta.length; i++) {
 			int target = start + delta[i];
-			while ((target & 0x88) == 0) {
+			while (isLegalIndex(target)) {
 				int captured = board[target];
-				if (captured != 0) {
+				if (captured != PIECE_NONE) {
 					String piece = Character.toString(PIECE_STR.charAt(captured + 6));
 					if (attackers.contains(piece))
 						return true;
 				}
-				if (!sliding || captured != 0)
+				if (!slider || captured != PIECE_NONE)
 					break;
 
 				target += delta[i];
@@ -620,7 +682,7 @@ public class Position implements Definitions {
 	 */
 	public boolean isPawnEnding(int side) {
 		for (int index = SQ_a8; index <= SQ_h1; index++) {
-			if ((index & 0x88) != 0)
+			if (!isLegalIndex(index))
 				continue;
 
 			int piece = board[index] * side;
@@ -643,10 +705,10 @@ public class Position implements Definitions {
 			return true;
 		
 		// Count pieces
-		int[] whitePieces = new int[7], blackPieces = new int[7];
-		int whiteCount = 0, blackCount = 0;
+		int[] pieces_w = new int[7], pieces_b = new int[7];
+		int count_w = 0, count_b = 0;
 		for (int index = SQ_a8; index <= SQ_h1; index++) {
-			if ((index & 0x88) != 0)
+			if (!isLegalIndex(index))
 				continue;
 
 			int piece = board[index];
@@ -656,12 +718,12 @@ public class Position implements Definitions {
 				return false;
 			
 			if (piece > 0) {
-				whitePieces[piece]++;
-				whiteCount++;
+				pieces_w[piece]++;
+				count_w++;
 			}
 			else {
-				blackPieces[-piece]++;
-				blackCount++;
+				pieces_b[-piece]++;
+				count_b++;
 			}
 		}
 		
@@ -671,10 +733,10 @@ public class Position implements Definitions {
 
 		if (pieceCount == 4) {
 			// Km vs Km
-			if (whiteCount == 2)
+			if (count_w == 2)
 				return true;
 			// KNN vs K
-			if (whitePieces[KNIGHT] == 2 || blackPieces[KNIGHT] == 2)
+			if (pieces_w[KNIGHT] == 2 || pieces_b[KNIGHT] == 2)
 				return true;
 			// KBB vs K || KBN vs K
 			return false;
@@ -683,11 +745,11 @@ public class Position implements Definitions {
 		assert(pieceCount == 5);
 		
 		// 3 minors vs 1
-		if (whiteCount == 4 || blackCount == 4)
+		if (count_w == 4 || count_b == 4)
 			return false;
 		// KBB vs KN
-		if (   whitePieces[BISHOP] == 2 && blackPieces[BISHOP] == 0
-			|| blackPieces[BISHOP] == 2 && whitePieces[BISHOP] == 0)
+		if (   pieces_w[BISHOP] == 2 && pieces_b[BISHOP] == 0
+			|| pieces_b[BISHOP] == 2 && pieces_w[BISHOP] == 0)
 			return false;
 		// all other 2 minors vs 1 minor combinations
 		return true;
@@ -744,7 +806,7 @@ public class Position implements Definitions {
 	 * @return Algebraic coordinate of the square
 	 */
 	public static String indexToAlgebraic(int index) {
-		if ((index & 0x88) != 0)
+		if (!isLegalIndex(index))
 			return "-";
 		return "" + "abcdefgh".charAt(index % 16) + (8 - index / 16);
 	}
@@ -759,9 +821,9 @@ public class Position implements Definitions {
 			return SQ_NONE;
 		
 		coord = coord.toLowerCase();
-		int index = 16 * (8 - Character.getNumericValue(coord.charAt(1))) +
-				    "abcdefgh".indexOf(coord.charAt(0));
-		if ((index & 0x88) != 0)
+		int index = 16 * (8 - Character.getNumericValue(coord.charAt(1))) + 
+				"abcdefgh".indexOf(coord.charAt(0));
+		if (!isLegalIndex(index))
 			return SQ_NONE;
 		
 		return index;
