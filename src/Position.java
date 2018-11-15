@@ -441,7 +441,6 @@ public class Position implements Definitions {
 	
 	/**
 	 * Returns whether the given side is in check.
-	 * @return True if side is in check, false otherwise
 	 */
 	public boolean inCheck(int side) {
 		int kingPos = (side == WHITE ? kingPos_w : kingPos_b);
@@ -504,8 +503,6 @@ public class Position implements Definitions {
 	
 	/**
 	 * Adds all pseudolegal pawn moves to the move list.
-	 * @param start - Index of pawn
-	 * @param moveList - The list of moves
 	 */
 	public void genPawnMoves(int start, boolean qs, ArrayList<Move> moveList) {
 		for (int i = 0; i < DELTA_PAWN.length; i++) {
@@ -548,8 +545,6 @@ public class Position implements Definitions {
 	
 	/**
 	 * Adds all legal castling moves to the move list.
-	 * @param start - Index of king
-	 * @param moveList - The list of moves
 	 */
 	public void genCastling(int start, ArrayList<Move> moveList) {
 		if (sideToMove == WHITE) {
@@ -623,9 +618,6 @@ public class Position implements Definitions {
 	
 	/**
 	 * Returns whether the given index is attacked by the given player.
-	 * @param index
-	 * @param attackingSide
-	 * @return
 	 */
 	public boolean isAttacked(int index, int attackingSide) {
 		int[] pawnDelta = (attackingSide == WHITE ? DELTA_W_PAWN : DELTA_B_PAWN);
@@ -650,11 +642,7 @@ public class Position implements Definitions {
 	}
 	
 	/**
-	 * Scans the piece delta for an attacker and returns whether one was found.
-	 * @param start
-	 * @param delta
-	 * @param slider
-	 * @return
+	 * Scans the given piece delta for an attacker and returns whether one was found.
 	 */
 	public boolean attackDelta(int start, int[] delta, String attackers, boolean slider) {	
 		for (int i = 0; i < delta.length; i++) {
@@ -677,8 +665,6 @@ public class Position implements Definitions {
 	
 	/**
 	 * Returns whether the given side has any pieces left (NBRQ).
-	 * @param side
-	 * @return
 	 */
 	public boolean isPawnEnding(int side) {
 		for (int index = SQ_a8; index <= SQ_h1; index++) {
@@ -693,8 +679,7 @@ public class Position implements Definitions {
 	}
 	
 	/**
-	 * Returns whether there is insufficient mating material left
-	 * @return
+	 * Returns whether there is insufficient mating material left.
 	 */
 	public boolean insufficientMaterial() {
 		// Too many pieces left
@@ -802,8 +787,6 @@ public class Position implements Definitions {
 	
 	/**
 	 * Returns the algebraic coordinate of the given board index.
-	 * @param index - Board index of the square
-	 * @return Algebraic coordinate of the square
 	 */
 	public static String indexToAlgebraic(int index) {
 		if (!isLegalIndex(index))
@@ -813,8 +796,6 @@ public class Position implements Definitions {
 	
 	/**
 	 * Returns the board index of the given algebraic coordinate.
-	 * @param coord - Algebraic coordinate of the square
-	 * @return Board index of the square
 	 */
 	public static int algebraicToIndex(String coord) {
 		if (coord.length() != 2)
