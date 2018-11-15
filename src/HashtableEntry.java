@@ -9,15 +9,25 @@ public class HashtableEntry {
 	public int eval;     // score of the position
 	public int type;     // bound type of the eval
 	public int count;    // number of times this position has been repeated
+	public boolean old;  // true if the entry was from a previous search
 	
+	/**
+	 * Repetition table entry
+	 */
 	public HashtableEntry(long zobrist) {
 		this(zobrist, null, 0, 0, 0);
 	}
 	
+	/**
+	 * PV table entry
+	 */
 	public HashtableEntry(long zobrist, String move) {
 		this(zobrist, move, 0, 0, 0);
 	}
 
+	/**
+	 * Full transposition table entry
+	 */
 	public HashtableEntry(long zobrist, String move, int depth, int eval, int type) {
 		this.zobrist = zobrist;
 		this.move    = move;
@@ -25,5 +35,6 @@ public class HashtableEntry {
 		this.eval    = eval;
 		this.type    = type;
 		this.count   = 1;
+		this.old     = false;
 	}
 }
