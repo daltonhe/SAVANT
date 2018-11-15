@@ -71,21 +71,27 @@ public interface Definitions {
 	public static final String ATTACK_LOOKUP_B[] = {"p", "n", "bq", "rq", "k"};
 	
 	// Search
-	public static final int VALUE_INF            = 10001;
-	public static final int VALUE_MATE           = 10000;
-	public static final int VALUE_MATE_THRESHOLD = 9900;
-	public static final int VALUE_KNOWN_WIN      = 1000;
-	public static final int VALUE_DRAW           = 0;
-	public static final int VALUE_CONTEMPT       = 20;
+	public static final int VALUE_INF              = 10001;
+	public static final int VALUE_MATE             = 10000;
+	public static final int VALUE_MATE_THRESHOLD   = 9900;
+	public static final int VALUE_KNOWN_WIN        = 1000;
+	public static final int VALUE_DRAW             = 0;
+	public static final int VALUE_CONTEMPT         = 20;
 	
-	public static final int NODE_PV              =  0;
-	public static final int NODE_CUT             =  1;
-	public static final int NODE_ALL             = -1;
+	public static final int NODE_PV                =  0;
+	public static final int NODE_CUT               =  1;
+	public static final int NODE_ALL               = -1;
+	
+	public static final int DEPTH_HORIZON          = 0;
+	public static final int DEPTH_FRONTIER         = 1;
+	public static final int DEPTH_PRE_FRONTIER     = 2;
+	public static final int DEPTH_PRE_PRE_FRONTIER = 3;
 
-	public static final int INITIAL_WINDOW_SIZE  = 10;
-	public static final int DELTA_MARGIN         = 200;
-	public static final int FUTILITY_MARGIN      = 325;
-	public static final int FUTILITY_EXT_MARGIN  = 500;
+	public static final int INITIAL_WINDOW_SIZE    = 10;
+	public static final int DELTA_MARGIN           = 200;
+	public static final int FUTILITY_MARGIN        = 325;
+	public static final int FUTILITY_EXT_MARGIN    = 500;
+	public static final int RAZOR_MARGIN           = 975;
 	
 	public static final int TIME_INF = 9999000;
 	
@@ -237,10 +243,12 @@ public interface Definitions {
 	public static final int REDUNDANT_QUEEN          = -5;
 	public static final int KNIGHT_PAWN_SYNERGY	     =  6;
 	public static final int ROOK_PAWN_SYNERGY        = -12;
-	public static final int DOUBLED_PAWN_MG          = -10;
-	public static final int DOUBLED_PAWN_EG          = -25;
-	public static final int ISOLATED_PAWN_MG         = -10;
-	public static final int ISOLATED_PAWN_EG         = -20;
+	public static final int DOUBLED_PAWN_MG          = -5;
+	public static final int DOUBLED_PAWN_EG          = -20;
+	public static final int ISOLATED_PAWN_MG         = -3;
+	public static final int ISOLATED_PAWN_EG         = -8;
+	public static final int BACKWARD_PAWN_MG         = -5;
+	public static final int BACKWARD_PAWN_EG         = -12;
 	public static final int SUPPORTED_PAWN           =  8;
 	public static final int[] CONNECTED_PAWN         = {0, 85, 50, 30, 15, 10, 5, 0};
 	public static final int PAWN_ON_BISHOP_COLOR_MG  = -5;

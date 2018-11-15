@@ -171,7 +171,7 @@ public class Evaluate implements Definitions {
 			switch (piece) {
 			case W_PAWN:
 				boolean opposed, passed, supported, supported_twice, phalanx, connected,
-				doubled, isolated;
+				doubled, isolated, backward;
 
 				// First flag the pawn
 				opposed         =   pawnFile_b[file][0] > 0
@@ -189,6 +189,11 @@ public class Evaluate implements Definitions {
 				doubled         =   !supported && pawnFile_w[file][0] > 1;
 				isolated        =   (file == 0 || pawnFile_w[file - 1][0] == 0)
 						         && (file == 7 || pawnFile_w[file + 1][0] == 0);
+				backward        =   (file == 0 || rank > pawnFile_w[file - 1][1])
+								 && (file == 7 || rank > pawnFile_w[file + 1][1])
+								 && (   (board[index - 16] == B_PAWN)
+									 ||	(file == 0 || board[index - 17] == B_PAWN)
+									 || (file == 7 || board[index - 15] == B_PAWN));
 				
 				// Bonus for passed pawns depending on rank and file, and king proximity.
 				// Any pawn which is unopposed and cannot be contested by an enemy pawn is 
@@ -224,6 +229,12 @@ public class Evaluate implements Definitions {
 				if (isolated) {
 					pawns_mg += ISOLATED_PAWN_MG;
 					pawns_eg += ISOLATED_PAWN_EG;
+				}
+				// Penalty for backward pawns. Any pawn which is behind all pawns of the same
+				// color on adjacent files and cannot be safely advanced is considered backward.
+				if (backward) {
+					pawns_mg += BACKWARD_PAWN_MG;
+					pawns_eg += BACKWARD_PAWN_EG;
 				}
 				// Bonus for connected pawns. Any pawn which is supported diagonally or
 				// adjacent to a friendly pawn (phalanx) is considered connected. Bonus is
@@ -262,6 +273,11 @@ public class Evaluate implements Definitions {
 				doubled         =   !supported && pawnFile_b[file][0] > 1;
 				isolated        =   (file == 0 || pawnFile_b[file - 1][0] == 0)
 					    	     && (file == 7 || pawnFile_b[file + 1][0] == 0);
+				backward        =   (file == 0 || rank < pawnFile_b[file - 1][1])
+								 && (file == 7 || rank < pawnFile_b[file + 1][1])
+								 && (   (board[index + 16] == W_PAWN)
+									 ||	(file == 0 || board[index + 15] == W_PAWN)
+									 || (file == 7 || board[index + 17] == W_PAWN));
 				
 				if (passed) {
 					pawns_mg -= PASSED_PAWN_MG[7 - rank][file];
@@ -288,6 +304,10 @@ public class Evaluate implements Definitions {
 				if (isolated) {
 					pawns_mg -= ISOLATED_PAWN_MG;
 					pawns_eg -= ISOLATED_PAWN_EG;
+				}
+				if (backward) {
+					pawns_mg -= BACKWARD_PAWN_MG;
+					pawns_eg -= BACKWARD_PAWN_EG;
 				}
 				if (connected) {
 					double connectedBonus = CONNECTED_PAWN[7 - rank];
