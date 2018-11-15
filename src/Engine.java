@@ -59,10 +59,10 @@ public class Engine implements Definitions {
 		if (timeLeft > increment) {
 			timeForMove = timeLeft / 40 + increment;
 			if (pos.moveNumber <= 20)
-				timeForMove *= 4;
+				timeForMove *= 2;
 		}
 		else
-			timeForMove = timeLeft / 2;
+			timeForMove = timeLeft / 5;
 		
 		// Start the timer
 		startTime = System.currentTimeMillis();
@@ -123,9 +123,9 @@ public class Engine implements Definitions {
 			double timeElapsed = endTime - startTime;
 			double decimalTime = timeElapsed / 1000.0;
 			
-			// Increase allocated time if best move is not the same as last iteration's best move
-			if (currentDepth > 1 && bestMove.equals(prevBestMove))
-				timeForMove = Math.min(timeForMove * 1.2, timeLeft / 2);
+			// Allocate more time if the best move is not the same as last iteration's best move
+			if (currentDepth > 5 && !bestMove.equals(prevBestMove))
+				timeForMove = Math.min(timeForMove * 1.2, timeLeft / 5);
 			
 			// Update the pv and previous best move
 			pv = extractPV(pos);
@@ -158,7 +158,7 @@ public class Engine implements Definitions {
 	}
 	
 	/**
-	 * Extracts the principal variation from the hash table and returns it as a move list.
+	 * Extracts the principal variation from the hash table and returns it as list of moves.
 	 */
 	public static ArrayList<Move> extractPV(Position pos) {
 		ArrayList<Move> PV = new ArrayList<Move>();
@@ -445,6 +445,10 @@ public class Engine implements Definitions {
 			if (eval >= beta) {
 				// Update transposition table
 				addTTEntry(pos.zobrist, move.longNotation(), ply, eval * pos.sideToMove, BOUND_LOWER);
+
+				// Update PV hash table
+				int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
+				pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation());
 				
 				// Update history moves
 				if (move.captured == PIECE_NONE) {
@@ -460,8 +464,9 @@ public class Engine implements Definitions {
 				if (rootNode)
 					Engine.bestMove = move;
 				
+				// Update PV hash table
 				int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
-				pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation()); 
+				pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation());
 				
 				alpha = eval;
 			}
