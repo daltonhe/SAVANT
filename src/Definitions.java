@@ -90,9 +90,9 @@ public interface Definitions {
 	public static final int TIME_INF = 9999000;
 	
 	// Transposition table
-	public static final int HASH_SIZE_TT  = 131072;
-	public static final int HASH_SIZE_REP = 32768;
-	public static final int HASH_SIZE_PV  = 131072;
+	public static final int HASH_SIZE_TT  = 524309;
+	public static final int HASH_SIZE_REP = 32771;
+	public static final int HASH_SIZE_PV  = 262147;
 	
 	public static final int BOUND_EXACT = 0;
 	public static final int BOUND_LOWER = 1;
