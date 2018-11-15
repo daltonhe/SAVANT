@@ -170,31 +170,28 @@ public class Evaluate implements Definitions {
 			
 			switch (piece) {
 			case W_PAWN:
-				boolean opposed, passed, supported, supported_twice, phalanx, connected,
-				doubled, isolated, backward;
+				boolean opposed, passed, phalanx, doubled, isolated, backward;
+				int supporters;
 
 				// First flag the pawn
-				opposed         =   pawnFile_b[file][0] > 0
-						         && rank > pawnFile_b[file][1];
-				passed          =   !opposed
-								 && (file == 0 || rank <= pawnFile_b[file - 1][1])
-			              		 && (file == 7 || rank <= pawnFile_b[file + 1][1]);
-				supported       =   (file != 0 && board[index + 15] == W_PAWN)
-							     || (file != 7 && board[index + 17] == W_PAWN);
-				supported_twice =   (file != 0 && board[index + 15] == W_PAWN)
-							     && (file != 7 && board[index + 17] == W_PAWN);
-				phalanx         =   board[index - 1] == W_PAWN
-						         || board[index + 1] == W_PAWN;
-				connected       =   supported || phalanx;
-				doubled         =   !supported && pawnFile_w[file][0] > 1;
-				isolated        =   (file == 0 || pawnFile_w[file - 1][0] == 0)
-						         && (file == 7 || pawnFile_w[file + 1][0] == 0);
-				backward        =   (file == 0 || rank > pawnFile_w[file - 1][1])
-								 && (file == 7 || rank > pawnFile_w[file + 1][1])
-								 && (   (board[index - 16] == B_PAWN)
-									 ||	(file == 0 || board[index - 17] == B_PAWN)
-									 || (file == 7 || board[index - 15] == B_PAWN));
-				
+				opposed    =   pawnFile_b[file][0] > 0
+						    && rank > pawnFile_b[file][1];
+				passed     =   !opposed
+						    && (file == 0 || rank <= pawnFile_b[file - 1][1])
+			              	&& (file == 7 || rank <= pawnFile_b[file + 1][1]);
+				phalanx    =   board[index - 1] == W_PAWN
+						    || board[index + 1] == W_PAWN;
+				doubled    =   board[index + 16] == W_PAWN;
+				isolated   =   (file == 0 || pawnFile_w[file - 1][0] == 0)
+						    && (file == 7 || pawnFile_w[file + 1][0] == 0);
+				backward   =   (file == 0 || rank > pawnFile_w[file - 1][1])
+						    && (file == 7 || rank > pawnFile_w[file + 1][1])
+							&& (   (board[index - 16] == B_PAWN)
+								|| (file == 0 || board[index - 17] == B_PAWN)
+								|| (file == 7 || board[index - 15] == B_PAWN));
+				supporters = ((file != 0 && board[index + 15] == W_PAWN) ? 1 : 0) +
+							 ((file != 7 && board[index + 17] == W_PAWN) ? 1 : 0);
+						
 				// Bonus for passed pawns depending on rank and file, and king proximity.
 				// Any pawn which is unopposed and cannot be contested by an enemy pawn is 
 				// considered passed.
@@ -220,7 +217,7 @@ public class Evaluate implements Definitions {
 				}
 				// Penalty for doubled pawns. Any pawn which has a friendly pawn directly
 				// behind it and is not supported diagonally is considered doubled.
-				if (doubled) {
+				if (doubled && supporters == 0) {
 					pawns_mg += DOUBLED_PAWN_MG;
 					pawns_eg += DOUBLED_PAWN_EG;
 				}
@@ -240,17 +237,13 @@ public class Evaluate implements Definitions {
 				// adjacent to a friendly pawn (phalanx) is considered connected. Bonus is
 				// adjusted based on rank, whether the pawn is in a phalanx, whether the
 				// pawn is opposed, and the number of supporting pawns.
-				if (connected) {
+				if (supporters > 0 || phalanx) {
 					double connectedBonus = CONNECTED_PAWN[rank];
 					if (phalanx)
 						connectedBonus *= 1.4;
 					if (opposed)
 						connectedBonus *= 0.5;
-					if (supported) {
-						connectedBonus += SUPPORTED_PAWN;
-						if (supported_twice)
-							connectedBonus += SUPPORTED_PAWN;
-					}
+					connectedBonus += supporters *= SUPPORTED_PAWN;
 					pawns_mg += (int) connectedBonus;
 					// In the endgame only the 4th through 7th ranks receive a bonus.
 					pawns_eg += (int) (connectedBonus * (5 - rank) / 4);
@@ -258,26 +251,23 @@ public class Evaluate implements Definitions {
 				break;
 				
 			case B_PAWN:
-				opposed         =   pawnFile_w[file][0] > 0
-				          		 && rank < pawnFile_w[file][1];
-				passed          =   !opposed
-								 && (file == 0 || rank >= pawnFile_w[file - 1][1])
-				        	     && (file == 7 || rank >= pawnFile_w[file + 1][1]);
-				supported       =   (file != 0 && board[index - 17] == B_PAWN)
-							     || (file != 7 && board[index - 15] == B_PAWN);
-				supported_twice =   (file != 0 && board[index - 17] == B_PAWN)
-								 && (file != 7 && board[index - 15] == B_PAWN);
-				phalanx         =   board[index - 1] == B_PAWN
-				          		 || board[index + 1] == B_PAWN;
-				connected       =   supported || phalanx;
-				doubled         =   !supported && pawnFile_b[file][0] > 1;
-				isolated        =   (file == 0 || pawnFile_b[file - 1][0] == 0)
-					    	     && (file == 7 || pawnFile_b[file + 1][0] == 0);
-				backward        =   (file == 0 || rank < pawnFile_b[file - 1][1])
-								 && (file == 7 || rank < pawnFile_b[file + 1][1])
-								 && (   (board[index + 16] == W_PAWN)
-									 ||	(file == 0 || board[index + 15] == W_PAWN)
-									 || (file == 7 || board[index + 17] == W_PAWN));
+				opposed    =   pawnFile_w[file][0] > 0
+				            && rank < pawnFile_w[file][1];
+				passed     =   !opposed
+							&& (file == 0 || rank >= pawnFile_w[file - 1][1])
+				        	&& (file == 7 || rank >= pawnFile_w[file + 1][1]);
+				phalanx    =   board[index - 1] == B_PAWN
+				          	|| board[index + 1] == B_PAWN;
+				doubled    =   board[index - 16] == B_PAWN;
+				isolated   =   (file == 0 || pawnFile_b[file - 1][0] == 0)
+					    	&& (file == 7 || pawnFile_b[file + 1][0] == 0);
+				backward   =   (file == 0 || rank < pawnFile_b[file - 1][1])
+							&& (file == 7 || rank < pawnFile_b[file + 1][1])
+							&& (   (board[index + 16] == W_PAWN)
+							    || (file == 0 || board[index + 15] == W_PAWN)
+							    || (file == 7 || board[index + 17] == W_PAWN));
+				supporters =   ((file != 0 && board[index - 17] == B_PAWN) ? 1 : 0) +
+					     	   ((file != 7 && board[index - 15] == B_PAWN) ? 1 : 0);
 				
 				if (passed) {
 					pawns_mg -= PASSED_PAWN_MG[7 - rank][file];
@@ -297,7 +287,7 @@ public class Evaluate implements Definitions {
 						pawns_eg += kingDist_our2 * rankBonus;
 					}
 				}
-				if (doubled) {
+				if (doubled && supporters == 0) {
 					pawns_mg -= DOUBLED_PAWN_MG;
 					pawns_eg -= DOUBLED_PAWN_EG;
 				}
@@ -309,17 +299,13 @@ public class Evaluate implements Definitions {
 					pawns_mg -= BACKWARD_PAWN_MG;
 					pawns_eg -= BACKWARD_PAWN_EG;
 				}
-				if (connected) {
+				if (supporters > 0 || phalanx) {
 					double connectedBonus = CONNECTED_PAWN[7 - rank];
 					if (phalanx)
 						connectedBonus *= 1.4;
 					if (opposed)
 						connectedBonus *= 0.5;
-					if (supported) {
-						connectedBonus += SUPPORTED_PAWN;
-						if (supported_twice)
-							connectedBonus += SUPPORTED_PAWN;
-					}
+					connectedBonus += supporters * SUPPORTED_PAWN;
 					pawns_mg -= (int) connectedBonus;
 					pawns_eg -= (int) (connectedBonus * (rank - 2) / 4);
 				}
@@ -443,8 +429,8 @@ public class Evaluate implements Definitions {
 		
 		// Give a penalty for rook pawns, which are of diminished value since they can only
 		// capture in one direction.
-		imbalance += (pawnFile_w[0][0] + pawnFile_w[7][0]) * ROOK_PAWN;
-		imbalance -= (pawnFile_b[0][0] + pawnFile_b[7][0]) * ROOK_PAWN;
+		//imbalance += (pawnFile_w[0][0] + pawnFile_w[7][0]) * ROOK_PAWN;
+		//imbalance -= (pawnFile_b[0][0] + pawnFile_b[7][0]) * ROOK_PAWN;
 		
 		// Give a bonus for having the bishop pair. If the bishop pair is unopposed, i.e.
 		// the opponent has no minor pieces to contest the bishops, the bonus is larger.
@@ -470,12 +456,9 @@ public class Evaluate implements Definitions {
 			imbalance -= queens_b * rooks_b * REDUNDANT_QUEEN;
 		}
 		
-		// Give a bonus to Knights for having more pawns on the board, and a similar bonus to
-		// Rooks for having fewer pawns on the board
+		// Give a bonus to Knights for having more pawns on the board
 		imbalance += knights_w * (pawns_w - 5) * KNIGHT_PAWN_SYNERGY;
 		imbalance -= knights_b * (pawns_b - 5) * KNIGHT_PAWN_SYNERGY;
-		imbalance += rooks_w   * (pawns_w - 5) * ROOK_PAWN_SYNERGY;
-		imbalance -= rooks_b   * (pawns_b - 5) * ROOK_PAWN_SYNERGY;
 		
 		// Sum all the individual component scores
 		int score_mg =  material_mg 
