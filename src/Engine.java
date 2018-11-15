@@ -39,7 +39,6 @@ public class Engine implements Definitions {
 		currentDepth  = 0;
 		abortedSearch = false;
 		historyMoves  = new int[2][13][120];
-		pvtable       = new HashtableEntry[HASH_SIZE_PV];
 		pv            = new ArrayList<Move>();
 		bestMove      = null;
 		prevBestMove  = null;
@@ -66,6 +65,9 @@ public class Engine implements Definitions {
 		
 		// The iterative deepening loop
 		for (currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
+			
+			// Clear the PV hash table
+			pvtable = new HashtableEntry[HASH_SIZE_PV];
 			
 			// For the first few depths, start with an infinite search window.
 			if (currentDepth < 5)
