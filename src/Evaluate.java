@@ -137,8 +137,8 @@ public class Evaluate implements Definitions {
 		int pieces_w = knights_w + bishops_w + rooks_w + queens_w;
 		int pieces_b = knights_b + bishops_b + rooks_b + queens_b;
 		
-		// Check if it is KX vs K. In this case, the only terms that matter are enemy king
-		// corner proximity, and distance between the two kings.
+		// Mate with KX vs K. In this case, give a bonus for driving the enemy king to the corner,
+		// and for keeping distance between the two kings small.
 		if (pawns_b == 0 && pieces_b == 0 && pieces_w > 0) {
 			int cornered = CORNER_PROXIMITY[kingPos_b / 16][kingPos_b % 16];
 			int kingDist = Math.max(Math.abs(kingPos_b / 16 - kingPos_w / 16),
@@ -483,7 +483,8 @@ public class Evaluate implements Definitions {
 				      + imbalance 
 				      + pawns_mg 
 				      + pieces_mg 
-				      + mobility_mg;
+				      + mobility_mg
+					  + tempo;
 		int score_eg =  material_eg 
 				      + psqt_eg 
 				      + imbalance
@@ -523,7 +524,7 @@ public class Evaluate implements Definitions {
 		// Calculate the tapered evaluation. This is the score interpolated between separate
 		// middle and endgame scores, weighted by the phase, in order to transition smoothly
 		// between middle and endgame.
-		int score_tapered = (int) (score_mg * weight_mg + score_eg * weight_eg) + tempo;
+		int score_tapered = (int) (score_mg * weight_mg + score_eg * weight_eg);
 		return score_tapered;
 	}
 	
