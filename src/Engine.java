@@ -13,9 +13,9 @@ import java.util.Scanner;
 public class Engine implements Definitions {
 	public static int maxDepth    = 100;      // max depth to search
 	public static boolean uciMode = false;    // true if we are in UCI mode
-	public static int timeLeft    = TIME_INF; // total time remaining
-	public static int increment   = 1000;     // increment per move
-	public static int timePerMove = 100; 	  // time for this move
+	public static double timeLeft    = 60000; // total time remaining
+	public static double increment   = 1000;  // increment per move
+	public static double timeForMove = 100;   // time for this move
 	public static boolean useBook = true; 	  // true if using native opening book
 	
 	public static int currentDepth;           // current depth of search
@@ -56,10 +56,13 @@ public class Engine implements Definitions {
 		initializeSearch();
 		
 		// Calculate the time to use for this move
-		if (timeLeft > increment)
-			timePerMove = timeLeft / 40;
+		if (timeLeft > increment) {
+			timeForMove = timeLeft / 40 + increment;
+			if (pos.moveNumber <= 20)
+				timeForMove *= 4;
+		}
 		else
-			timePerMove = timeLeft / 40 + increment / 2;
+			timeForMove = timeLeft / 2;
 		
 		// Start the timer
 		startTime = System.currentTimeMillis();
@@ -120,6 +123,10 @@ public class Engine implements Definitions {
 			double timeElapsed = endTime - startTime;
 			double decimalTime = timeElapsed / 1000.0;
 			
+			// Increase allocated time if best move is not the same as last iteration's best move
+			if (currentDepth > 1 && bestMove.equals(prevBestMove))
+				timeForMove = Math.min(timeForMove * 1.2, timeLeft / 2);
+			
 			// Update the pv and previous best move
 			pv = extractPV(pos);
 			prevBestMove = bestMove;
@@ -141,9 +148,11 @@ public class Engine implements Definitions {
 								   + pvString 
 								   + " (n=" + nodes + " t=" + decimalTime + "s)");
 			
-			// Stop searching if a forced mate was found, or we have only one legal move
-			if (   Math.abs(eval) > VALUE_MATE_THRESHOLD)
-				//|| pos.filterLegal(pos.generateMoves(false)).size() == 1)
+			// Stop searching if a forced mate was found, or we have only one legal move,
+			// or the time left is likely not enough to search the next depth
+			if (   Math.abs(eval) > VALUE_MATE_THRESHOLD
+				|| pos.filterLegal(pos.generateMoves(false)).size() == 1
+				|| timeElapsed >= timeForMove / 2)
 				break;
 		}
 	}
@@ -206,7 +215,7 @@ public class Engine implements Definitions {
 			return 0;
 		
 		if (nodes % 1000 == 0) {
-			if ((System.currentTimeMillis() - startTime) > timePerMove) {
+			if ((System.currentTimeMillis() - startTime) > timeForMove) {
 				abortedSearch = true;
 				return 0;
 			}
@@ -261,9 +270,8 @@ public class Engine implements Definitions {
 			&& ttentry.depth >= ply) {
 			if (    ttentry.type == BOUND_EXACT
 				|| (ttentry.type == BOUND_UPPER && ttentry.eval * pos.sideToMove <= alpha)
-				|| (ttentry.type == BOUND_LOWER && ttentry.eval * pos.sideToMove >= beta)) {
+				|| (ttentry.type == BOUND_LOWER && ttentry.eval * pos.sideToMove >= beta))
 				return ttentry.eval * pos.sideToMove;
-			}
 		}
 		
 		// Extend the search if we are in check
@@ -338,6 +346,7 @@ public class Engine implements Definitions {
 			&& ply >= 3 
 			&& (ttentry == null || ttentry.move == null)) {
 			eval = alphaBeta(pos, ply - 2, 0, alpha, beta, false, nodeType);
+			// Fail low
 			if (eval <= alpha)
 				eval = alphaBeta(pos, ply - 2, 0, -VALUE_INF, VALUE_INF, false, nodeType);
 			ttentry = getEntry(pos.zobrist, ttable);
@@ -419,7 +428,7 @@ public class Engine implements Definitions {
 				else {
 					// Principal variation search
 					eval = -alphaBeta(pos, ply - 1, ext, -alpha - 1, -alpha, true, NODE_CUT);
-					// PVS failed high. Do a re-search if eval < beta, otherwise let the
+					// PVS failed high; do a re-search if eval < beta, otherwise let the
 					// parent node fail low with value <= alpha. Re-search is done as a 
 					// PV node.
 					if (eval > alpha && eval < beta)
