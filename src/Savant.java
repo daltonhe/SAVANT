@@ -130,10 +130,11 @@ import java.util.Stack;
  *        PV hash table is now cleared between iterative deepening searches
  *        Implemented limited razoring
  *        Added penalty for backward pawns
- *        More time allocated for early moves and for when the PV changes often
- *        Iterative deepening search is now terminated prematurely when the time used for this
- *        	move is greater than half the allocated time
+ *        More time allocated for early moves
+ *        Search is now terminated prematurely when the time used for this depth is more than 
+ *        	half the allocated time for this move
  *        Fixed a bug in which UCI PV lines were being sent in the wrong format
+ *        Removed bonus to rook value for having more pawns
  */
 
 /**
@@ -141,32 +142,35 @@ import java.util.Stack;
  */
 public class Savant implements Definitions {
 	// TODO: fix opening book after user undo
-	// TODO: mobility area
 	// TODO: blockage detection
-	// TODO: passed pawn eval
-	// TODO: king safety
-	// TODO: piece lists
 	// TODO: regex input validation
-	// TODO: blocked pawns
 	// TODO: null verification search
-	// TODO: material imbalance
 	// TODO: checks in quiescence
 	// TODO: passed pawn pushes during quiescence
 	// TODO: time management
-	// TODO: SEE
 	// TODO: download more UCI engines
+	
+	// TODO: mobility area
 	// TODO: endgame
+	// TODO: SEE
+	// TODO: material imbalance
+	// TODO: blocked pawns
+	// TODO: passed pawn eval
+	// TODO: king safety
+	// TODO: piece lists
+	// TODO: relative history heuristic
+	// TODO: transposition table to separate class
 
-	public static Position pos        = new Position();
-	public static String openingLine  = "";
-	public static boolean inOpening   = true;
+	public static Position pos       = new Position();
+	public static String openingLine = "";
+	public static boolean inOpening  = true;
 	
 	/**
 	 * The main method, calls console mode or UCI mode.
 	 */
 	public static void main(String[] args) throws IOException {
 		//pos = new Position("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
-		//pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
+		pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
 		//pos = new Position("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
 		
 		//pos = new Position("k7/8/8/8/q7/8/8/1R3R1K w - - 0 1");
@@ -174,10 +178,6 @@ public class Savant implements Definitions {
 		//pos = new Position("8/8/8/8/8/8/R7/R3K2k w Q - 0 1");
 		//pos = new Position("7k/8/8/8/R2K3q/8/8/8 w - - 0 1");
 		//pos = new Position("2k5/8/8/8/p7/8/8/4K3 b - - 0 1");
-		
-		//pos = new Position("7k/8/8/8/8/8/8/RK");
-		//pos = new Position("k7/P7/8/K7/8/8/8/8 w - - 0 1");
-		//pos = new Position("1k6/1P6/8/1K6/8/8/8/8 w - - 0 1");	
 		
 		if (args.length == 0)
 			consoleMode();
@@ -190,10 +190,10 @@ public class Savant implements Definitions {
 	 */
 	public static void uciMode() throws IOException {
 		Engine.uciMode = true;
+		openingLine    = "";
+		inOpening      = true;
 		
 		BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
-		openingLine          = "";
-		inOpening            = true;
 		
 		while (true) {
 			String command = input.readLine();
@@ -271,8 +271,6 @@ public class Savant implements Definitions {
 					move = Engine.bestMove;
 				}
 				
-				pos.makeMove(move);
-				
 				System.out.println("bestmove " + move.longNotation());
 			}
 		}
@@ -328,7 +326,7 @@ public class Savant implements Definitions {
 			HashtableEntry rentry = Engine.getEntry(pos.zobrist, pos.reptable);
 			boolean repeated = (rentry != null && rentry.count >= 3);
 
-			// Check for mate/stalemate,  or draw by repetition
+			// Check for mate/stalemate, or draw by repetition
 			if (pos.filterLegal(pos.generateMoves(false)).isEmpty()) {
 				if (pos.inCheck(pos.sideToMove))
 					gameOverMsg = (pos.sideToMove == WHITE ? "Black" : "White") + 

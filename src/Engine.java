@@ -5,8 +5,6 @@ import java.util.Collections;
 import java.util.Random;
 import java.util.Scanner;
 
-import org.w3c.dom.Node;
-
 /**
  * 
  * @author Dalton He
