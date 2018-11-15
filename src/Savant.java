@@ -125,6 +125,12 @@ import java.util.Stack;
  *        Delta pruning margin is now calculated correctly for promotions
  *        Delta pruning is now switched off in the late endgame
  *        Implemented futility pruning and extended futility pruning
+ *        Changed hash table sizes to prime numbers
+ *        Added replace-by-age scheme to transposition table; tt is no longer cleared before
+ *        	each search
+ *        PV hash table is now cleared between iterative deepening searches
+ *        Implemented limited razoring
+ *        Added penalty for backward pawns
  */
 
 /**
@@ -139,7 +145,6 @@ public class Savant implements Definitions {
 	// TODO: king safety
 	// TODO: piece lists
 	// TODO: regex input validation
-	// TODO: run thorough evaluation tests
 	// TODO: blocked pawns
 	// TODO: null verification search
 	// TODO: material imbalance
@@ -148,7 +153,7 @@ public class Savant implements Definitions {
 	// TODO: time management
 	// TODO: SEE
 	// TODO: download more UCI engines
-	// TODO: simple KP endgame eval
+	// TODO: endgame
 	// TODO: reuse transposition table (ancient nodes)
 	// TODO: preservation of PV
 
@@ -205,8 +210,10 @@ public class Savant implements Definitions {
 			if (command.equals("quit"))
 				System.exit(0);
 				
-			if (command.equals("ucinewgame"))
+			if (command.equals("ucinewgame")) {
+				Engine.ttable = new HashtableEntry[HASH_SIZE_TT];
 				inOpening = true;
+			}
 				
 			if (command.startsWith("position")) {
 				if (command.contains("startpos"))
@@ -302,7 +309,8 @@ public class Savant implements Definitions {
 	 * Run the program in console mode.
 	 */
 	public static void consoleMode() throws FileNotFoundException {
-		pos.reptable = new HashtableEntry[HASH_SIZE_REP];
+		pos.reptable            = new HashtableEntry[HASH_SIZE_REP];
+		Engine.ttable           = new HashtableEntry[HASH_SIZE_TT];
 		Stack<Move> moveHistory = new Stack<Move>();
 		openingLine             = "";
 		inOpening               = true;
