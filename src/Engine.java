@@ -85,9 +85,6 @@ public class Engine implements Definitions {
 				// bigger window until we succeed.
 				while (true) {
 					
-					// Clear the PV hash table
-					pvtable = new HashtableEntry[HASH_SIZE_PV];
-					
 					eval = alphaBeta(pos, currentDepth, 0, alpha, beta, true, NODE_PV);
 
 					// Use last iteration's move if the search was terminated early
@@ -358,8 +355,8 @@ public class Engine implements Definitions {
 		ArrayList<Move> moveList = pos.generateMoves(false);
 		sortMoves(pos, moveList, ttentry);
 
-		boolean foundLegal = false;
 		String bestMove = null;
+		int bestEval = -VALUE_INF;
 		int movesTried = 0;
 		
 		// Loop through all the moves
@@ -374,7 +371,6 @@ public class Engine implements Definitions {
 				continue;
 			}
 			
-			foundLegal = true;
 			boolean doFullDepthSearch = false;
 			boolean givesCheck = pos.inCheck(pos.sideToMove);
 			
@@ -441,34 +437,32 @@ public class Engine implements Definitions {
 			
 			assert(eval > -VALUE_INF && eval < VALUE_INF);
 			
-			// Fail high
-			if (eval >= beta) {
-				// Update transposition table
-				addTTEntry(pos.zobrist, move.longNotation(), ply, eval * pos.sideToMove, BOUND_LOWER);
-
-				// Update PV hash table
-				int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
-				pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation());
+			// Check for a new best move
+			if (eval > bestEval) {
+				bestEval = eval;
 				
-				// Update history moves
-				if (move.captured == PIECE_NONE) {
-					int side = (pos.sideToMove == WHITE ? 0 : 1);
-					historyMoves[side][move.piece + 6][move.target] += ply * ply;
-				}
-				return beta;
-			}
-			
-			// New best move
-			if (eval > alpha) {
-				bestMove = move.longNotation();
-				if (rootNode)
-					Engine.bestMove = move;
-				
-				// Update PV hash table
-				int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
-				pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation());
-				
-				alpha = eval;
+				if (eval > alpha) {
+					bestMove = move.longNotation();
+					if (rootNode)
+						Engine.bestMove = move;
+					
+					// Update PV hash table
+					if (nodeType == NODE_PV) {
+					int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
+					pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation());
+					}
+					
+					if (eval < beta) // update alpha
+						alpha = eval;
+					else { // fail high
+						// Update history moves
+						if (move.captured == PIECE_NONE) {
+							int side = (pos.sideToMove == WHITE ? 0 : 1);
+							historyMoves[side][move.piece + 6][move.target] += ply * ply;
+						}
+						break;
+					}
+				}	
 			}
 			
 			// Increment move count
@@ -479,10 +473,8 @@ public class Engine implements Definitions {
 				nodeType = NODE_ALL;
 		}
 		
-		assert(movesTried > 0 || !foundLegal);
-		
 		// Check for mate/stalemate
-		if (!foundLegal) {
+		if (bestEval == -VALUE_INF) {
 			if (inCheck)
 				return matedScore(ply - ext);
 
@@ -490,14 +482,15 @@ public class Engine implements Definitions {
 		}
 		
 		// Update transposition table
-		if (bestMove != null)
-			addTTEntry(pos.zobrist, bestMove, ply, alpha * pos.sideToMove, BOUND_EXACT);
-		else
-			addTTEntry(pos.zobrist, null, ply, alpha * pos.sideToMove, BOUND_UPPER);
+		addTTEntry(pos.zobrist,
+				   bestMove,
+				   ply,
+				   bestEval * pos.sideToMove,
+				   bestEval >= beta ? BOUND_LOWER : bestMove != null ? BOUND_EXACT : BOUND_UPPER);
 		
 		assert(alpha > -VALUE_INF && alpha < VALUE_INF);
 		
-		return alpha;
+		return bestEval;
 	}
 	
 	/**
@@ -692,7 +685,7 @@ public class Engine implements Definitions {
 
 		ArrayList<Move> moveList = pos.filterLegal(pos.generateMoves(false));
 		for (Move move : moveList) {
-			Engine.addAlgebraicModifier(move, moveList);
+			addAlgebraicModifier(move, moveList);
 			if (   notation.equalsIgnoreCase(move.longNotation()) 
 				|| notation.equalsIgnoreCase(move.toString()))
 				return move;
