@@ -98,7 +98,7 @@ public interface Definitions {
 	// Transposition table
 	public static final int HASH_SIZE_TT  = 524309;
 	public static final int HASH_SIZE_REP = 32771;
-	public static final int HASH_SIZE_PV  = 262147;
+	public static final int HASH_SIZE_PV  = 524309;
 	
 	public static final int BOUND_EXACT = 0;
 	public static final int BOUND_LOWER = 1;
