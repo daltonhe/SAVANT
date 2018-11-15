@@ -111,11 +111,11 @@ public interface Definitions {
 	public static final int MIDGAME_PHASE_LIMIT  = 22;
 	public static final int ENDGAME_PHASE_LIMIT  = 5;
 	
-	public static final int PAWN_MG   = 85,   PAWN_EG   = 100;
-	public static final int KNIGHT_MG = 325,  KNIGHT_EG = 325;
-	public static final int BISHOP_MG = 325,  BISHOP_EG = 325;
-	public static final int ROOK_MG   = 500,  ROOK_EG   = 500;
-	public static final int QUEEN_MG  = 975,  QUEEN_EG  = 975;
+	public static final int PAWN_MG   = 65,   PAWN_EG   = 100;
+	public static final int KNIGHT_MG = 375,  KNIGHT_EG = 415;
+	public static final int BISHOP_MG = 400,  BISHOP_EG = 440;
+	public static final int ROOK_MG   = 620,  ROOK_EG   = 660;
+	public static final int QUEEN_MG  = 1215, QUEEN_EG  = 1290;
 	
 	public static final int PIECE_VALUE_MG[]   = {0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
 	public static final int PIECE_VALUE_EG[]   = {0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
@@ -244,9 +244,8 @@ public interface Definitions {
 	public static final int REDUNDANT_ROOK           = -10;
 	public static final int REDUNDANT_QUEEN          = -5;
 	public static final int KNIGHT_PAWN_SYNERGY	     =  6;
-	public static final int ROOK_PAWN_SYNERGY        = -12;
 	public static final int DOUBLED_PAWN_MG          = -5;
-	public static final int DOUBLED_PAWN_EG          = -20;
+	public static final int DOUBLED_PAWN_EG          = -28;
 	public static final int ISOLATED_PAWN_MG         = -3;
 	public static final int ISOLATED_PAWN_EG         = -8;
 	public static final int BACKWARD_PAWN_MG         = -5;
