@@ -154,6 +154,11 @@ public class Evaluate implements Definitions {
 			return material_mg - (cornered + kingProximity) * 10;
 		}
 		
+		// Return a lazy eval if the score is high
+		int score_lazy = (material_mg + material_eg + psqt_mg + psqt_eg) / 2;
+		if (Math.abs(score_lazy) > LAZY_THRESHOLD)
+			return score_lazy;
+		
 		// Second pass: calculate mobility, and evaluate pieces and pawns.
 		for (int index = SQ_a8; index <= SQ_h1; index++) {
 			if (!Position.isLegalIndex(index))
@@ -199,8 +204,7 @@ public class Evaluate implements Definitions {
 					pawns_mg += PASSED_PAWN_MG[rank][file];
 					pawns_eg += PASSED_PAWN_EG[rank][file];
 					
-					int[] r = {0, 10, 5, 3, 1, 0, 0, 0};
-					int rankBonus = r[rank];
+					int rankBonus = PASSED_DANGER[rank];
 					// distance from king to block square of pawn, capped at 5
 					int kingDist_our = Math.min(Math.max(Math.abs(kingPos_w / 16 - (rank - 1)),
 									 					 Math.abs(kingPos_w % 16 - file)), 5);
@@ -273,8 +277,7 @@ public class Evaluate implements Definitions {
 					pawns_mg -= PASSED_PAWN_MG[7 - rank][file];
 					pawns_eg -= PASSED_PAWN_EG[7 - rank][file];
 					
-					int[] r = {0, 0, 0, 1, 3, 5, 10, 0};
-					int rankBonus = r[rank];
+					int rankBonus = PASSED_DANGER[7 - rank];
 					int kingDist_our = Math.min(Math.max(Math.abs(kingPos_b / 16 - (rank + 1)),
 									 					 Math.abs(kingPos_b % 16 - file)), 5);
 					int kingDist_opp = Math.min(Math.max(Math.abs(kingPos_w / 16 - (rank + 1)),

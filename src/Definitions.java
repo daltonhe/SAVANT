@@ -110,6 +110,7 @@ public interface Definitions {
 	public static final int PHASE_WEIGHT[]       = {0, 0, 1, 1, 2, 4, 0};
 	public static final int MIDGAME_PHASE_LIMIT  = 22;
 	public static final int ENDGAME_PHASE_LIMIT  = 5;
+	public static final int LAZY_THRESHOLD       = 720;
 	
 	public static final int PAWN_MG   = 65,   PAWN_EG   = 100;
 	public static final int KNIGHT_MG = 375,  KNIGHT_EG = 415;
@@ -254,13 +255,13 @@ public interface Definitions {
 	public static final int[] CONNECTED_PAWN         = {0, 85, 50, 30, 15, 10, 5, 0};
 	public static final int PAWN_ON_BISHOP_COLOR_MG  = -5;
 	public static final int PAWN_ON_BISHOP_COLOR_EG  = -10;
-	public static final int ROOK_OPEN_FILE_MG        =  20;
+	public static final int ROOK_OPEN_FILE_MG        =  22;
 	public static final int ROOK_OPEN_FILE_EG        =  10;
-	public static final int ROOK_SEMIOPEN_FILE_MG    =  10;
-	public static final int ROOK_SEMIOPEN_FILE_EG    =  5;
+	public static final int ROOK_SEMIOPEN_FILE_MG    =  9;
+	public static final int ROOK_SEMIOPEN_FILE_EG    =  4;
 	public static final int TRAPPED_ROOK             = -50;
-	public static final int ROOK_ON_7TH_MG           =  25;
-	public static final int ROOK_ON_7TH_EG           =  50;
+	public static final int ROOK_ON_7TH_MG           =  20;
+	public static final int ROOK_ON_7TH_EG           =  40;
 	public static final int QUEEN_ON_7TH_MG          =  10;
 	public static final int QUEEN_ON_7TH_EG          =  20;
 	
@@ -303,6 +304,8 @@ public interface Definitions {
 		{ 12,  13,   5,   2,   2,   5,  13,  12},
 		{  0,   0,   0,   0,   0,   0,   0,   0}
 	};
+	
+	public static final int PASSED_DANGER[] = {0, 10, 5, 3, 1, 0, 0, 0};
 	
 	public static final int CORNER_PROXIMITY[][] = {
 		{100, 90, 80, 70, 70, 80, 90, 100},
