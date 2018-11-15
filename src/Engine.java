@@ -448,13 +448,13 @@ public class Engine implements Definitions {
 					
 					// Update PV hash table
 					if (nodeType == NODE_PV) {
-					int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
-					pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation());
+						int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
+						pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation());
 					}
 					
-					if (eval < beta) // update alpha
+					if (eval < beta) // Update alpha
 						alpha = eval;
-					else { // fail high
+					else { // Fail high
 						// Update history moves
 						if (move.captured == PIECE_NONE) {
 							int side = (pos.sideToMove == WHITE ? 0 : 1);
@@ -473,13 +473,9 @@ public class Engine implements Definitions {
 				nodeType = NODE_ALL;
 		}
 		
-		// Check for mate/stalemate
-		if (bestEval == -VALUE_INF) {
-			if (inCheck)
-				return matedScore(ply - ext);
-
-			return VALUE_DRAW;
-		}
+		// No legal moves found, return mate/stalemate score
+		if (bestEval == -VALUE_INF)
+			return (inCheck ? matedScore(ply - ext) : VALUE_DRAW);
 		
 		// Update transposition table
 		addTTEntry(pos.zobrist,

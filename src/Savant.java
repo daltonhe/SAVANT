@@ -107,9 +107,9 @@ import java.util.Stack;
  * 11-10: Added UCI support
  * 		  Fixed a bug where getMoveObject failed to recognize promotion inputs
  * 11-11: Changed formula for calculating aspiration windows
- * 		  Search is now stopped early when there is only one legal move
+ * 		  Search is now terminated prematurely when there is only one legal move
  * 11-12: Added time control support to UCI
- *        Search now hard terminates when time is up
+ *        Search is now hard stopped when time is up
  *        Implemented internal iterative deepening
  *        Added static eval restriction to null move pruning
  *        Added dynamic LMR reduction factor based on node type, ply, and moves searched
@@ -131,6 +131,8 @@ import java.util.Stack;
  *        Implemented limited razoring
  *        Added penalty for backward pawns
  *        More time allocated for early moves and for when the PV changes often
+ *        Iterative deepening search is now terminated prematurely when the time used for this
+ *        	move is greater than half the allocated time
  */
 
 /**
@@ -153,9 +155,8 @@ public class Savant implements Definitions {
 	// TODO: SEE
 	// TODO: download more UCI engines
 	// TODO: endgame
-	// TODO: preservation of PV
 
-	public static Position pos        = new Position();
+	public static Position pos        = new Position("5rk1/RR6/8/8/8/8/7K");
 	public static String openingLine  = "";
 	public static boolean inOpening   = true;
 	
@@ -210,7 +211,7 @@ public class Savant implements Definitions {
 				
 			if (command.equals("ucinewgame")) {
 				Engine.ttable = new HashtableEntry[HASH_SIZE_TT];
-				inOpening = true;
+				inOpening     = true;
 			}
 				
 			if (command.startsWith("position")) {
