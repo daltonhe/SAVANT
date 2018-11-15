@@ -93,10 +93,12 @@ public interface Definitions {
 	public static final int FUTILITY_EXT_MARGIN    = 500;
 	public static final int RAZOR_MARGIN           = 975;
 	
+	public static final int HISTORY_MAX            = 50000;
+	
 	public static final int TIME_INF = 9999000;
 	
 	// Transposition table
-	public static final int HASH_SIZE_TT  = 524309;
+	public static final int HASH_SIZE_TT  = 1048583;
 	public static final int HASH_SIZE_REP = 32771;
 	public static final int HASH_SIZE_PV  = 524309;
 	

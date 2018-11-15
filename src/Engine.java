@@ -5,24 +5,26 @@ import java.util.Collections;
 import java.util.Random;
 import java.util.Scanner;
 
+import org.w3c.dom.Node;
+
 /**
  * 
  * @author Dalton He
  * created 10-22-18
  */
 public class Engine implements Definitions {
-	public static int maxDepth    = 100;      // max depth to search
-	public static boolean uciMode = false;    // true if we are in UCI mode
-	public static double timeLeft    = 60000; // total time remaining
+	public static int maxDepth       = 100;   // max depth to search
+	public static boolean uciMode    = false; // true if we are in UCI mode
+	public static double timeLeft    = TIME_INF; // total time remaining
 	public static double increment   = 1000;  // increment per move
 	public static double timeForMove = 100;   // time for this move
-	public static boolean useBook = true; 	  // true if using native opening book
+	public static boolean useBook    = true;  // true if using native opening book
 	
 	public static int currentDepth;           // current depth of search
 	public static long startTime;             // time the search was started
 	public static boolean abortedSearch;      // true if the search was ended early
 	
-	public static int[][][] historyMoves;     // history heuristic move counter
+	public static int[][] historyScore;       // history heuristic move scores
 	public static HashtableEntry[] ttable;	  // transposition table
 	public static HashtableEntry[] pvtable;   // hash table to store PV moves
 
@@ -36,15 +38,15 @@ public class Engine implements Definitions {
 	 * Resets engine fields in preparation for a new search.
 	 */
 	public static void initializeSearch() {
-		currentDepth  = 0;
-		abortedSearch = false;
-		historyMoves  = new int[2][13][120];
-		pvtable       = new HashtableEntry[HASH_SIZE_PV];
-		pv            = new ArrayList<Move>();
-		bestMove      = null;
-		prevBestMove  = null;
-		eval          = 0;
-		nodes         = 0;
+		currentDepth   = 0;
+		abortedSearch  = false;
+		historyScore   = new int[13][120];
+		pvtable        = new HashtableEntry[HASH_SIZE_PV];
+		pv             = new ArrayList<Move>();
+		bestMove       = null;
+		prevBestMove   = null;
+		eval           = 0;
+		nodes          = 0;
 		updateTT();
 	}
 	
@@ -69,6 +71,9 @@ public class Engine implements Definitions {
 		
 		// The iterative deepening loop
 		for (currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
+			
+			// Clear the PV hash table
+			pvtable = new HashtableEntry[HASH_SIZE_PV];
 			
 			// For the first few depths, start with an infinite search window.
 			if (currentDepth < 5)
@@ -294,7 +299,7 @@ public class Engine implements Definitions {
 			&& standPat <= alpha - FUTILITY_MARGIN)
 			return quiescence(pos, alpha, beta);*/
 		
-		// Futility pruning: child node
+		// Reverse futility pruning
 		if (   !rootNode
 			&& !inCheck
 			&& standPat < VALUE_KNOWN_WIN) { // Do not return unproven wins
@@ -383,7 +388,7 @@ public class Engine implements Definitions {
 			boolean doFullDepthSearch = false;
 			boolean givesCheck = pos.inCheck(pos.sideToMove);
 			
-			// Futility pruning: parent node
+			// Futility pruning
 			if (   !inCheck 
 				&& !givesCheck
 				&& move.type != PROMOTION
@@ -405,13 +410,11 @@ public class Engine implements Definitions {
 			    && moveCount > 1 
 			    && move.type != PROMOTION
 			    && move.captured == PIECE_NONE) {
-				//int R = 1;
-				//int R = (int) (Math.sqrt((double) (ply - 1)) + Math.sqrt((double) (moveCount - 1)));
-				
+
 				// Increase reduction for later moves
 				int R = (moveCount <= 7 ? 1 : ply / 3);
 				
-				// Increase reduction for cut nodes, decrease reduction for PV nodes
+				// Increase reduction for cut nodes
 				if (nodeType == NODE_CUT)
 					R++;
 				
@@ -433,6 +436,7 @@ public class Engine implements Definitions {
 				else {
 					// Principal variation search
 					eval = -alphaBeta(pos, ply - 1, ext, -alpha - 1, -alpha, true, NODE_CUT);
+					
 					// PVS failed high; do a re-search if eval < beta, otherwise let the
 					// parent node fail low with value <= alpha. Re-search is done as a 
 					// PV node.
@@ -456,16 +460,25 @@ public class Engine implements Definitions {
 						Engine.bestMove = move;
 					
 					// Update PV hash table
-					int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
-					pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation());
+					if (nodeType == NODE_PV) {
+						int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
+						pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation());
+					}
 					
 					if (eval < beta) // Update alpha
 						alpha = eval;
 					else { // Fail high
-						// Update history moves
+						// Update history score
 						if (move.captured == PIECE_NONE) {
-							int side = (pos.sideToMove == WHITE ? 0 : 1);
-							historyMoves[side][move.piece + 6][move.target] += ply * ply;
+							historyScore[move.piece + 6][move.target] += ply * ply;
+							
+							// Prevent history overflow; also has the effect of weighing recently
+							// searched moves more heavily during move ordering
+							if (historyScore[move.piece + 6][move.target] >= HISTORY_MAX) {
+								for (int i = 0; i < 13; i++)
+									for (int j = 0; j < 120; j++)
+										historyScore[i][j] /= 2;
+							}
 						}
 						break;
 					}
@@ -581,9 +594,8 @@ public class Engine implements Definitions {
 			else if (move.type == CASTLE_SHORT || move.type == CASTLE_LONG)
 				move.priority = 3;
 			
-			// History move ordering
-			int side = (pos.sideToMove == WHITE ? 0 : 1);
-			move.historyCount = historyMoves[side][move.piece + 6][move.target];
+			// History heuristic
+			move.historyScore = historyScore[move.piece + 6][move.target];
 		}
 		
 		Collections.sort(moveList);
