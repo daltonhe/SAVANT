@@ -13,7 +13,7 @@ public class Move implements Definitions, Comparable<Move> {
 	public int prevFiftyMoves;  // fifty moves count prior to the move being made
 	public int type;            // type of the move (see Definitions interface)
 	public int priority;        // priority of the move, used for move ordering
-	public int historyCount;    // history heuristic weight, used for move ordering
+	public int historyScore;    // history heuristic weight, used for move ordering
 	public String modifier;     // algebraic notation modifier
 
 	/**
@@ -30,7 +30,7 @@ public class Move implements Definitions, Comparable<Move> {
 		this.prevFiftyMoves = prevFiftyMoves;
 		this.type           = type;
 		this.priority       = 0;
-		this.historyCount   = 0;
+		this.historyScore   = 0;
 		this.modifier       = "";
 	}
 	
@@ -89,8 +89,8 @@ public class Move implements Definitions, Comparable<Move> {
 		if (other.priority != this.priority)
 			return other.priority - this.priority;
 
-		if (other.historyCount != this.historyCount)
-			return other.historyCount - this.historyCount;
+		if (other.historyScore != this.historyScore)
+			return other.historyScore - this.historyScore;
 		
 		return Math.abs(this.piece) - Math.abs(other.piece);
 	}
