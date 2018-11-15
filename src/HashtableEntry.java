@@ -9,7 +9,7 @@ public class HashtableEntry {
 	public int eval;     // score of the position
 	public int type;     // bound type of the eval
 	public int count;    // number of times this position has been repeated
-	public boolean old;  // true if the entry was from a previous search
+	public int age;
 	
 	/**
 	 * Repetition table entry
@@ -35,6 +35,6 @@ public class HashtableEntry {
 		this.eval    = eval;
 		this.type    = type;
 		this.count   = 1;
-		this.old     = false;
+		this.age     = 0;
 	}
 }
