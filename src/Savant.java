@@ -117,7 +117,6 @@ import java.util.Stack;
  *        Zobrist keys are now the same irrespective of the side to move (for the repetition
  *        	hash table only)
  * 11-13: Added bonuses for king proximity to passed pawns in the endgame
- * 		  Reverted to tempo bonus being applied at all stages of the game
  * 11-14: Implemented in-tree repetition detection
  * 		  Repetition hash table is now stored as a field in the Position class
  *        Moved null move parameters to Position class
@@ -131,6 +130,7 @@ import java.util.Stack;
  *        PV hash table is now cleared between iterative deepening searches
  *        Implemented limited razoring
  *        Added penalty for backward pawns
+ *        More time allocated for early moves and for when the PV changes often
  */
 
 /**
@@ -139,7 +139,6 @@ import java.util.Stack;
 public class Savant implements Definitions {
 	// TODO: fix opening book after user undo
 	// TODO: mobility area
-	// TODO: backward pawns
 	// TODO: blockage detection
 	// TODO: passed pawn eval
 	// TODO: king safety
@@ -154,7 +153,6 @@ public class Savant implements Definitions {
 	// TODO: SEE
 	// TODO: download more UCI engines
 	// TODO: endgame
-	// TODO: reuse transposition table (ancient nodes)
 	// TODO: preservation of PV
 
 	public static Position pos        = new Position();
@@ -166,7 +164,7 @@ public class Savant implements Definitions {
 	 */
 	public static void main(String[] args) throws IOException {
 		//pos = new Position("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
-		pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
+		//pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
 		//pos = new Position("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
 		
 		//pos = new Position("k7/8/8/8/q7/8/8/1R3R1K w - - 0 1");
