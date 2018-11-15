@@ -39,7 +39,6 @@ public class Engine implements Definitions {
 		currentDepth  = 0;
 		abortedSearch = false;
 		historyMoves  = new int[2][13][120];
-		ttable        = new HashtableEntry[HASH_SIZE_TT];
 		pvtable       = new HashtableEntry[HASH_SIZE_PV];
 		pv            = new ArrayList<Move>();
 		bestMove      = null;
@@ -54,6 +53,7 @@ public class Engine implements Definitions {
 	 */
 	public static void search(Position pos) {
 		initializeSearch();
+		updateTT();
 		
 		// Calculate the time to use for this move
 		if (timeLeft > increment)
@@ -141,48 +141,6 @@ public class Engine implements Definitions {
 				//|| pos.filterLegal(pos.generateMoves(false)).size() == 1)
 				break;
 		}
-	}
-	
-	/**
-	 * Gets a move from the opening book (returns null if no move).
-	 */
-	public static String getBookMove(String openingLine) throws FileNotFoundException {
-		Scanner book = new Scanner(new File("book.txt"));
-		ArrayList<String> variations = new ArrayList<String>();
-		
-		while (book.hasNextLine()) {
-			String line = book.nextLine().trim();
-			openingLine = openingLine.trim();
-			if (line.startsWith(openingLine) && !line.equals(openingLine)) {
-				Scanner continuation = new Scanner(line.substring(openingLine.length()));
-				variations.add(continuation.next());
-				continuation.close();
-			}
-		}
-		
-		book.close();
-		if (variations.isEmpty())
-			return null;
-			
-		return variations.get(new Random().nextInt(variations.size()));
-	}
-	
-	/**
-	 * Gets the move object with the given algebraic notation (case insensitive, accepts both
-	 * short and long algebraic forms). Returns null if the move is not found.
-	 */
-	public static Move getMoveObject(Position pos, String notation) {
-		if (notation == null || notation.isBlank())
-			return null;
-
-		ArrayList<Move> moveList = pos.filterLegal(pos.generateMoves(false));
-		for (Move move : moveList) {
-			Engine.addAlgebraicModifier(move, moveList);
-			if (   notation.equalsIgnoreCase(move.longNotation()) 
-				|| notation.equalsIgnoreCase(move.toString()))
-				return move;
-		}
-		return null;
 	}
 	
 	/**
@@ -337,7 +295,7 @@ public class Engine implements Definitions {
 				
 				if (Math.abs(beta) < VALUE_KNOWN_WIN) {
 					// Update transposition table
-					addEntry(pos.zobrist, null, ply, eval * pos.sideToMove, BOUND_LOWER);	
+					addTTEntry(pos.zobrist, null, ply, eval * pos.sideToMove, BOUND_LOWER);	
 					
 					return beta;
 				}
@@ -447,7 +405,7 @@ public class Engine implements Definitions {
 			// Fail high
 			if (eval >= beta) {
 				// Update transposition table
-				addEntry(pos.zobrist, move.longNotation(), ply, eval * pos.sideToMove, BOUND_LOWER);
+				addTTEntry(pos.zobrist, move.longNotation(), ply, eval * pos.sideToMove, BOUND_LOWER);
 				
 				// Update history moves
 				if (move.captured == PIECE_NONE) {
@@ -489,9 +447,9 @@ public class Engine implements Definitions {
 		
 		// Update transposition table
 		if (bestMove != null)
-			addEntry(pos.zobrist, bestMove, ply, alpha * pos.sideToMove, BOUND_EXACT);
+			addTTEntry(pos.zobrist, bestMove, ply, alpha * pos.sideToMove, BOUND_EXACT);
 		else
-			addEntry(pos.zobrist, null, ply, alpha * pos.sideToMove, BOUND_UPPER);
+			addTTEntry(pos.zobrist, null, ply, alpha * pos.sideToMove, BOUND_UPPER);
 		
 		assert(alpha > -VALUE_INF && alpha < VALUE_INF);
 		
@@ -564,7 +522,7 @@ public class Engine implements Definitions {
 	/**
 	 * Sorts the given move list to improve pruning by the alpha-beta search.
 	 */
-	public static void sortMoves(Position pos, ArrayList<Move> moveList, HashtableEntry ttentry) {
+	private static void sortMoves(Position pos, ArrayList<Move> moveList, HashtableEntry ttentry) {
 		String hashMove = (ttentry != null ? ttentry.move : null);
 		
 		// Go through the move list and assign priorities
@@ -607,35 +565,95 @@ public class Engine implements Definitions {
 	/**
 	 * Adds an entry to the transposition table.
 	 */
-	public static void addEntry(long zobrist, String move, int depth, int eval, int type) {
-		if (depth < 1)
-			return;
+	public static void addTTEntry(long zobrist, String move, int depth, int eval, int type) {
+		assert(depth > 0);
 		
 		int hashKey = (int) (zobrist % HASH_SIZE_TT);
 		HashtableEntry hash = ttable[hashKey];	
 		
-		// If an entry exists with higher depth, do not replace
-		if (hash != null && zobrist == hash.zobrist && depth < hash.depth) {
-			if (hash.move == null && move != null)
-				ttable[hashKey].move = move;
-			return;
+		// If an entry for the same position exists, replace if the search depth was higher.
+		// If an entry exists but for a different position, replace if it was from an old search.
+		boolean replace;
+		if (hash != null) {
+			if (zobrist == hash.zobrist) {
+				replace = (depth > hash.depth);
+				if (hash.move == null && move != null)
+					ttable[hashKey].move = move;
+			}
+			else
+				replace = hash.old;
 		}
+		else
+			replace = true;
 		
-		ttable[hashKey] = new HashtableEntry(zobrist, move, depth, eval, type);
+		if (replace)
+			ttable[hashKey] = new HashtableEntry(zobrist, move, depth, eval, type);
+	}
+	
+	/**
+	 * Increment the age of all existing transposition table entries.
+	 */
+	private static void updateTT() {
+		for (int i = 0; i < HASH_SIZE_TT; i++) {
+			if (ttable[i] != null)
+				ttable[i].old = true;
+		}
 	}
 	
 	/**
 	 * Returns the value of mate in ply.
 	 */
-	public static int mateScore(int ply) {
+	private static int mateScore(int ply) {
 		return VALUE_MATE - currentDepth + ply;
 	}
 	
 	/**
 	 * Returns the value of being mated in ply.
 	 */
-	public static int matedScore(int ply) {
+	private static int matedScore(int ply) {
 		return -mateScore(ply);
+	}
+	
+	/**
+	 * Gets a move from the opening book (returns null if no move).
+	 */
+	public static String getBookMove(String openingLine) throws FileNotFoundException {
+		Scanner book = new Scanner(new File("book.txt"));
+		ArrayList<String> variations = new ArrayList<String>();
+		
+		while (book.hasNextLine()) {
+			String line = book.nextLine().trim();
+			openingLine = openingLine.trim();
+			if (line.startsWith(openingLine) && !line.equals(openingLine)) {
+				Scanner continuation = new Scanner(line.substring(openingLine.length()));
+				variations.add(continuation.next());
+				continuation.close();
+			}
+		}
+		
+		book.close();
+		if (variations.isEmpty())
+			return null;
+			
+		return variations.get(new Random().nextInt(variations.size()));
+	}
+	
+	/**
+	 * Gets the move object with the given algebraic notation (case insensitive, accepts both
+	 * short and long algebraic forms). Returns null if the move is not found.
+	 */
+	public static Move getMoveObject(Position pos, String notation) {
+		if (notation == null || notation.isBlank())
+			return null;
+
+		ArrayList<Move> moveList = pos.filterLegal(pos.generateMoves(false));
+		for (Move move : moveList) {
+			Engine.addAlgebraicModifier(move, moveList);
+			if (   notation.equalsIgnoreCase(move.longNotation()) 
+				|| notation.equalsIgnoreCase(move.toString()))
+				return move;
+		}
+		return null;
 	}
 	
 	/**
@@ -694,7 +712,7 @@ public class Engine implements Definitions {
 	  }
 	  
 	  if (useHash)
-		  addEntry(pos.zobrist, null, depth, nodes, 0);
+		  addTTEntry(pos.zobrist, null, depth, nodes, 0);
 	  
 	  return nodes;
 	}
