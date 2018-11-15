@@ -133,6 +133,7 @@ import java.util.Stack;
  *        More time allocated for early moves and for when the PV changes often
  *        Iterative deepening search is now terminated prematurely when the time used for this
  *        	move is greater than half the allocated time
+ *        Fixed a bug in which UCI PV lines were being sent in the wrong format
  */
 
 /**
@@ -156,7 +157,7 @@ public class Savant implements Definitions {
 	// TODO: download more UCI engines
 	// TODO: endgame
 
-	public static Position pos        = new Position("5rk1/RR6/8/8/8/8/7K");
+	public static Position pos        = new Position();
 	public static String openingLine  = "";
 	public static boolean inOpening   = true;
 	

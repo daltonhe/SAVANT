@@ -121,29 +121,35 @@ public class Engine implements Definitions {
 			double decimalTime = timeElapsed / 1000.0;
 			
 			// Allocate more time if the best move is not the same as last iteration's best move
-			if (currentDepth > 5 && !bestMove.equals(prevBestMove))
-				timeForMove = Math.min(timeForMove * 1.2, timeLeft / 5);
+			//if (currentDepth > 5 && !bestMove.equals(prevBestMove))
+				//timeForMove = Math.min(timeForMove * 1.2, timeLeft / 5);
 			
 			// Update the pv and previous best move
 			pv = extractPV(pos);
 			prevBestMove = bestMove;
 			
 			// Update the GUI
-			String pvString = pv.toString().replace(",", "");
-			pvString        = pvString.substring(1, pvString.length() - 1);
-			if (uciMode)
+			String pvString;
+			if (uciMode) {
+				pvString = "";
+				for (Move move : pv)
+					pvString += move.longNotation() + " ";
 				System.out.println(  "info score cp " + eval
 								   + " depth "        + currentDepth
 								   + " nodes "        + nodes
 								   + " nps "          + 0
 								   + " time "         + (int) timeElapsed
 								   + " pv "           + pvString);
-			else
+			}
+			else {
+				pvString = pv.toString().replace(",", "");
+				pvString = pvString.substring(1, pvString.length() - 1);
 				System.out.println(  "(d=" + currentDepth + ") "
 								   + bestMove
 								   + " [" + eval / 100.0 + "] "
 								   + pvString 
 								   + " (n=" + nodes + " t=" + decimalTime + "s)");
+			}
 			
 			// Stop searching if a forced mate was found, or we have only one legal move,
 			// or the time left is likely not enough to search the next depth
@@ -357,7 +363,7 @@ public class Engine implements Definitions {
 
 		String bestMove = null;
 		int bestEval = -VALUE_INF;
-		int movesTried = 0;
+		int moveCount = 0;
 		
 		// Loop through all the moves
 		for (Move move : moveList) {
@@ -370,6 +376,9 @@ public class Engine implements Definitions {
 				pos.unmakeMove(move);
 				continue;
 			}
+			
+			// Increment move count
+			moveCount++;
 			
 			boolean doFullDepthSearch = false;
 			boolean givesCheck = pos.inCheck(pos.sideToMove);
@@ -393,14 +402,14 @@ public class Engine implements Definitions {
 				&& !inCheck
 				&& !givesCheck
 				&& ply >= 3
-			    && movesTried >= 1 
+			    && moveCount > 1 
 			    && move.type != PROMOTION
 			    && move.captured == PIECE_NONE) {
 				//int R = 1;
-				//int R = (int) (Math.sqrt((double) (ply - 1)) + Math.sqrt((double) (movesTried - 1)));
+				//int R = (int) (Math.sqrt((double) (ply - 1)) + Math.sqrt((double) (moveCount - 1)));
 				
 				// Increase reduction for later moves
-				int R = (movesTried <= 7 ? 1 : ply / 3);
+				int R = (moveCount <= 7 ? 1 : ply / 3);
 				
 				// Increase reduction for cut nodes, decrease reduction for PV nodes
 				if (nodeType == NODE_CUT)
@@ -419,7 +428,7 @@ public class Engine implements Definitions {
 			
 			if (doFullDepthSearch) {
 				// Search first move with full width
-				if (nodeType != NODE_PV || movesTried == 0)
+				if (nodeType != NODE_PV || moveCount == 1)
 					eval = -alphaBeta(pos, ply - 1, ext, -beta, -alpha, true, -nodeType);
 				else {
 					// Principal variation search
@@ -447,10 +456,8 @@ public class Engine implements Definitions {
 						Engine.bestMove = move;
 					
 					// Update PV hash table
-					if (nodeType == NODE_PV) {
-						int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
-						pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation());
-					}
+					int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
+					pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation());
 					
 					if (eval < beta) // Update alpha
 						alpha = eval;
@@ -465,17 +472,16 @@ public class Engine implements Definitions {
 				}	
 			}
 			
-			// Increment move count
-			movesTried++;
-			
 			// Switch node type
 			if (nodeType == NODE_CUT)
 				nodeType = NODE_ALL;
 		}
 		
 		// No legal moves found, return mate/stalemate score
-		if (bestEval == -VALUE_INF)
+		if (moveCount == 0) {
+			assert(pos.filterLegal(pos.generateMoves(false)).isEmpty());
 			return (inCheck ? matedScore(ply - ext) : VALUE_DRAW);
+		}
 		
 		// Update transposition table
 		addTTEntry(pos.zobrist,
@@ -614,7 +620,7 @@ public class Engine implements Definitions {
 					ttable[hashKey].move = move;
 			}
 			else
-				replace = hash.old;
+				replace = (hash.age > 0);
 		}
 		else
 			replace = true;
@@ -628,8 +634,11 @@ public class Engine implements Definitions {
 	 */
 	private static void updateTT() {
 		for (int i = 0; i < HASH_SIZE_TT; i++) {
-			if (ttable[i] != null)
-				ttable[i].old = true;
+			if (ttable[i] != null) {
+				ttable[i].age++;
+				if (ttable[i].age >= 5) // delete old entries
+					ttable[i] = null;
+			}
 		}
 	}
 	
