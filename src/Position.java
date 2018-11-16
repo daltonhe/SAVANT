@@ -576,12 +576,12 @@ public class Position implements Types {
 	public boolean isAttacked(int index, int side) {
 		
 		if (side == WHITE) {
-			if (index % 16 == 0 || board[index + 15] == W_PAWN) return true;
-			if (index % 16 == 7 || board[index + 17] == W_PAWN) return true;
+			if (isLegalIndex(index + 15) && board[index + 15] == W_PAWN) return true;
+			if (isLegalIndex(index + 17) && board[index + 17] == W_PAWN) return true;
 		}
 		else {
-			if (index % 16 == 0 || board[index - 17] == B_PAWN) return true;
-			if (index % 16 == 7 || board[index - 15] == B_PAWN) return true;
+			if (isLegalIndex(index - 17) && board[index - 17] == B_PAWN) return true;
+			if (isLegalIndex(index - 15) && board[index - 15] == B_PAWN) return true;
 		}
 
 		if (attackDelta(index, DELTA_KNIGHT, side == WHITE ? "N"  : "n",  false)) return true;
