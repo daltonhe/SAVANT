@@ -135,12 +135,15 @@ import java.util.Stack;
  *        	half the allocated time for this move
  *        Fixed a bug in which UCI PV lines were being sent in the wrong format
  *        Removed bonus to rook value for having more pawns
+ * 11-15: Tested Stockfish material values and reverted to them
+ * 		  Added lazy eval for positions with very large material difference 
  */
 
 /**
  * @author Dalton He
+ * created 10-07-18
  */
-public class Savant implements Definitions {
+public class Savant implements Types {
 	// TODO: fix opening book after user undo
 	// TODO: blockage detection
 	// TODO: regex input validation
@@ -158,7 +161,6 @@ public class Savant implements Definitions {
 	// TODO: passed pawn eval
 	// TODO: king safety
 	// TODO: piece lists
-	// TODO: relative history heuristic
 	// TODO: transposition table to separate class
 
 	public static Position pos       = new Position();
@@ -170,7 +172,7 @@ public class Savant implements Definitions {
 	 */
 	public static void main(String[] args) throws IOException {
 		//pos = new Position("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
-		pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
+		//pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
 		//pos = new Position("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
 		
 		//pos = new Position("k7/8/8/8/q7/8/8/1R3R1K w - - 0 1");
@@ -179,10 +181,17 @@ public class Savant implements Definitions {
 		//pos = new Position("7k/8/8/8/R2K3q/8/8/8 w - - 0 1");
 		//pos = new Position("2k5/8/8/8/p7/8/8/4K3 b - - 0 1");
 		
-		if (args.length == 0)
-			consoleMode();
-		else if (args[0].charAt(0) == 'u')
-			uciMode();
+		if      (args.length == 0)         consoleMode();
+		else if (args[0].charAt(0) == 'u') uciMode();
+	}
+	
+	/**
+	 * Initialization every time a new game starts.
+	 */
+	public static void initNewGame() {
+		Engine.ttable = new HashtableEntry[HASH_SIZE_TT];
+		inOpening     = true;
+		openingLine   = "";
 	}
 	
 	/**
@@ -190,7 +199,6 @@ public class Savant implements Definitions {
 	 */
 	public static void uciMode() throws IOException {
 		Engine.uciMode = true;
-		openingLine    = "";
 		inOpening      = true;
 		
 		BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
@@ -202,25 +210,18 @@ public class Savant implements Definitions {
 				System.out.println("id name SAVANT v1.0");
 				System.out.println("id author Dalton He");
 				System.out.println("uciok");
-			}
-				
-			if (command.equals("isready"))
-				System.out.println("readyok");
-				
-			if (command.equals("quit"))
-				System.exit(0);
-				
-			if (command.equals("ucinewgame")) {
-				Engine.ttable = new HashtableEntry[HASH_SIZE_TT];
-				inOpening     = true;
-			}
-				
+			}		
+			
+			if (command.equals("isready"))    System.out.println("readyok");
+			
+			if (command.equals("quit"))       System.exit(0);
+			
+			if (command.equals("ucinewgame")) initNewGame();
+			
 			if (command.startsWith("position")) {
-				if (command.contains("startpos"))
-					pos = new Position();
-				else
-					pos = new Position(extractFEN(command));
-								
+				if (command.contains("startpos")) pos = new Position();
+				else                              pos = new Position(extractFEN(command));
+		
 				String[] moveList = extractMoves(command);
 				openingLine = "";
 				pos.reptable = new HashtableEntry[HASH_SIZE_REP];
@@ -297,9 +298,7 @@ public class Savant implements Definitions {
 	 * Extracts the moves from the given UCI position command.
 	 */
 	private static String[] extractMoves(String command) {
-		if (!command.contains("moves"))
-			return null;
-		
+		if (!command.contains("moves")) return null;
 		return command.substring(command.indexOf("moves") + 6).split(" ");
 	}
 	
@@ -307,11 +306,9 @@ public class Savant implements Definitions {
 	 * Run the program in console mode.
 	 */
 	public static void consoleMode() throws FileNotFoundException {
+		initNewGame();
 		pos.reptable            = new HashtableEntry[HASH_SIZE_REP];
-		Engine.ttable           = new HashtableEntry[HASH_SIZE_TT];
 		Stack<Move> moveHistory = new Stack<Move>();
-		openingLine             = "";
-		inOpening               = true;
 		String gameOverMsg      = "";
 		boolean engineWhite     = false;
 		boolean engineBlack     = false;
@@ -407,25 +404,21 @@ public class Savant implements Definitions {
 				
 			default: // attempt to read move
 				move = Engine.getMoveObject(pos, command);
-				if (move == null)
-					System.out.println("Invalid move.");
+				if (move == null) System.out.println("Invalid move.");
 				break;
 			}
 
 			if (move != null) {
 				pos.makeMove(move);
 				moveHistory.push(move);
-				if (inOpening)
-					openingLine += move + " ";
+				if (inOpening) openingLine += move + " ";
 				
 				pos.saveRep();
 				
 				if (engineTurn) {
-					if (!inOpening)
-						System.out.println();
+					if (!inOpening) System.out.println();
 					System.out.println("SAVANT plays: " + move);
 				}
-				
 				pos.print();
 			}
 			
