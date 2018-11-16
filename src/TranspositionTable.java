@@ -84,10 +84,6 @@ public class TranspositionTable implements Types {
 	public void add(long zobrist, String move, int depth, int eval, int type) {
 		assert(depth > 0);
 		
-		// Do not save path-dependent draw evaluations arising from three-fold repetition or
-		// 50 moves rule, since these evaluations may not hold for other branches of the search.
-		if (Math.abs(eval) == VALUE_PATH_DRAW) return;
-		
 		int hashKey = (int) (zobrist % size);
 		HashtableEntry entry = table[hashKey];	
 		
