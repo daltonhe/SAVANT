@@ -42,9 +42,10 @@ public class Move implements Types, Comparable<Move> {
 		
 		String result = "";
 		
-		if (type == PROMOTION || Math.abs(piece) == PAWN)
+		if (type == PROMOTION || Math.abs(piece) == PAWN) {
 			if (captured != 0)
 				result += "abcdefgh".charAt(start % 16);
+		}
 		else
 			result += PIECE_STR.charAt(Math.abs(piece) + 6);
 		
