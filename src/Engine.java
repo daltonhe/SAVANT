@@ -12,7 +12,7 @@ import java.util.Scanner;
 public class Engine implements Types {
 	public static int maxDepth       = 100;   // max depth to search
 	public static boolean uciMode    = false; // true if we are in UCI mode
-	public static double timeLeft    = 60000; // total time remaining
+	public static double timeLeft    = TIME_INF; // total time remaining
 	public static double increment   = 1000;  // increment per move
 	public static double timeForMove = 100;   // time for this move
 	public static boolean useBook    = true;  // true if using native opening book
@@ -249,11 +249,15 @@ public class Engine implements Types {
 			if (alpha >= beta) return alpha;
 		}
 				
-		// At non-PV nodes check for an early transposition table cutoff
+		// At non-PV nodes check for an early transposition table cutoff. Do not use 
+		// path-dependent draw evaluations arising from three-fold repetition or 50 moves rule,
+		// since these evaluations may not hold for other branches of the search.
 		HashtableEntry ttentry = ttable.get(pos.zobrist);
 		if (   nodeType != NODE_PV 
 			&& ttentry != null 
-			&& ttentry.depth >= ply) {
+			&& ttentry.depth >= ply
+			&& Math.abs(ttentry.eval) != VALUE_PATH_DRAW) {
+			
 			if (    ttentry.type == BOUND_EXACT
 				|| (ttentry.type == BOUND_UPPER && ttentry.eval * pos.sideToMove <= alpha)
 				|| (ttentry.type == BOUND_LOWER && ttentry.eval * pos.sideToMove >= beta))
