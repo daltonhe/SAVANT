@@ -21,12 +21,12 @@ public interface Types {
 	public static final String PIECE_STR = "kqrbnp.PNBRQK";
 	
 	// White pieces
-	public static final int W_PAWN   =  1;
-	public static final int W_KNIGHT =  2;
-	public static final int W_BISHOP =  3;
-	public static final int W_ROOK   =  4;
-	public static final int W_QUEEN  =  5;
-	public static final int W_KING   =  6;
+	public static final int W_PAWN   = 1;
+	public static final int W_KNIGHT = 2;
+	public static final int W_BISHOP = 3;
+	public static final int W_ROOK   = 4;
+	public static final int W_QUEEN  = 5;
+	public static final int W_KING   = 6;
 	
 	// Black pieces
 	public static final int B_PAWN   = -1;
@@ -71,34 +71,40 @@ public interface Types {
 	public static final int VALUE_DRAW           = 0;
 	public static final int VALUE_CONTEMPT       = 20;
 	
-	public static final int NODE_PV              =  0;
-	public static final int NODE_CUT             =  1;
-	public static final int NODE_ALL             = -1;
+	public static final int NODE_PV  =  0;
+	public static final int NODE_CUT =  1;
+	public static final int NODE_ALL = -1;
 
-	public static final int INITIAL_WINDOW_SIZE  = 10;
-	public static final int DELTA_MARGIN         = 200;
-	public static final int FUTILITY_MARGIN      = 400;
-	public static final int FUTILITY_EXT_MARGIN  = 650;
-	public static final int RAZOR_MARGIN         = 1200;
+	public static final int INITIAL_WINDOW_SIZE = 10;
+	public static final int DELTA_MARGIN        = 200;
+	public static final int FUTILITY_MARGIN     = 400;
+	public static final int FUTILITY_EXT_MARGIN = 650;
+	public static final int RAZOR_MARGIN        = 1200;
 	
-	public static final int HISTORY_MAX          = 50000;
+	public static final int HISTORY_MAX = 50000;
 	
-	public static final int TIME_INF             = 9999000;
+	// move ordering
+	public static final int PRIORITY_HASH       = 121;
+	public static final int PRIORITY_QPROMOTION = 120;
+	public static final int PRIORITY_UPROMOTION = 4;
+	public static final int PRIORITY_CASTLING   = 3;
+	
+	public static final int TIME_INF = 9999000;
 	
 	// Transposition table
 	public static final int HASH_SIZE_TT  = 1048583;
 	public static final int HASH_SIZE_REP = 32771;
 	public static final int HASH_SIZE_PV  = 524309;
 	
-	public static final int BOUND_EXACT   = 0;
-	public static final int BOUND_LOWER   = 1;
-	public static final int BOUND_UPPER   = 2;
+	public static final int BOUND_EXACT = 0;
+	public static final int BOUND_LOWER = 1;
+	public static final int BOUND_UPPER = 2;
 	
 	// Evaluation
-	public static final int PHASE_WEIGHT[]       = {0, 0, 1, 1, 2, 4, 0};
-	public static final int MIDGAME_PHASE_LIMIT  = 22;
-	public static final int ENDGAME_PHASE_LIMIT  = 5;
-	public static final int LAZY_THRESHOLD       = 720;
+	public static final int PHASE_WEIGHT[]      = {0, 0, 1, 1, 2, 4, 0};
+	public static final int MIDGAME_PHASE_LIMIT = 22;
+	public static final int ENDGAME_PHASE_LIMIT = 5;
+	public static final int LAZY_THRESHOLD      = 720;
 	
 	// piece values
 	public static final int PAWN_MG   = 65,   PAWN_EG   = 100;
@@ -106,8 +112,9 @@ public interface Types {
 	public static final int BISHOP_MG = 400,  BISHOP_EG = 440;
 	public static final int ROOK_MG   = 620,  ROOK_EG   = 660;
 	public static final int QUEEN_MG  = 1215, QUEEN_EG  = 1290;
-	public static final int PIECE_VALUE_MG[]   = {0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
-	public static final int PIECE_VALUE_EG[]   = {0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
+	
+	public static final int PIECE_VALUE_MG[] = {0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
+	public static final int PIECE_VALUE_EG[] = {0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
 	public static final int PIECE_UNIT_VALUE[] = {0, 0, 3, 3, 5, 9, 0};
 	
 	// assorted bonuses/penalties
