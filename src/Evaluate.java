@@ -470,12 +470,12 @@ public class Evaluate implements Types {
 		
 		// Check for likely draw due to insufficient material advantage
 		// note: does not cover the KNN v K case
-		if (pawns_w == 0 && pawns_b == 0 && Math.abs(npm_w - npm_b) < 4) score_eg = 0;
+		if (pawns_w == 0 && pawns_b == 0 && Math.abs(npm_w - npm_b) < 4) score_eg /= 8;
 		
 		// If one side has no pawns and insufficient material advantage, the upper bound of
 		// the eval is a draw
-		if      (pawns_w == 0 && npm_w - npm_b < 4) score_eg = Math.min(VALUE_DRAW, score_eg);
-		else if (pawns_b == 0 && npm_b - npm_w < 4) score_eg = Math.max(VALUE_DRAW, score_eg);
+		if      (pawns_w == 0 && npm_w - npm_b < 4) score_eg = Math.min(score_eg /= 8, score_eg);
+		else if (pawns_b == 0 && npm_b - npm_w < 4) score_eg = Math.max(score_eg /= 8, score_eg);
 
 		// Calculate the middle and endgame weights
 		int minPhase = ENDGAME_PHASE_LIMIT, maxPhase = MIDGAME_PHASE_LIMIT;
@@ -487,6 +487,11 @@ public class Evaluate implements Types {
 		// middle and endgame scores, weighted by the phase, in order to transition smoothly
 		// between middle and endgame.
 		int score_tapered = (int) (score_mg * weight_mg + score_eg * weight_eg);
+		
+		// If the evaluation is 1 (or -1), change to 2 (or -2) since -1 is reserved specially
+		// for path-dependent draw evaluations (see Types.java).
+		if (Math.abs(score_tapered) == 1) score_tapered = (score_tapered == 1 ? 2 : -2);
+		
 		return score_tapered;
 	}
 	

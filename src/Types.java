@@ -61,15 +61,21 @@ public interface Types {
 	public static final int[] DELTA_KING     = {-17, -16, -15,  -1,  1, 15, 16, 17};
 	public static final int[][] PIECE_DELTAS =
 		{{}, {}, DELTA_KNIGHT, DELTA_BISHOP, DELTA_ROOK, DELTA_QUEEN, DELTA_KING};
-
 	
 	// Search
-	public static final int VALUE_INF            = 10001;
-	public static final int VALUE_MATE           = 10000;
-	public static final int VALUE_MATE_THRESHOLD = 9900;
-	public static final int VALUE_KNOWN_WIN      = 1000;
-	public static final int VALUE_DRAW           = 0;
-	public static final int VALUE_CONTEMPT       = 20;
+	public static final int VALUE_INF            =  10001;
+	public static final int VALUE_MATE           =  10000;
+	public static final int VALUE_MATE_THRESHOLD =  9900;
+	public static final int VALUE_KNOWN_WIN      =  1000;
+	public static final int VALUE_DRAW           =  0;
+	// This is a special value to distinguish path-dependent draws, i.e. draws by three-fold
+	// repetition or by the 50-move rule, that are linked to move order rather than being
+	// position-dependent (i.e. stalemate or insufficient material). We want to be able to
+	// distinguish path-dependent evaluations, which should not be saved in the transposition 
+	// table. This value is reserved, so scores of -1 arising from static evaluation of the
+	// position will be altered to -2.
+	public static final int VALUE_PATH_DRAW      = -1;
+	public static final int VALUE_CONTEMPT       =  20;
 	
 	public static final int NODE_PV  =  0;
 	public static final int NODE_CUT =  1;
@@ -93,8 +99,10 @@ public interface Types {
 	
 	// Transposition table
 	public static final int HASH_SIZE_TT  = 1048583;
-	public static final int HASH_SIZE_REP = 32771;
+	public static final int HASH_SIZE_REP = 524309;
 	public static final int HASH_SIZE_PV  = 524309;
+	
+	public static final int HASH_MAX_AGE = 5;
 	
 	public static final int BOUND_EXACT = 0;
 	public static final int BOUND_LOWER = 1;

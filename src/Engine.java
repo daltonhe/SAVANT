@@ -22,8 +22,8 @@ public class Engine implements Types {
 	public static boolean abortedSearch;      // true if the search was ended early
 	
 	public static int[][] historyScore;       // history heuristic move scores
-	public static HashtableEntry[] ttable;	  // transposition table
-	public static HashtableEntry[] pvtable;   // hash table to store PV moves
+	public static TranspositionTable ttable;  // transposition table
+	public static TranspositionTable pvtable; // hash table to store PV moves
 
 	public static ArrayList<Move> pv;         // the principal variation
 	public static Move bestMove;              // best move so far
@@ -38,13 +38,13 @@ public class Engine implements Types {
 		currentDepth  = 0;
 		abortedSearch = false;
 		historyScore  = new int[13][120];
-		pvtable       = new HashtableEntry[HASH_SIZE_PV];
+		pvtable       = new TranspositionTable(HASH_SIZE_PV);
 		pv            = new ArrayList<Move>();
 		bestMove      = null;
 		prevBestMove  = null;
 		eval          = 0;
 		nodes         = 0;
-		updateTT();
+		ttable.update();
 	}
 	
 	/**
@@ -70,7 +70,7 @@ public class Engine implements Types {
 		for (currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
 			
 			// Clear the PV hash table
-			pvtable = new HashtableEntry[HASH_SIZE_PV];
+			pvtable.clear();
 			
 			// For the first few depths, start with an infinite search window.
 			if (currentDepth < 5)
@@ -161,9 +161,9 @@ public class Engine implements Types {
 	 */
 	public static ArrayList<Move> extractPV(Position pos) {
 		ArrayList<Move> PV = new ArrayList<Move>();
-		HashtableEntry hash = getEntry(pos.zobrist, pvtable);
-		while (hash != null && hash.move != null) {
-			Move move = getMoveObject(pos, hash.move);
+		HashtableEntry entry = pvtable.get(pos.zobrist);
+		while (entry != null && entry.move != null) {
+			Move move = getMoveObject(pos, entry.move);
 			// In the rare case of a key collision the stored move may be invalid
 			if (move == null) break;
 			
@@ -171,12 +171,10 @@ public class Engine implements Types {
 			pos.makeMove(move);
 			
 			// Check for a repetition cycle
-			long zobrist = pos.zobrist;
-			if (pos.sideToMove == BLACK) zobrist ^= Zobrist.side;
-			HashtableEntry rentry = getEntry(zobrist, pos.reptable);
+			HashtableEntry rentry = pos.reptable.get(pos.repKey());
 			if (rentry != null && rentry.count >= 2) break;
 
-			hash = getEntry(pos.zobrist, pvtable);
+			entry = pvtable.get(pos.zobrist);
 		}
 		
 		// Unmake all the moves
@@ -226,20 +224,16 @@ public class Engine implements Types {
 		int eval = 0;
 
 		if (!rootNode) {
-			// Check for draw by repetition or 50 move rule
-			if (pos.nullCount == 0) {				
+			if (pos.nullCount == 0) {			
+				
+				// Check for draw by 50 moves rule
 				if (pos.fiftyMoves >= 100)
-					return VALUE_DRAW;
+					return VALUE_PATH_DRAW;
 				
-				long zobrist = pos.zobrist;
-				
-				// fix parity issue so that zobrist keys are the same irrespective of the 
-				// side to move
-				if (pos.sideToMove == BLACK) zobrist ^= Zobrist.side;
-				
-				HashtableEntry rentry = getEntry(zobrist, pos.reptable);
-				if (rentry != null && rentry.count >= 2)
-					return VALUE_DRAW;
+				// Check for draw by three-fold repetition		
+				HashtableEntry rentry = pos.reptable.get(pos.repKey());
+				if (rentry != null && rentry.count >= 1)
+					return VALUE_PATH_DRAW;
 			}
 			
 			// Check for draw by insufficient material
@@ -256,7 +250,7 @@ public class Engine implements Types {
 		}
 				
 		// At non-PV nodes check for an early transposition table cutoff
-		HashtableEntry ttentry = getEntry(pos.zobrist, ttable);
+		HashtableEntry ttentry = ttable.get(pos.zobrist);
 		if (   nodeType != NODE_PV 
 			&& ttentry != null 
 			&& ttentry.depth >= ply) {
@@ -268,7 +262,6 @@ public class Engine implements Types {
 		
 		// Extend the search if we are in check
 		boolean inCheck = pos.inCheck(pos.sideToMove);
-		//int maxExt = currentDepth / 4 + 5;
 		if (ply < currentDepth && inCheck) {
 			ply++;
 			ext++;
@@ -316,7 +309,7 @@ public class Engine implements Types {
 				
 				if (Math.abs(beta) < VALUE_KNOWN_WIN) {
 					// Update the transposition table
-					addTTEntry(pos.zobrist, null, ply, eval * pos.sideToMove, BOUND_LOWER);	
+					ttable.add(pos.zobrist, null, ply, eval * pos.sideToMove, BOUND_LOWER);	
 					
 					return beta;
 				}
@@ -331,7 +324,7 @@ public class Engine implements Types {
 			// Fail low
 			if (eval <= alpha)
 				eval = alphaBeta(pos, ply - 2, 0, -VALUE_INF, VALUE_INF, false, nodeType);
-			ttentry = getEntry(pos.zobrist, ttable);
+			ttentry = ttable.get(pos.zobrist);
 		}
 		
 		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
@@ -422,10 +415,8 @@ public class Engine implements Types {
 					if (rootNode) Engine.bestMove = move;
 					
 					// Update PV hash table at PV nodes
-					if (nodeType == NODE_PV) {
-						int hashKey = (int) (pos.zobrist % HASH_SIZE_PV);
-						pvtable[hashKey] = new HashtableEntry(pos.zobrist, move.longNotation());
-					}
+					if (nodeType == NODE_PV)
+						pvtable.add(pos.zobrist, move.longNotation());
 					
 					if (eval < beta) alpha = eval; // Update alpha. Always alpha < beta
 					else { // Fail high
@@ -454,11 +445,12 @@ public class Engine implements Types {
 		if (moveCount == 0) return (inCheck ? matedScore(ply - ext) : VALUE_DRAW);
 		
 		// Update the transposition table
-		addTTEntry(pos.zobrist,
-				   bestMove,
-				   ply,
-				   bestEval * pos.sideToMove,
-				   bestEval >= beta ? BOUND_LOWER : bestMove != null ? BOUND_EXACT : BOUND_UPPER);
+		ttable.add(pos.zobrist,
+				   		bestMove,
+				   		ply,
+				   		bestEval * pos.sideToMove,
+				   		bestEval >= beta ? BOUND_LOWER : 
+				   			bestMove != null ? BOUND_EXACT : BOUND_UPPER);
 		
 		assert(bestEval > -VALUE_INF && bestEval < VALUE_INF);
 		
@@ -548,54 +540,6 @@ public class Engine implements Types {
 	}
 	
 	/**
-	 * Returns the hash table entry for the given zobrist key (null if there is none).
-	 */
-	public static HashtableEntry getEntry(long zobrist, HashtableEntry[] hashtable) {
-		int hashKey = (int) (zobrist % hashtable.length);
-		HashtableEntry hash = hashtable[hashKey];
-		if (hash != null && hash.zobrist == zobrist) return hash;
-		return null;
-	}
-
-	/**
-	 * Adds an entry to the transposition table.
-	 */
-	public static void addTTEntry(long zobrist, String move, int depth, int eval, int type) {
-		assert(depth > 0);
-		
-		int hashKey = (int) (zobrist % HASH_SIZE_TT);
-		HashtableEntry hash = ttable[hashKey];	
-		
-		// If an entry for the same position exists, replace if the search depth was higher.
-		// If an entry exists but for a different position, replace if it was from an old search.
-		boolean replace;
-		if (hash != null) {
-			if (zobrist == hash.zobrist) {
-				replace = (depth > hash.depth);
-				if (hash.move == null && move != null)
-					ttable[hashKey].move = move;
-			}
-			else replace = (hash.age > 0);
-		}
-		else replace = true;
-		
-		if (replace) ttable[hashKey] = new HashtableEntry(zobrist, move, depth, eval, type);
-	}
-	
-	/**
-	 * Increment the age of all existing transposition table entries.
-	 */
-	private static void updateTT() {
-		for (int i = 0; i < HASH_SIZE_TT; i++) {
-			if (ttable[i] != null) {
-				ttable[i].age++;
-				// delete old entries
-				if (ttable[i].age >= 5) ttable[i] = null;
-			}
-		}
-	}
-	
-	/**
 	 * Returns the value of mate in ply.
 	 */
 	private static int mateScore(int ply) {
@@ -682,11 +626,11 @@ public class Engine implements Types {
 	  //"r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - -"
 	  
 	  // normal
-	  /*if (depth == 0) return 1;*/
+	  //if (depth == 0) return 1;*/
 	  
 	  // using hash table (node count stored in eval slot)
 	  if (useHash) {
-		  HashtableEntry ttentry = getEntry(pos.zobrist, ttable);
+		  HashtableEntry ttentry = ttable.get(pos.zobrist);
 		  if (ttentry != null && ttentry.depth == depth)
 			  return ttentry.eval;
 	  }
@@ -702,7 +646,7 @@ public class Engine implements Types {
 		  pos.unmakeMove(move);
 	  }
 	  
-	  if (useHash) addTTEntry(pos.zobrist, null, depth, nodes, 0);
+	  if (useHash) ttable.add(pos.zobrist, null, depth, nodes, 0);
 	  
 	  return nodes;
 	}

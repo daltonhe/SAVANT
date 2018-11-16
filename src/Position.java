@@ -17,8 +17,8 @@ public class Position implements Types {
 	public int pieceCount; // total number of pieces left on board
 	public long zobrist;   // zobrist key of the position
 	
-	public HashtableEntry[] reptable; // hash table of previous positions
-	public int nullCount;             // number of null moves made to this position
+	public int nullCount;               // number of null moves made to this position
+	public TranspositionTable reptable; // hash table of previous positions
 	
 	/**
 	 * Initializes the starting position.
@@ -31,7 +31,7 @@ public class Position implements Types {
 	 * Initializes the position from the given FEN string.
 	 */
 	public Position(String fen) {
-		setDefaults();
+		initDefaults();
 		if (fen == null || fen.isBlank())
 			return;
 		
@@ -84,7 +84,7 @@ public class Position implements Types {
 	/**
 	 * Sets fields to their default values.
 	 */
-	public void setDefaults() {
+	public void initDefaults() {
 		board      = new int[128];
 		sideToMove = WHITE;
 		castling   = 0;
@@ -95,8 +95,8 @@ public class Position implements Types {
 		kingPos_b  = SQ_NONE;
 		pieceCount = 0;
 		zobrist    = 0;
-		reptable   = new HashtableEntry[HASH_SIZE_REP];
 		nullCount  = 0;
+		reptable   = new TranspositionTable(HASH_SIZE_REP);
 	}
 	
 	/**
@@ -367,36 +367,28 @@ public class Position implements Types {
 	}
 	
 	/**
+	 * Returns the parity-corrected zobrist key for use in repetition detection.
+	 */
+	public long repKey() {
+		long rzobrist = zobrist;
+		if (sideToMove == BLACK)  rzobrist ^= Zobrist.side;
+		if (enpassant != SQ_NONE) rzobrist ^= Zobrist.enpassant[enpassant % 16];
+		rzobrist ^= Zobrist.castling[castling];
+		return rzobrist;
+	}
+	
+	/**
 	 * Adds an entry for the current position to the repetition hash table.
 	 */
 	public void saveRep() {
-		// fix parity issue so that zobrist keys are the same irrespective of the side to move
-		long rzobrist = zobrist;
-		if (sideToMove == BLACK) rzobrist ^= Zobrist.side;
-		
-		int hashKey = (int) (rzobrist % HASH_SIZE_REP);
-		if (reptable[hashKey] == null || rzobrist != reptable[hashKey].zobrist)
-			reptable[hashKey] = new HashtableEntry(rzobrist);
-		else
-			reptable[hashKey].count++;
+		reptable.add(repKey());
 	}
 	
 	/**
 	 * Deletes an entry for the current position from the repetition hash table.
 	 */
 	public void deleteRep() {
-		// fix parity issue so that zobrist keys are the same irrespective of the side to move
-		long rzobrist = zobrist;
-		if (sideToMove == BLACK) rzobrist ^= Zobrist.side;
-		
-		int hashKey = (int) (rzobrist % HASH_SIZE_REP);
-		if (reptable[hashKey] == null || rzobrist != reptable[hashKey].zobrist)
-			return;
-		
-		if (reptable[hashKey].count > 1)
-			reptable[hashKey].count--;
-		else
-			reptable[hashKey] = null;
+		reptable.delete(repKey());
 	}
 	
 	/**

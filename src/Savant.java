@@ -137,6 +137,8 @@ import java.util.Stack;
  *        Removed bonus to rook value for having more pawns
  * 11-15: Tested Stockfish material values and reverted to them
  * 		  Added lazy eval for positions with very large material difference 
+ * 		  Added separate transposition table class
+ * 		  Fixed issues with repetition draw scores and tt
  */
 
 /**
@@ -163,7 +165,7 @@ public class Savant implements Types {
 	// TODO: piece lists
 	// TODO: transposition table to separate class
 
-	public static Position pos       = new Position();
+	public static Position pos       = new Position("4rk2/RR6/8/8/8/8/3q4/7K");
 	public static String openingLine = "";
 	public static boolean inOpening  = true;
 	
@@ -189,7 +191,7 @@ public class Savant implements Types {
 	 * Initialization every time a new game starts.
 	 */
 	public static void initNewGame() {
-		Engine.ttable = new HashtableEntry[HASH_SIZE_TT];
+		Engine.ttable = new TranspositionTable(HASH_SIZE_TT);
 		inOpening     = true;
 		openingLine   = "";
 	}
@@ -212,11 +214,14 @@ public class Savant implements Types {
 				System.out.println("uciok");
 			}		
 			
-			if (command.equals("isready"))    System.out.println("readyok");
+			if (command.equals("isready"))
+				System.out.println("readyok");
 			
-			if (command.equals("quit"))       System.exit(0);
+			if (command.equals("quit"))
+				System.exit(0);
 			
-			if (command.equals("ucinewgame")) initNewGame();
+			if (command.equals("ucinewgame"))
+				initNewGame();
 			
 			if (command.startsWith("position")) {
 				if (command.contains("startpos")) pos = new Position();
@@ -224,18 +229,14 @@ public class Savant implements Types {
 		
 				String[] moveList = extractMoves(command);
 				openingLine = "";
-				pos.reptable = new HashtableEntry[HASH_SIZE_REP];
-				pos.saveRep();
 				if (moveList != null) {
 					for (int i = 0; i < moveList.length; i++) {
 						Move move = Engine.getMoveObject(pos, moveList[i]);
+						if (move.captured != 0 || Math.abs(move.piece) == PAWN)
+							pos.reptable.clear();
+						
 						pos.makeMove(move);
 						openingLine += move + " ";
-						
-						if (move.captured != 0 || Math.abs(move.piece) == PAWN)
-							pos.reptable = new HashtableEntry[HASH_SIZE_REP];
-						
-						pos.saveRep();
 					}
 				}
 			}
@@ -307,7 +308,6 @@ public class Savant implements Types {
 	 */
 	public static void consoleMode() throws FileNotFoundException {
 		initNewGame();
-		pos.reptable            = new HashtableEntry[HASH_SIZE_REP];
 		Stack<Move> moveHistory = new Stack<Move>();
 		String gameOverMsg      = "";
 		boolean engineWhite     = false;
@@ -320,22 +320,22 @@ public class Savant implements Types {
 		// Game loop
 		while (true) {
 			
-			HashtableEntry rentry = Engine.getEntry(pos.zobrist, pos.reptable);
-			boolean repeated = (rentry != null && rentry.count >= 3);
-
-			// Check for mate/stalemate, or draw by repetition
+			// Check for mate/stalemate
 			if (pos.filterLegal(pos.generateMoves(false)).isEmpty()) {
 				if (pos.inCheck(pos.sideToMove))
 					gameOverMsg = (pos.sideToMove == WHITE ? "Black" : "White") + 
 								  " wins by checkmate.";
 				else
 					gameOverMsg = "Game drawn by stalemate.";
-			}	
+			}
+			
 			// Check for draw by insufficient material
 			if (pos.insufficientMaterial())
 				gameOverMsg = "Game drawn by insufficient material.";
+			
 			// Check for draw by repetition
-			if (repeated)
+			HashtableEntry rentry = pos.reptable.get(pos.repKey());
+			if (rentry != null && rentry.count >= 3)
 				gameOverMsg = "Game drawn by threefold repetition.";
 				
 			if (!gameOverMsg.isEmpty())
@@ -372,7 +372,7 @@ public class Savant implements Types {
 				break;
 				
 			case "undo":
-				pos.reptable[(int) (pos.zobrist % HASH_SIZE_REP)] = null;
+				pos.reptable.delete(pos.zobrist);
 				if (!moveHistory.isEmpty()) {
 					pos.unmakeMove(moveHistory.pop());
 					pos.print();
@@ -412,8 +412,6 @@ public class Savant implements Types {
 				pos.makeMove(move);
 				moveHistory.push(move);
 				if (inOpening) openingLine += move + " ";
-				
-				pos.saveRep();
 				
 				if (engineTurn) {
 					if (!inOpening) System.out.println();
