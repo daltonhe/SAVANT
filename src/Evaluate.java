@@ -2,22 +2,18 @@
  * @author Dalton He
  * created 11-05-18
  */
-public class Evaluate implements Definitions {
+public class Evaluate implements Types {
 	
 	/**
-	 * Returns the static position evaluation in centipawns. Positive scores are good for White,
-	 * while negative scores are good for black.
+	 * Returns the static position evaluation in centipawns. Positive scores are good for White;
+	 * negative scores are good for black.
 	 * @param board - The board state to be evaluated
 	 * @return        Score of the position
 	 */
 	public static int staticEval(Position pos) {
 		int[] board = pos.board;
 		
-		// Check for draw by insufficient material
-		/*if (pos.insufficientMaterial())
-			return VALUE_DRAW;*/
-		
-		// Initialize evaluation score components
+		// Initialize score components
 		int phase        = 0;
 		int material_mg  = 0, material_eg  = 0;
 		int psqt_mg      = 0, psqt_eg      = 0;
@@ -27,6 +23,7 @@ public class Evaluate implements Definitions {
 		int imbalance    = 0;	
 		int tempo        = TEMPO * pos.sideToMove;
 		
+		// Initialize piece counts
 		int kingPos_w = 0, kingPos_b = 0;
 		int pawns_w   = 0, pawns_b   = 0;
 		int knights_w = 0, knights_b = 0;
@@ -35,24 +32,24 @@ public class Evaluate implements Definitions {
 		int queens_w  = 0, queens_b  = 0;
 		int npm_w     = 0, npm_b     = 0; // non-pawn material
 		
-		int bishopParity = 0; // for determining opposite color bishops
+		int bishopParity = 0; // used for determining opposite color bishops
 		
-		// pawns[fileA..H][count|rank of least advanced pawn]
-		// pawns[8][pawns on light squares|dark squares]
-		int[][] pawnFile_w = new int[9][2]; 
-		int[][] pawnFile_b = new int[9][2];
-		for (int i = 0; i < 8; i++)
+		// pawnFile[fileA..H][count|rank of least advanced pawn]
+		int[][] pawnFile_w = new int[8][2]; 
+		int[][] pawnFile_b = new int[8][2];
+		for (int i = 0; i < 8; i++) // initialize
 			pawnFile_b[i][1] = 7;
+		
+		// pawnColor[pawns on light squares|dark squares]
+		int[] pawnColor_w = new int[2];
+		int[] pawnColor_b = new int[2];
 		
 		// First pass: count pieces, material, and phase.
 		for (int index = SQ_a8; index <= SQ_h1; index++) {
-			if (!Position.isLegalIndex(index))
-				continue;
+			if (!Position.isLegalIndex(index)) continue;
 
 			int piece = board[index];
-			
-			if (piece == PIECE_NONE)
-				continue;
+			if (piece == PIECE_NONE) continue;
 			
 			phase += PHASE_WEIGHT[Math.abs(piece)];
 			int rank = index / 16, file = index % 16;
@@ -62,7 +59,7 @@ public class Evaluate implements Definitions {
 			case W_PAWN:
 				pawns_w++;
 				pawnFile_w[file][0]++;
-				pawnFile_w[8][(file + rank) % 2]++;
+				pawnColor_w[(file + rank) % 2]++;
 				if (rank > pawnFile_w[file][1])
 					pawnFile_w[file][1] = rank;
 				break;
@@ -70,7 +67,7 @@ public class Evaluate implements Definitions {
 			case B_PAWN:
 				pawns_b++;
 				pawnFile_b[file][0]++;
-				pawnFile_b[8][(file + rank) % 2]++;
+				pawnColor_b[(file + rank) % 2]++;
 				if (rank < pawnFile_b[file][1])
 					pawnFile_b[file][1] = rank;
 				break;
@@ -161,13 +158,10 @@ public class Evaluate implements Definitions {
 		
 		// Second pass: calculate mobility, and evaluate pieces and pawns.
 		for (int index = SQ_a8; index <= SQ_h1; index++) {
-			if (!Position.isLegalIndex(index))
-				continue;
+			if (!Position.isLegalIndex(index)) continue;
 			
-			int piece = board[index];	
-			
-			if (piece == PIECE_NONE)
-				continue;
+			int piece = board[index];
+			if (piece == PIECE_NONE) continue;
 			
 			int side = (piece > 0 ? WHITE : BLACK);
 			int rank = index / 16, file = index % 16;
@@ -243,10 +237,8 @@ public class Evaluate implements Definitions {
 				// pawn is opposed, and the number of supporting pawns.
 				if (supporters > 0 || phalanx) {
 					double connectedBonus = CONNECTED_PAWN[rank];
-					if (phalanx)
-						connectedBonus *= 1.4;
-					if (opposed)
-						connectedBonus *= 0.5;
+					if (phalanx) connectedBonus *= 1.4;
+					if (opposed) connectedBonus *= 0.5;
 					connectedBonus += supporters *= SUPPORTED_PAWN;
 					pawns_mg += (int) connectedBonus;
 					// In the endgame only the 4th through 7th ranks receive a bonus.
@@ -304,10 +296,8 @@ public class Evaluate implements Definitions {
 				}
 				if (supporters > 0 || phalanx) {
 					double connectedBonus = CONNECTED_PAWN[7 - rank];
-					if (phalanx)
-						connectedBonus *= 1.4;
-					if (opposed)
-						connectedBonus *= 0.5;
+					if (phalanx) connectedBonus *= 1.4;
+					if (opposed) connectedBonus *= 0.5;
 					connectedBonus += supporters * SUPPORTED_PAWN;
 					pawns_mg -= (int) connectedBonus;
 					pawns_eg -= (int) (connectedBonus * (rank - 2) / 4);
@@ -330,7 +320,7 @@ public class Evaluate implements Definitions {
 			case W_BISHOP:
 				// Give a penalty for the number of pawns on the same color square
 				// as the bishop
-				int bishopPawns = pawnFile_w[8][(rank + file) % 2];
+				int bishopPawns = pawnColor_w[(rank + file) % 2];
 				pieces_mg += bishopPawns * PAWN_ON_BISHOP_COLOR_MG;
 				pieces_eg += bishopPawns * PAWN_ON_BISHOP_COLOR_EG;
 				// Bishop mobility
@@ -340,7 +330,7 @@ public class Evaluate implements Definitions {
 				break;
 				
 			case B_BISHOP:
-				bishopPawns = pawnFile_b[8][(rank + file) % 2];
+				bishopPawns = pawnColor_b[(rank + file) % 2];
 				pieces_mg -= bishopPawns * PAWN_ON_BISHOP_COLOR_MG;
 				pieces_eg -= bishopPawns * PAWN_ON_BISHOP_COLOR_EG;
 				squares = mobilityDelta(board, side, index, DELTA_BISHOP, true);
@@ -356,7 +346,8 @@ public class Evaluate implements Definitions {
 					if (pawnFile_b[file][0] == 0) {
 						pieces_mg += ROOK_OPEN_FILE_MG;
 						pieces_eg += ROOK_OPEN_FILE_EG;
-					} else {
+					}
+					else {
 						pieces_mg += ROOK_SEMIOPEN_FILE_MG;
 						pieces_eg += ROOK_SEMIOPEN_FILE_EG;
 					}
@@ -385,7 +376,8 @@ public class Evaluate implements Definitions {
 					if (pawnFile_w[file][0] == 0) {
 						pieces_mg -= ROOK_OPEN_FILE_MG;
 						pieces_eg -= ROOK_OPEN_FILE_EG;
-					} else {
+					}
+					else {
 						pieces_mg -= ROOK_SEMIOPEN_FILE_MG;
 						pieces_eg -= ROOK_SEMIOPEN_FILE_EG;
 					}
@@ -444,10 +436,8 @@ public class Evaluate implements Definitions {
 			imbalance -= (knights_w + bishops_w == 0 ? UNOPPOSED_BISHOP_PAIR : BISHOP_PAIR);
 		}
 		// Give a small penalty for having the knight pair
-		if (knights_w >= 2)
-			imbalance += KNIGHT_PAIR;
-		if (knights_b >= 2)
-			imbalance -= KNIGHT_PAIR;
+		if (knights_w >= 2) imbalance += KNIGHT_PAIR;
+		if (knights_b >= 2) imbalance -= KNIGHT_PAIR;
 		
 		// Give penalties for redundant major pieces
 		if (rooks_w >= 1) {
@@ -464,19 +454,8 @@ public class Evaluate implements Definitions {
 		imbalance -= knights_b * (pawns_b - 5) * KNIGHT_PAWN_SYNERGY;
 		
 		// Sum all the individual component scores
-		int score_mg =  material_mg 
-				      + psqt_mg 
-				      + imbalance 
-				      + pawns_mg 
-				      + pieces_mg 
-				      + mobility_mg
-					  + tempo;
-		int score_eg =  material_eg 
-				      + psqt_eg 
-				      + imbalance
-				      + pawns_eg 
-				      + pieces_eg
-				      + mobility_eg;
+		int score_mg = material_mg + psqt_mg + imbalance + pawns_mg + pieces_mg + mobility_mg + tempo;
+		int score_eg = material_eg + psqt_eg + imbalance + pawns_eg + pieces_eg + mobility_eg;
 		
 		// Scale down endgame score for bishops of opposite colors
 		if (npm_w == 3 && npm_b == 3 && bishops_w == 1 && bishops_b == 1 && bishopParity == 1) {
@@ -490,16 +469,13 @@ public class Evaluate implements Definitions {
 		}
 		
 		// Check for likely draw due to insufficient material advantage
-		if (pawns_w == 0 && pawns_b == 0 && Math.abs(npm_w - npm_b) < 4)
-			// does not cover KNN vs K case
-			score_eg = 0;
+		// note: does not cover the KNN v K case
+		if (pawns_w == 0 && pawns_b == 0 && Math.abs(npm_w - npm_b) < 4) score_eg = 0;
 		
 		// If one side has no pawns and insufficient material advantage, the upper bound of
 		// the eval is a draw
-		if (pawns_w == 0 && npm_w - npm_b < 4)
-			score_eg = Math.min(VALUE_DRAW, score_eg);
-		else if (pawns_b == 0 && npm_b - npm_w < 4)
-			score_eg = Math.max(VALUE_DRAW, score_eg);
+		if      (pawns_w == 0 && npm_w - npm_b < 4) score_eg = Math.min(VALUE_DRAW, score_eg);
+		else if (pawns_b == 0 && npm_b - npm_w < 4) score_eg = Math.max(VALUE_DRAW, score_eg);
 
 		// Calculate the middle and endgame weights
 		int minPhase = ENDGAME_PHASE_LIMIT, maxPhase = MIDGAME_PHASE_LIMIT;
@@ -523,9 +499,7 @@ public class Evaluate implements Definitions {
 			int target = start + delta[i];
 			while (Position.isLegalIndex(target) && board[target] * side <= 0) {
 				count++;
-				if (!slider || board[target] != PIECE_NONE) {
-					break;
-				}
+				if (!slider || board[target] != PIECE_NONE) break;
 				target += delta[i];
 			}
 		}
