@@ -2,7 +2,7 @@
  * @author Dalton He
  * created 10-07-18
  */
-public interface Definitions {
+public interface Types {
 	public static final String INITIAL_FEN = 
 			"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 	
@@ -18,7 +18,6 @@ public interface Definitions {
 	public static final int ROOK       = 4;
 	public static final int QUEEN      = 5;
 	public static final int KING       = 6;
-	
 	public static final String PIECE_STR = "kqrbnp.PNBRQK";
 	
 	// White pieces
@@ -53,22 +52,16 @@ public interface Definitions {
 	public static final int ENPASSANT    = 4;
 	public static final int PROMOTION    = 5;
 	
-	// Deltas for move generation
+	// Move generation piece deltas
 	public static final int[] DELTA_PAWN   = {-17, -16, -15};
-	public static final int[] DELTA_W_PAWN = { 15,  17};
-	public static final int[] DELTA_B_PAWN = {-17, -15};
 	public static final int[] DELTA_KNIGHT = {-33, -31, -18, -14, 14, 18, 31, 33};
 	public static final int[] DELTA_BISHOP = {-17, -15,  15,  17};
 	public static final int[] DELTA_ROOK   = {-16,  -1,   1,  16};
 	public static final int[] DELTA_QUEEN  = {-17, -16, -15,  -1,  1, 15, 16, 17};
 	public static final int[] DELTA_KING   = {-17, -16, -15,  -1,  1, 15, 16, 17};
-	
 	public static final int[][] PIECE_DELTAS =
 		{{}, {}, DELTA_KNIGHT, DELTA_BISHOP, DELTA_ROOK, DELTA_QUEEN, DELTA_KING};
-	
-	// Attack lookup tables
-	public static final String ATTACK_LOOKUP_W[] = {"P", "N", "BQ", "RQ", "K"};
-	public static final String ATTACK_LOOKUP_B[] = {"p", "n", "bq", "rq", "k"};
+
 	
 	// Search
 	public static final int VALUE_INF              = 10001;
@@ -81,17 +74,12 @@ public interface Definitions {
 	public static final int NODE_PV                =  0;
 	public static final int NODE_CUT               =  1;
 	public static final int NODE_ALL               = -1;
-	
-	public static final int DEPTH_HORIZON          = 0;
-	public static final int DEPTH_FRONTIER         = 1;
-	public static final int DEPTH_PRE_FRONTIER     = 2;
-	public static final int DEPTH_PRE_PRE_FRONTIER = 3;
 
 	public static final int INITIAL_WINDOW_SIZE    = 10;
 	public static final int DELTA_MARGIN           = 200;
-	public static final int FUTILITY_MARGIN        = 325;
-	public static final int FUTILITY_EXT_MARGIN    = 500;
-	public static final int RAZOR_MARGIN           = 975;
+	public static final int FUTILITY_MARGIN        = 400;
+	public static final int FUTILITY_EXT_MARGIN    = 650;
+	public static final int RAZOR_MARGIN           = 1200;
 	
 	public static final int HISTORY_MAX            = 50000;
 	
@@ -112,16 +100,48 @@ public interface Definitions {
 	public static final int ENDGAME_PHASE_LIMIT  = 5;
 	public static final int LAZY_THRESHOLD       = 720;
 	
+	// piece values
 	public static final int PAWN_MG   = 65,   PAWN_EG   = 100;
 	public static final int KNIGHT_MG = 375,  KNIGHT_EG = 415;
 	public static final int BISHOP_MG = 400,  BISHOP_EG = 440;
 	public static final int ROOK_MG   = 620,  ROOK_EG   = 660;
 	public static final int QUEEN_MG  = 1215, QUEEN_EG  = 1290;
-	
-	public static final int PIECE_VALUE_MG[]   = {0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
-	public static final int PIECE_VALUE_EG[]   = {0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
+	public static final int PIECE_VALUE_MG[] =
+		{0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
+	public static final int PIECE_VALUE_EG[] =
+		{0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
 	public static final int PIECE_UNIT_VALUE[] = {0, 0, 3, 3, 5, 9, 0};
 	
+	// assorted bonuses/penalties
+	public static final int TEMPO                   =  10;
+	public static final int ROOK_PAWN               = -15;
+	public static final int BISHOP_PAIR             =  50;
+	public static final int UNOPPOSED_BISHOP_PAIR   =  100;
+	public static final int KNIGHT_PAIR             = -5;
+	public static final int REDUNDANT_ROOK          = -10;
+	public static final int REDUNDANT_QUEEN         = -5;
+	public static final int KNIGHT_PAWN_SYNERGY	    =  6;
+	public static final int DOUBLED_PAWN_MG         = -5;
+	public static final int DOUBLED_PAWN_EG         = -28;
+	public static final int ISOLATED_PAWN_MG        = -3;
+	public static final int ISOLATED_PAWN_EG        = -8;
+	public static final int BACKWARD_PAWN_MG        = -5;
+	public static final int BACKWARD_PAWN_EG        = -12;
+	public static final int SUPPORTED_PAWN          =  8;
+	public static final int[] CONNECTED_PAWN        = {0, 85, 50, 30, 15, 10, 5, 0};
+	public static final int PAWN_ON_BISHOP_COLOR_MG = -5;
+	public static final int PAWN_ON_BISHOP_COLOR_EG = -10;
+	public static final int ROOK_OPEN_FILE_MG       =  22;
+	public static final int ROOK_OPEN_FILE_EG       =  10;
+	public static final int ROOK_SEMIOPEN_FILE_MG   =  9;
+	public static final int ROOK_SEMIOPEN_FILE_EG   =  4;
+	public static final int TRAPPED_ROOK            = -50;
+	public static final int ROOK_ON_7TH_MG          =  20;
+	public static final int ROOK_ON_7TH_EG          =  40;
+	public static final int QUEEN_ON_7TH_MG         =  10;
+	public static final int QUEEN_ON_7TH_EG         =  20;
+	
+	// piece square tables
 	public static final int PSQT_MG[][][] = {
 		    {{}},
 		    { // Pawn
@@ -237,53 +257,25 @@ public interface Definitions {
 		    	{ 0, 20, 40, 46, 46, 40, 20,  0}}
 		};
 	
-	public static final int TEMPO                    =  10;
-	public static final int ROOK_PAWN                = -15;
-	public static final int BISHOP_PAIR              =  50;
-	public static final int UNOPPOSED_BISHOP_PAIR    =  100;
-	public static final int KNIGHT_PAIR              = -5;
-	public static final int REDUNDANT_ROOK           = -10;
-	public static final int REDUNDANT_QUEEN          = -5;
-	public static final int KNIGHT_PAWN_SYNERGY	     =  6;
-	public static final int DOUBLED_PAWN_MG          = -5;
-	public static final int DOUBLED_PAWN_EG          = -28;
-	public static final int ISOLATED_PAWN_MG         = -3;
-	public static final int ISOLATED_PAWN_EG         = -8;
-	public static final int BACKWARD_PAWN_MG         = -5;
-	public static final int BACKWARD_PAWN_EG         = -12;
-	public static final int SUPPORTED_PAWN           =  8;
-	public static final int[] CONNECTED_PAWN         = {0, 85, 50, 30, 15, 10, 5, 0};
-	public static final int PAWN_ON_BISHOP_COLOR_MG  = -5;
-	public static final int PAWN_ON_BISHOP_COLOR_EG  = -10;
-	public static final int ROOK_OPEN_FILE_MG        =  22;
-	public static final int ROOK_OPEN_FILE_EG        =  10;
-	public static final int ROOK_SEMIOPEN_FILE_MG    =  9;
-	public static final int ROOK_SEMIOPEN_FILE_EG    =  4;
-	public static final int TRAPPED_ROOK             = -50;
-	public static final int ROOK_ON_7TH_MG           =  20;
-	public static final int ROOK_ON_7TH_EG           =  40;
-	public static final int QUEEN_ON_7TH_MG          =  10;
-	public static final int QUEEN_ON_7TH_EG          =  20;
-	
-	public static final int KNIGHT_MOBILITY_MG       =  4;
-	public static final int KNIGHT_MOBILITY_EG		 =  4;
-	public static final int BISHOP_MOBILITY_MG       =  5;
-	public static final int BISHOP_MOBILITY_EG       =  5;
-	public static final int ROOK_MOBILITY_MG         =  2;
-	public static final int ROOK_MOBILITY_EG         =  4;
-	public static final int QUEEN_MOBILITY_MG        =  1;
-	public static final int QUEEN_MOBILITY_EG        =  2;
-	
-	public static final int KNIGHT_MAX_SQUARES       =  8;
-	public static final int BISHOP_MAX_SQUARES       = 13;
-	public static final int ROOK_MAX_SQUARES         = 14;
-	public static final int QUEEN_MAX_SQUARES        = 27;
-	
+	// mobility
+	public static final int KNIGHT_MOBILITY_MG      =  4;
+	public static final int KNIGHT_MOBILITY_EG	    =  4;
+	public static final int BISHOP_MOBILITY_MG      =  5;
+	public static final int BISHOP_MOBILITY_EG      =  5;
+	public static final int ROOK_MOBILITY_MG        =  2;
+	public static final int ROOK_MOBILITY_EG        =  4;
+	public static final int QUEEN_MOBILITY_MG       =  1;
+	public static final int QUEEN_MOBILITY_EG       =  2;
+	public static final int KNIGHT_MAX_SQUARES      =  8;
+	public static final int BISHOP_MAX_SQUARES      =  13;
+	public static final int ROOK_MAX_SQUARES        =  14;
+	public static final int QUEEN_MAX_SQUARES       =  27;
 	public static final int[] MOBILITY_MG = 
 		{0, 0, KNIGHT_MOBILITY_MG, BISHOP_MOBILITY_MG, ROOK_MOBILITY_MG, QUEEN_MOBILITY_MG, 0};
 	public static final int[] MOBILITY_EG = 
 		{0, 0, KNIGHT_MOBILITY_EG, BISHOP_MOBILITY_EG, ROOK_MOBILITY_EG, QUEEN_MOBILITY_EG, 0};
 	
+	// passed pawns
 	public static final int PASSED_PAWN_MG[][] = {
 		{  0,   0,   0,   0,   0,   0,   0,   0},
 		{130, 130, 126, 115, 115, 126, 130, 130},
@@ -304,9 +296,9 @@ public interface Definitions {
 		{ 12,  13,   5,   2,   2,   5,  13,  12},
 		{  0,   0,   0,   0,   0,   0,   0,   0}
 	};
-	
 	public static final int PASSED_DANGER[] = {0, 10, 5, 3, 1, 0, 0, 0};
 	
+	// endgame
 	public static final int CORNER_PROXIMITY[][] = {
 		{100, 90, 80, 70, 70, 80, 90, 100},
 		{ 90, 70, 60, 50, 50, 60, 70, 90 },
