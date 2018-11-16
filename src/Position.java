@@ -107,6 +107,13 @@ public class Position implements Types {
 	}
 	
 	/**
+	 * Returns the Chebyshev distance between two given indices.
+	 */
+	public static int distance(int index1, int index2) {
+		return Math.max(Math.abs(index1 / 16 - index2 / 16), Math.abs(index1 % 16 - index2 % 16));
+	}
+	
+	/**
 	 * Makes a null (passing) move.
 	 */
 	public void makePassingMove() {

@@ -165,7 +165,7 @@ public class Savant implements Types {
 	// TODO: piece lists
 	// TODO: transposition table to separate class
 
-	public static Position pos       = new Position("4rk2/RR6/8/8/8/8/3q4/7K");
+	public static Position pos       = new Position();
 	public static String openingLine = "";
 	public static boolean inOpening  = true;
 	
@@ -174,7 +174,7 @@ public class Savant implements Types {
 	 */
 	public static void main(String[] args) throws IOException {
 		//pos = new Position("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
-		pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
+		//pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
 		//pos = new Position("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
 		
 		//pos = new Position("k7/8/8/8/q7/8/8/1R3R1K w - - 0 1");

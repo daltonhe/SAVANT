@@ -180,7 +180,7 @@ public class Evaluate implements Types {
 			              	&& (file == 7 || rank <= pawnFile_b[file + 1][1]);
 				phalanx    =   board[index - 1] == W_PAWN
 						    || board[index + 1] == W_PAWN;
-				doubled    =   board[index + 16] == W_PAWN;
+				doubled    =   pawnFile_w[file][0] >= 2;
 				isolated   =   (file == 0 || pawnFile_w[file - 1][0] == 0)
 						    && (file == 7 || pawnFile_w[file + 1][0] == 0);
 				backward   =   (file == 0 || rank > pawnFile_w[file - 1][1])
@@ -200,17 +200,20 @@ public class Evaluate implements Types {
 					
 					int rankBonus = PASSED_DANGER[rank];
 					// distance from king to block square of pawn, capped at 5
-					int kingDist_our = Math.min(Math.max(Math.abs(kingPos_w / 16 - (rank - 1)),
-									 					 Math.abs(kingPos_w % 16 - file)), 5);
-					int kingDist_opp = Math.min(Math.max(Math.abs(kingPos_b / 16 - (rank - 1)),
-														 Math.abs(kingPos_b % 16 - file)), 5);
-					pawns_eg += kingDist_opp * rankBonus * 5;
-					pawns_eg -= kingDist_our * rankBonus * 2;
-					// if block square is not the queening square then consider a second push
+					int kingDist_our = Math.min(Position.distance(kingPos_w, index - 16), 5);
+					int kingDist_opp = Math.min(Position.distance(kingPos_b, index - 16), 5);
+					pawns_eg += kingDist_opp * 5 * rankBonus;
+					pawns_eg -= kingDist_our * 2 * rankBonus;
+					// If the block square is not the queening square, consider a second push
 					if (rank > 1) {
-						int kingDist_our2 = Math.min(Math.max(Math.abs(kingPos_w / 16 - (rank - 2)),
-			 					 							  Math.abs(kingPos_w % 16 - file)), 5);
+						int kingDist_our2 = Math.min(Position.distance(kingPos_w, index - 32), 5);
 						pawns_eg -= kingDist_our2 * rankBonus;
+					}
+					
+					// If the pawn is free to advance, increase the bonus
+					if (board[index - 16] == PIECE_NONE && !pos.isAttacked(index - 16, BLACK)) {
+						pawns_mg += 5 * rankBonus;
+						pawns_eg += 5 * rankBonus;
 					}
 				}
 				// Penalty for doubled pawns. Any pawn which has a friendly pawn directly
@@ -254,7 +257,7 @@ public class Evaluate implements Types {
 				        	&& (file == 7 || rank >= pawnFile_w[file + 1][1]);
 				phalanx    =   board[index - 1] == B_PAWN
 				          	|| board[index + 1] == B_PAWN;
-				doubled    =   board[index - 16] == B_PAWN;
+				doubled    =   pawnFile_b[file][0] >= 2;
 				isolated   =   (file == 0 || pawnFile_b[file - 1][0] == 0)
 					    	&& (file == 7 || pawnFile_b[file + 1][0] == 0);
 				backward   =   (file == 0 || rank < pawnFile_b[file - 1][1])
@@ -270,16 +273,18 @@ public class Evaluate implements Types {
 					pawns_eg -= PASSED_PAWN_EG[7 - rank][file];
 					
 					int rankBonus = PASSED_DANGER[7 - rank];
-					int kingDist_our = Math.min(Math.max(Math.abs(kingPos_b / 16 - (rank + 1)),
-									 					 Math.abs(kingPos_b % 16 - file)), 5);
-					int kingDist_opp = Math.min(Math.max(Math.abs(kingPos_w / 16 - (rank + 1)),
-														 Math.abs(kingPos_w % 16 - file)), 5);
+					int kingDist_our = Math.min(Position.distance(kingPos_b, index + 16), 5);
+					int kingDist_opp = Math.min(Position.distance(kingPos_w, index + 16), 5);
 					pawns_eg -= kingDist_opp * rankBonus * 5;
 					pawns_eg += kingDist_our * rankBonus * 2;
 					if (rank < 6) {
-						int kingDist_our2 = Math.min(Math.max(Math.abs(kingPos_w / 16 - (rank + 2)),
-			 					 							  Math.abs(kingPos_w % 16 - file)), 5);
+						int kingDist_our2 = Math.min(Position.distance(kingPos_b, index + 32), 5);
 						pawns_eg += kingDist_our2 * rankBonus;
+					}
+					
+					if (board[index + 16] == PIECE_NONE && !pos.isAttacked(index + 16, WHITE)) {
+						pawns_mg -= 5 * rankBonus;
+						pawns_eg -= 5 * rankBonus;
 					}
 				}
 				if (doubled && supporters == 0) {
@@ -429,12 +434,22 @@ public class Evaluate implements Types {
 		
 		// Give a bonus for having the bishop pair. If the bishop pair is unopposed, i.e.
 		// the opponent has no minor pieces to contest the bishops, the bonus is larger.
-		if (bishops_w >= 2)
-			imbalance += (knights_b + bishops_b == 0 ? UNOPPOSED_BISHOP_PAIR : BISHOP_PAIR);
-		
-		if (bishops_b >= 2) {
-			imbalance -= (knights_w + bishops_w == 0 ? UNOPPOSED_BISHOP_PAIR : BISHOP_PAIR);
+		if (bishops_w >= 2) {
+			imbalance += BISHOP_PAIR;
+			// The bishop pair is worth less with the queen on board
+			if (queens_w >= 1) imbalance -= 6;
+			// But more with the enemy queen on board
+			if (queens_b >= 1) imbalance += 3;
+			// Give a tiny bonus for each pawn on the board
+			imbalance += pawns_w + pawns_b;
 		}
+		if (bishops_b >= 2) {
+			imbalance -= BISHOP_PAIR;
+			if (queens_b >= 1) imbalance += 6;
+			if (queens_w >= 1) imbalance -= 3;
+			imbalance -= pawns_w + pawns_b;
+		}
+		
 		// Give a small penalty for having the knight pair
 		if (knights_w >= 2) imbalance += KNIGHT_PAIR;
 		if (knights_b >= 2) imbalance -= KNIGHT_PAIR;
@@ -443,20 +458,42 @@ public class Evaluate implements Types {
 		if (rooks_w >= 1) {
 			imbalance += (rooks_w - 1) * REDUNDANT_ROOK;
 			imbalance += queens_w * rooks_w * REDUNDANT_QUEEN;
+			// Increase rook value for each enemy pawn
+			imbalance += pawns_b;
 		}
 		if (rooks_b >= 1) {
 			imbalance -= (rooks_b - 1) * REDUNDANT_ROOK;
 			imbalance -= queens_b * rooks_b * REDUNDANT_QUEEN;
+			imbalance -= pawns_w;
 		}
 		
-		// Give a bonus to Knights for having more pawns on the board
-		imbalance += knights_w * (pawns_w - 5) * KNIGHT_PAWN_SYNERGY;
-		imbalance -= knights_b * (pawns_b - 5) * KNIGHT_PAWN_SYNERGY;
+		// Give a big bonus to knights for having more pawns, and a smaller bonus to bishops
+		// Also give a smaller bonus for enemy pawns
+		imbalance += knights_w * pawns_w * KNIGHT_PAWN_SYNERGY;
+		imbalance -= knights_b * pawns_b * KNIGHT_PAWN_SYNERGY;
+		imbalance += bishops_w * pawns_w * BISHOP_PAWN_SYNERGY;
+		imbalance -= bishops_b * pawns_b * BISHOP_PAWN_SYNERGY;
+		imbalance += (knights_w + bishops_w) * pawns_b * 2;
+		imbalance -= (knights_b + bishops_b) * pawns_w * 2;
+		
+		// Increase queen value for each enemy pawn, bishop, and rook, and for each friendly minor
+		if (queens_w >= 1) {
+			imbalance += pawns_b * 3;
+			imbalance += bishops_b * 4;
+			imbalance += rooks_b * 8; 
+			imbalance += (knights_w + bishops_w) * 4;
+		}
+		if (queens_b >= 1) {
+			imbalance -= pawns_w * 3;
+			imbalance -= bishops_b * 4;
+			imbalance -= rooks_w * 8; 
+			imbalance -= (knights_b + bishops_b) * 4;
+		}
 		
 		// Sum all the individual component scores
 		int score_mg = material_mg + psqt_mg + imbalance + pawns_mg + pieces_mg + mobility_mg + tempo;
 		int score_eg = material_eg + psqt_eg + imbalance + pawns_eg + pieces_eg + mobility_eg;
-		
+
 		// Scale down endgame score for bishops of opposite colors
 		if (npm_w == 3 && npm_b == 3 && bishops_w == 1 && bishops_b == 1 && bishopParity == 1) {
 			// Count pawn asymmetry, i.e., number of unopposed pawns

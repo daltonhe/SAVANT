@@ -128,12 +128,13 @@ public interface Types {
 	// assorted bonuses/penalties
 	public static final int TEMPO                   =  10;
 	public static final int ROOK_PAWN               = -15;
-	public static final int BISHOP_PAIR             =  50;
-	public static final int UNOPPOSED_BISHOP_PAIR   =  100;
-	public static final int KNIGHT_PAIR             = -5;
-	public static final int REDUNDANT_ROOK          = -10;
-	public static final int REDUNDANT_QUEEN         = -5;
-	public static final int KNIGHT_PAWN_SYNERGY	    =  6;
+	public static final int BISHOP_PAIR             =  43;
+	//public static final int UNOPPOSED_BISHOP_PAIR   =  100;
+	public static final int KNIGHT_PAIR             = -4;
+	public static final int REDUNDANT_ROOK          = -12;
+	public static final int REDUNDANT_QUEEN         = -4;
+	public static final int KNIGHT_PAWN_SYNERGY	    =  7;
+	public static final int BISHOP_PAWN_SYNERGY     =  3;
 	public static final int DOUBLED_PAWN_MG         = -5;
 	public static final int DOUBLED_PAWN_EG         = -28;
 	public static final int ISOLATED_PAWN_MG        = -3;
@@ -309,7 +310,7 @@ public interface Types {
 		{ 12,  13,   5,   2,   2,   5,  13,  12},
 		{  0,   0,   0,   0,   0,   0,   0,   0}
 	};
-	public static final int PASSED_DANGER[] = {0, 10, 5, 3, 1, 0, 0, 0};
+	public static final int PASSED_DANGER[] = {0, 10, 6, 4, 2, 0, 0, 0};
 	
 	// endgame
 	public static final int CORNER_PROXIMITY[][] = {
