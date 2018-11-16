@@ -9,7 +9,7 @@ public class HashtableEntry {
 	public int eval;     // score of the position
 	public int type;     // bound type of the eval
 	public int count;    // number of times this position has been repeated
-	public int age;
+	public int age;      // number of searches ago this entry was from
 	
 	/**
 	 * Repetition table entry
