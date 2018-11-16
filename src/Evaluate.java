@@ -44,6 +44,9 @@ public class Evaluate implements Types {
 		int[] pawnColor_w = new int[2];
 		int[] pawnColor_b = new int[2];
 		
+		// number of blocked pawns on the 4 center files (C, D, E, and F)
+		int blockedPawns_w = 0, blockedPawns_b = 0;
+		
 		// First pass: count pieces, material, and phase.
 		for (int index = SQ_a8; index <= SQ_h1; index++) {
 			if (!Position.isLegalIndex(index)) continue;
@@ -59,17 +62,21 @@ public class Evaluate implements Types {
 			case W_PAWN:
 				pawns_w++;
 				pawnFile_w[file][0]++;
-				pawnColor_w[(file + rank) % 2]++;
 				if (rank > pawnFile_w[file][1])
 					pawnFile_w[file][1] = rank;
+				pawnColor_w[(file + rank) % 2]++;
+				if (file > 1 && file < 6 && board[index - 16] != PIECE_NONE)
+					blockedPawns_w++;
 				break;
 				
 			case B_PAWN:
 				pawns_b++;
 				pawnFile_b[file][0]++;
-				pawnColor_b[(file + rank) % 2]++;
 				if (rank < pawnFile_b[file][1])
 					pawnFile_b[file][1] = rank;
+				pawnColor_b[(file + rank) % 2]++;
+				if (file > 1 && file < 6 && board[index + 16] != PIECE_NONE)
+					blockedPawns_b++;
 				break;
 				
 			case W_KNIGHT:
@@ -211,7 +218,7 @@ public class Evaluate implements Types {
 					}
 					
 					// If the pawn is free to advance, increase the bonus
-					if (board[index - 16] == PIECE_NONE && !pos.isAttacked(index - 16, BLACK)) {
+					if (board[index - 16] == PIECE_NONE) {
 						pawns_mg += 5 * rankBonus;
 						pawns_eg += 5 * rankBonus;
 					}
@@ -240,8 +247,8 @@ public class Evaluate implements Types {
 				// pawn is opposed, and the number of supporting pawns.
 				if (supporters > 0 || phalanx) {
 					double connectedBonus = CONNECTED_PAWN[rank];
-					if (phalanx) connectedBonus *= 1.4;
-					if (opposed) connectedBonus *= 0.5;
+					if (phalanx) connectedBonus += PAWN_PHALANX[rank];
+					if (opposed) connectedBonus /= 2;
 					connectedBonus += supporters *= SUPPORTED_PAWN;
 					pawns_mg += (int) connectedBonus;
 					// In the endgame only the 4th through 7th ranks receive a bonus.
@@ -282,7 +289,7 @@ public class Evaluate implements Types {
 						pawns_eg += kingDist_our2 * rankBonus;
 					}
 					
-					if (board[index + 16] == PIECE_NONE && !pos.isAttacked(index + 16, WHITE)) {
+					if (board[index + 16] == PIECE_NONE) {
 						pawns_mg -= 5 * rankBonus;
 						pawns_eg -= 5 * rankBonus;
 					}
@@ -301,8 +308,8 @@ public class Evaluate implements Types {
 				}
 				if (supporters > 0 || phalanx) {
 					double connectedBonus = CONNECTED_PAWN[7 - rank];
-					if (phalanx) connectedBonus *= 1.4;
-					if (opposed) connectedBonus *= 0.5;
+					if (phalanx) connectedBonus += PAWN_PHALANX[7 - rank];
+					if (opposed) connectedBonus /= 2;
 					connectedBonus += supporters * SUPPORTED_PAWN;
 					pawns_mg -= (int) connectedBonus;
 					pawns_eg -= (int) (connectedBonus * (rank - 2) / 4);
@@ -324,10 +331,11 @@ public class Evaluate implements Types {
 				
 			case W_BISHOP:
 				// Give a penalty for the number of pawns on the same color square
-				// as the bishop
+				// as the bishop. The penalty is increased for each blocked pawn on the
+				// 4 center files (C, D, E, and F).
 				int bishopPawns = pawnColor_w[(rank + file) % 2];
-				pieces_mg += bishopPawns * PAWN_ON_BISHOP_COLOR_MG;
-				pieces_eg += bishopPawns * PAWN_ON_BISHOP_COLOR_EG;
+				pieces_mg += bishopPawns * (blockedPawns_w + 1) * PAWN_ON_BISHOP_COLOR_MG;
+				pieces_eg += bishopPawns * (blockedPawns_w + 1) * PAWN_ON_BISHOP_COLOR_EG;
 				// Bishop mobility
 				squares = mobilityDelta(board, side, index, DELTA_BISHOP, true);
 				mobility_mg += (squares - BISHOP_MAX_SQUARES / 2) * BISHOP_MOBILITY_MG;
@@ -336,8 +344,8 @@ public class Evaluate implements Types {
 				
 			case B_BISHOP:
 				bishopPawns = pawnColor_b[(rank + file) % 2];
-				pieces_mg -= bishopPawns * PAWN_ON_BISHOP_COLOR_MG;
-				pieces_eg -= bishopPawns * PAWN_ON_BISHOP_COLOR_EG;
+				pieces_mg -= bishopPawns * (blockedPawns_b + 1) * PAWN_ON_BISHOP_COLOR_MG;
+				pieces_eg -= bishopPawns * (blockedPawns_b + 1) * PAWN_ON_BISHOP_COLOR_EG;
 				squares = mobilityDelta(board, side, index, DELTA_BISHOP, true);
 				mobility_mg -= (squares - BISHOP_MAX_SQUARES / 2) * BISHOP_MOBILITY_MG;
 				mobility_eg -= (squares - BISHOP_MAX_SQUARES / 2) * BISHOP_MOBILITY_EG;
@@ -429,8 +437,8 @@ public class Evaluate implements Types {
 		
 		// Give a penalty for rook pawns, which are of diminished value since they can only
 		// capture in one direction.
-		//imbalance += (pawnFile_w[0][0] + pawnFile_w[7][0]) * ROOK_PAWN;
-		//imbalance -= (pawnFile_b[0][0] + pawnFile_b[7][0]) * ROOK_PAWN;
+		imbalance += (pawnFile_w[0][0] + pawnFile_w[7][0]) * ROOK_PAWN;
+		imbalance -= (pawnFile_b[0][0] + pawnFile_b[7][0]) * ROOK_PAWN;
 		
 		// Give a bonus for having the bishop pair. If the bishop pair is unopposed, i.e.
 		// the opponent has no minor pieces to contest the bishops, the bonus is larger.
@@ -439,15 +447,15 @@ public class Evaluate implements Types {
 			// The bishop pair is worth less with the queen on board
 			if (queens_w >= 1) imbalance -= 6;
 			// But more with the enemy queen on board
-			if (queens_b >= 1) imbalance += 3;
+			//if (queens_b >= 1) imbalance += 3;
 			// Give a tiny bonus for each pawn on the board
-			imbalance += pawns_w + pawns_b;
+			//imbalance += pawns_w + pawns_b;
 		}
 		if (bishops_b >= 2) {
 			imbalance -= BISHOP_PAIR;
 			if (queens_b >= 1) imbalance += 6;
-			if (queens_w >= 1) imbalance -= 3;
-			imbalance -= pawns_w + pawns_b;
+			//if (queens_w >= 1) imbalance -= 3;
+			//imbalance -= pawns_w + pawns_b;
 		}
 		
 		// Give a small penalty for having the knight pair
@@ -469,25 +477,25 @@ public class Evaluate implements Types {
 		
 		// Give a big bonus to knights for having more pawns, and a smaller bonus to bishops
 		// Also give a smaller bonus for enemy pawns
-		imbalance += knights_w * pawns_w * KNIGHT_PAWN_SYNERGY;
-		imbalance -= knights_b * pawns_b * KNIGHT_PAWN_SYNERGY;
-		imbalance += bishops_w * pawns_w * BISHOP_PAWN_SYNERGY;
-		imbalance -= bishops_b * pawns_b * BISHOP_PAWN_SYNERGY;
-		imbalance += (knights_w + bishops_w) * pawns_b * 2;
-		imbalance -= (knights_b + bishops_b) * pawns_w * 2;
+		imbalance += knights_w * (5 - pawns_w) * KNIGHT_PAWN_SYNERGY;
+		imbalance -= knights_b * (5 - pawns_b) * KNIGHT_PAWN_SYNERGY;
+		//imbalance += bishops_w * pawns_w * BISHOP_PAWN_SYNERGY;
+		//imbalance -= bishops_b * pawns_b * BISHOP_PAWN_SYNERGY;
+		//imbalance += (knights_w + bishops_w) * pawns_b * 2;
+		//imbalance -= (knights_b + bishops_b) * pawns_w * 2;
 		
 		// Increase queen value for each enemy pawn, bishop, and rook, and for each friendly minor
 		if (queens_w >= 1) {
 			imbalance += pawns_b * 3;
-			imbalance += bishops_b * 4;
-			imbalance += rooks_b * 8; 
-			imbalance += (knights_w + bishops_w) * 4;
+			//imbalance += bishops_b * 4;
+			//imbalance += rooks_b * 8; 
+			//imbalance += (knights_w + bishops_w) * 4;
 		}
 		if (queens_b >= 1) {
 			imbalance -= pawns_w * 3;
-			imbalance -= bishops_b * 4;
-			imbalance -= rooks_w * 8; 
-			imbalance -= (knights_b + bishops_b) * 4;
+			//imbalance -= bishops_b * 4;
+			//imbalance -= rooks_w * 8; 
+			//imbalance -= (knights_b + bishops_b) * 4;
 		}
 		
 		// Sum all the individual component scores

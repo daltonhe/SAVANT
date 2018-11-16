@@ -98,9 +98,9 @@ public interface Types {
 	public static final int TIME_INF = 9999000;
 	
 	// Transposition table
-	public static final int HASH_SIZE_TT  = 1048583;
-	public static final int HASH_SIZE_REP = 524309;
-	public static final int HASH_SIZE_PV  = 524309;
+	public static final int HASH_SIZE_TT  = 524309;
+	public static final int HASH_SIZE_REP = 16411;
+	public static final int HASH_SIZE_PV  = 131101;
 	
 	public static final int HASH_MAX_AGE = 5;
 	
@@ -141,10 +141,11 @@ public interface Types {
 	public static final int ISOLATED_PAWN_EG        = -8;
 	public static final int BACKWARD_PAWN_MG        = -5;
 	public static final int BACKWARD_PAWN_EG        = -12;
+	public static final int[] CONNECTED_PAWN        = {0, 84, 48, 31,  9, 12, 6, 0};
+	public static final int[] PAWN_PHALANX          = {0, 37, 18,  8, 11, -1, 3, 0};
 	public static final int SUPPORTED_PAWN          =  8;
-	public static final int[] CONNECTED_PAWN        = {0, 85, 50, 30, 15, 10, 5, 0};
-	public static final int PAWN_ON_BISHOP_COLOR_MG = -5;
-	public static final int PAWN_ON_BISHOP_COLOR_EG = -10;
+	public static final int PAWN_ON_BISHOP_COLOR_MG = -2;
+	public static final int PAWN_ON_BISHOP_COLOR_EG = -5;
 	public static final int ROOK_OPEN_FILE_MG       =  22;
 	public static final int ROOK_OPEN_FILE_EG       =  10;
 	public static final int ROOK_SEMIOPEN_FILE_MG   =  9;
