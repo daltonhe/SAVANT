@@ -63,19 +63,18 @@ public interface Types {
 		{{}, {}, DELTA_KNIGHT, DELTA_BISHOP, DELTA_ROOK, DELTA_QUEEN, DELTA_KING};
 	
 	// Search
-	public static final int VALUE_INF            =  10001;
-	public static final int VALUE_MATE           =  10000;
-	public static final int VALUE_MATE_THRESHOLD =  9900;
-	public static final int VALUE_KNOWN_WIN      =  1000;
-	public static final int VALUE_DRAW           =  0;
+	public static final int VALUE_INF            = 10001;
+	public static final int VALUE_MATE           = 10000;
+	public static final int VALUE_MATE_THRESHOLD = 9900;
+	public static final int VALUE_KNOWN_WIN      = 1000;
+	public static final int VALUE_DRAW           = 0;
 	// This is a special value to distinguish path-dependent draws, i.e. draws by three-fold
 	// repetition or by the 50-move rule, that are linked to move order rather than being
 	// position-dependent (i.e. stalemate or insufficient material). We want to be able to
 	// distinguish path-dependent evaluations, which should not be saved in the transposition 
-	// table. This value is reserved, so scores of -1 arising from static evaluation of the
-	// position will be altered to -2.
-	public static final int VALUE_PATH_DRAW      = -1;
-	public static final int VALUE_CONTEMPT       =  20;
+	// table.
+	public static final int VALUE_PATH_DRAW      = 1;
+	public static final int VALUE_CONTEMPT       = 20;
 	
 	public static final int NODE_PV  =  0;
 	public static final int NODE_CUT =  1;
@@ -84,8 +83,8 @@ public interface Types {
 	public static final int INITIAL_WINDOW_SIZE = 10;
 	public static final int DELTA_MARGIN        = 200;
 	public static final int FUTILITY_MARGIN     = 400;
-	public static final int FUTILITY_EXT_MARGIN = 650;
-	public static final int RAZOR_MARGIN        = 1200;
+	public static final int FUTILITY_EXT_MARGIN = 600;
+	public static final int RAZOR_MARGIN        = 800;
 	
 	public static final int HISTORY_MAX = 50000;
 	
@@ -102,16 +101,16 @@ public interface Types {
 	public static final int HASH_SIZE_REP = 16411;
 	public static final int HASH_SIZE_PV  = 131101;
 	
-	public static final int HASH_MAX_AGE = 5;
+	public static final int HASH_MAX_AGE = 8;
 	
 	public static final int BOUND_EXACT = 0;
 	public static final int BOUND_LOWER = 1;
 	public static final int BOUND_UPPER = 2;
 	
 	// Evaluation
-	public static final int PHASE_WEIGHT[]      = {0, 0, 1, 1, 2, 4, 0};
-	public static final int MIDGAME_PHASE_LIMIT = 22;
-	public static final int ENDGAME_PHASE_LIMIT = 5;
+	public static final int PHASE_WEIGHT[]      = {0, 0, 2, 2, 3, 6, 0};
+	public static final int MIDGAME_PHASE_LIMIT = 35;
+	public static final int ENDGAME_PHASE_LIMIT = 9;
 	public static final int LAZY_THRESHOLD      = 720;
 	
 	// piece values
@@ -129,7 +128,6 @@ public interface Types {
 	public static final int TEMPO                   =  10;
 	public static final int ROOK_PAWN               = -15;
 	public static final int BISHOP_PAIR             =  43;
-	//public static final int UNOPPOSED_BISHOP_PAIR   =  100;
 	public static final int KNIGHT_PAIR             = -4;
 	public static final int REDUNDANT_ROOK          = -12;
 	public static final int REDUNDANT_QUEEN         = -4;

@@ -24,30 +24,34 @@ public class Evaluate implements Types {
 		int tempo        = TEMPO * pos.sideToMove;
 		
 		// Initialize piece counts
-		int kingPos_w = 0, kingPos_b = 0;
-		int pawns_w   = 0, pawns_b   = 0;
-		int knights_w = 0, knights_b = 0;
-		int bishops_w = 0, bishops_b = 0;
-		int rooks_w   = 0, rooks_b   = 0;
-		int queens_w  = 0, queens_b  = 0;
-		int npm_w     = 0, npm_b     = 0; // non-pawn material
+		int pawns_w    = 0, pawns_b    = 0;
+		int knights_w  = 0, knights_b  = 0;
+		int bishops_w  = 0, bishops_b  = 0;
+		int rooks_w    = 0, rooks_b    = 0;
+		int queens_w   = 0, queens_b   = 0;
 		
+		int king_pos_w = 0, king_pos_b = 0;
+		int npm_w = 0, npm_b = 0; // non-pawn material
 		int bishopParity = 0; // used for determining opposite color bishops
 		
 		// pawnFile[fileA..H][count|rank of least advanced pawn]
-		int[][] pawnFile_w = new int[8][2]; 
-		int[][] pawnFile_b = new int[8][2];
+		int[][] pawn_file_w = new int[8][2]; 
+		int[][] pawn_file_b = new int[8][2];
 		for (int i = 0; i < 8; i++) // initialize
-			pawnFile_b[i][1] = 7;
+			pawn_file_b[i][1] = 7;
 		
 		// pawnColor[pawns on light squares|dark squares]
-		int[] pawnColor_w = new int[2];
-		int[] pawnColor_b = new int[2];
+		int[] pawn_color_w = new int[2];
+		int[] pawn_color_b = new int[2];
+		
+		// squares defended by pawns, used for mobility
+		boolean[] pawn_attacks_w = new boolean[120];
+		boolean[] pawn_attacks_b = new boolean[120];
 		
 		// number of blocked pawns on the 4 center files (C, D, E, and F)
 		int blockedPawns_w = 0, blockedPawns_b = 0;
 		
-		// First pass: count pieces, material, and phase.
+		// First pass: piece count, material, phase, mobility area
 		for (int index = SQ_a8; index <= SQ_h1; index++) {
 			if (!Position.isLegalIndex(index)) continue;
 
@@ -61,22 +65,26 @@ public class Evaluate implements Types {
 			
 			case W_PAWN:
 				pawns_w++;
-				pawnFile_w[file][0]++;
-				if (rank > pawnFile_w[file][1])
-					pawnFile_w[file][1] = rank;
-				pawnColor_w[(file + rank) % 2]++;
+				pawn_file_w[file][0]++;
+				if (rank > pawn_file_w[file][1])
+					pawn_file_w[file][1] = rank;
+				pawn_color_w[(file + rank) % 2]++;
 				if (file > 1 && file < 6 && board[index - 16] != PIECE_NONE)
 					blockedPawns_w++;
+				if (file != 0) pawn_attacks_w[index - 17] = true;
+				if (file != 7) pawn_attacks_w[index - 15] = true;
 				break;
 				
 			case B_PAWN:
 				pawns_b++;
-				pawnFile_b[file][0]++;
-				if (rank < pawnFile_b[file][1])
-					pawnFile_b[file][1] = rank;
-				pawnColor_b[(file + rank) % 2]++;
+				pawn_file_b[file][0]++;
+				if (rank < pawn_file_b[file][1])
+					pawn_file_b[file][1] = rank;
+				pawn_color_b[(file + rank) % 2]++;
 				if (file > 1 && file < 6 && board[index + 16] != PIECE_NONE)
 					blockedPawns_b++;
+				if (file != 0) pawn_attacks_b[index + 15] = true;
+				if (file != 7) pawn_attacks_b[index + 17] = true;
 				break;
 				
 			case W_KNIGHT:
@@ -114,11 +122,11 @@ public class Evaluate implements Types {
 				break;
 			
 			case W_KING:
-				kingPos_w = index;
+				king_pos_w = index;
 				break;
 			
 			case B_KING:
-				kingPos_b = index;
+				king_pos_b = index;
 				break;
 			}
 			
@@ -144,16 +152,16 @@ public class Evaluate implements Types {
 		// Mate with KX vs K. In this case, give a bonus for driving the enemy king to the corner,
 		// and for keeping distance between the two kings small.
 		if (pawns_b == 0 && pieces_b == 0 && pieces_w > 0) {
-			int cornered = CORNER_PROXIMITY[kingPos_b / 16][kingPos_b % 16];
-			int kingDist = Math.max(Math.abs(kingPos_b / 16 - kingPos_w / 16),
-		            				Math.abs(kingPos_b % 16 - kingPos_w % 16));
+			int cornered = CORNER_PROXIMITY[king_pos_b / 16][king_pos_b % 16];
+			int kingDist = Math.max(Math.abs(king_pos_b / 16 - king_pos_w / 16),
+		            				Math.abs(king_pos_b % 16 - king_pos_w % 16));
 			int kingProximity = KINGS_PROXIMITY[kingDist];
 			return material_mg + (cornered + kingProximity) * 10;
 		}
 		if (pawns_w == 0 && pieces_w == 0 && pieces_b > 0) {
-			int cornered = CORNER_PROXIMITY[kingPos_w / 16][kingPos_w % 16];
-			int kingDist = Math.max(Math.abs(kingPos_b / 16 - kingPos_w / 16),
-						            Math.abs(kingPos_b % 16 - kingPos_w % 16));
+			int cornered = CORNER_PROXIMITY[king_pos_w / 16][king_pos_w % 16];
+			int kingDist = Math.max(Math.abs(king_pos_b / 16 - king_pos_w / 16),
+						            Math.abs(king_pos_b % 16 - king_pos_w % 16));
 			int kingProximity = KINGS_PROXIMITY[kingDist];
 			return material_mg - (cornered + kingProximity) * 10;
 		}
@@ -180,18 +188,18 @@ public class Evaluate implements Types {
 				int supporters;
 
 				// First flag the pawn
-				opposed    =   pawnFile_b[file][0] > 0
-						    && rank > pawnFile_b[file][1];
+				opposed    =   pawn_file_b[file][0] > 0
+						    && rank > pawn_file_b[file][1];
 				passed     =   !opposed
-						    && (file == 0 || rank <= pawnFile_b[file - 1][1])
-			              	&& (file == 7 || rank <= pawnFile_b[file + 1][1]);
+						    && (file == 0 || rank <= pawn_file_b[file - 1][1])
+			              	&& (file == 7 || rank <= pawn_file_b[file + 1][1]);
 				phalanx    =   board[index - 1] == W_PAWN
 						    || board[index + 1] == W_PAWN;
-				doubled    =   pawnFile_w[file][0] >= 2;
-				isolated   =   (file == 0 || pawnFile_w[file - 1][0] == 0)
-						    && (file == 7 || pawnFile_w[file + 1][0] == 0);
-				backward   =   (file == 0 || rank > pawnFile_w[file - 1][1])
-						    && (file == 7 || rank > pawnFile_w[file + 1][1])
+				doubled    =   pawn_file_w[file][0] >= 2;
+				isolated   =   (file == 0 || pawn_file_w[file - 1][0] == 0)
+						    && (file == 7 || pawn_file_w[file + 1][0] == 0);
+				backward   =   (file == 0 || rank > pawn_file_w[file - 1][1])
+						    && (file == 7 || rank > pawn_file_w[file + 1][1])
 							&& (   (board[index - 16] == B_PAWN)
 								|| (file == 0 || board[index - 17] == B_PAWN)
 								|| (file == 7 || board[index - 15] == B_PAWN));
@@ -207,13 +215,13 @@ public class Evaluate implements Types {
 					
 					int rankBonus = PASSED_DANGER[rank];
 					// distance from king to block square of pawn, capped at 5
-					int kingDist_our = Math.min(Position.distance(kingPos_w, index - 16), 5);
-					int kingDist_opp = Math.min(Position.distance(kingPos_b, index - 16), 5);
+					int kingDist_our = Math.min(Position.distance(king_pos_w, index - 16), 5);
+					int kingDist_opp = Math.min(Position.distance(king_pos_b, index - 16), 5);
 					pawns_eg += kingDist_opp * 5 * rankBonus;
 					pawns_eg -= kingDist_our * 2 * rankBonus;
 					// If the block square is not the queening square, consider a second push
 					if (rank > 1) {
-						int kingDist_our2 = Math.min(Position.distance(kingPos_w, index - 32), 5);
+						int kingDist_our2 = Math.min(Position.distance(king_pos_w, index - 32), 5);
 						pawns_eg -= kingDist_our2 * rankBonus;
 					}
 					
@@ -257,18 +265,18 @@ public class Evaluate implements Types {
 				break;
 				
 			case B_PAWN:
-				opposed    =   pawnFile_w[file][0] > 0
-				            && rank < pawnFile_w[file][1];
+				opposed    =   pawn_file_w[file][0] > 0
+				            && rank < pawn_file_w[file][1];
 				passed     =   !opposed
-							&& (file == 0 || rank >= pawnFile_w[file - 1][1])
-				        	&& (file == 7 || rank >= pawnFile_w[file + 1][1]);
+							&& (file == 0 || rank >= pawn_file_w[file - 1][1])
+				        	&& (file == 7 || rank >= pawn_file_w[file + 1][1]);
 				phalanx    =   board[index - 1] == B_PAWN
 				          	|| board[index + 1] == B_PAWN;
-				doubled    =   pawnFile_b[file][0] >= 2;
-				isolated   =   (file == 0 || pawnFile_b[file - 1][0] == 0)
-					    	&& (file == 7 || pawnFile_b[file + 1][0] == 0);
-				backward   =   (file == 0 || rank < pawnFile_b[file - 1][1])
-							&& (file == 7 || rank < pawnFile_b[file + 1][1])
+				doubled    =   pawn_file_b[file][0] >= 2;
+				isolated   =   (file == 0 || pawn_file_b[file - 1][0] == 0)
+					    	&& (file == 7 || pawn_file_b[file + 1][0] == 0);
+				backward   =   (file == 0 || rank < pawn_file_b[file - 1][1])
+							&& (file == 7 || rank < pawn_file_b[file + 1][1])
 							&& (   (board[index + 16] == W_PAWN)
 							    || (file == 0 || board[index + 15] == W_PAWN)
 							    || (file == 7 || board[index + 17] == W_PAWN));
@@ -280,12 +288,12 @@ public class Evaluate implements Types {
 					pawns_eg -= PASSED_PAWN_EG[7 - rank][file];
 					
 					int rankBonus = PASSED_DANGER[7 - rank];
-					int kingDist_our = Math.min(Position.distance(kingPos_b, index + 16), 5);
-					int kingDist_opp = Math.min(Position.distance(kingPos_w, index + 16), 5);
+					int kingDist_our = Math.min(Position.distance(king_pos_b, index + 16), 5);
+					int kingDist_opp = Math.min(Position.distance(king_pos_w, index + 16), 5);
 					pawns_eg -= kingDist_opp * rankBonus * 5;
 					pawns_eg += kingDist_our * rankBonus * 2;
 					if (rank < 6) {
-						int kingDist_our2 = Math.min(Position.distance(kingPos_b, index + 32), 5);
+						int kingDist_our2 = Math.min(Position.distance(king_pos_b, index + 32), 5);
 						pawns_eg += kingDist_our2 * rankBonus;
 					}
 					
@@ -318,13 +326,13 @@ public class Evaluate implements Types {
 				
 			case W_KNIGHT:
 				// Knight mobility
-				squares = mobilityDelta(board, side, index, DELTA_KNIGHT, false);
+				squares = mobilityDelta(board, pawn_attacks_b, side, index, DELTA_KNIGHT, false);
 				mobility_mg += (squares - KNIGHT_MAX_SQUARES / 2) * KNIGHT_MOBILITY_MG;
 				mobility_eg += (squares - KNIGHT_MAX_SQUARES / 2) * KNIGHT_MOBILITY_EG;
 				break;
 				
 			case B_KNIGHT:
-				squares = mobilityDelta(board, side, index, DELTA_KNIGHT, false);
+				squares = mobilityDelta(board, pawn_attacks_w, side, index, DELTA_KNIGHT, false);
 				mobility_mg -= (squares - KNIGHT_MAX_SQUARES / 2) * KNIGHT_MOBILITY_MG;
 				mobility_eg -= (squares - KNIGHT_MAX_SQUARES / 2) * KNIGHT_MOBILITY_EG;
 				break;
@@ -333,20 +341,20 @@ public class Evaluate implements Types {
 				// Give a penalty for the number of pawns on the same color square
 				// as the bishop. The penalty is increased for each blocked pawn on the
 				// 4 center files (C, D, E, and F).
-				int bishopPawns = pawnColor_w[(rank + file) % 2];
+				int bishopPawns = pawn_color_w[(rank + file) % 2];
 				pieces_mg += bishopPawns * (blockedPawns_w + 1) * PAWN_ON_BISHOP_COLOR_MG;
 				pieces_eg += bishopPawns * (blockedPawns_w + 1) * PAWN_ON_BISHOP_COLOR_EG;
 				// Bishop mobility
-				squares = mobilityDelta(board, side, index, DELTA_BISHOP, true);
+				squares = mobilityDelta(board, pawn_attacks_b, side, index, DELTA_BISHOP, true);
 				mobility_mg += (squares - BISHOP_MAX_SQUARES / 2) * BISHOP_MOBILITY_MG;
 				mobility_eg += (squares - BISHOP_MAX_SQUARES / 2) * BISHOP_MOBILITY_EG;
 				break;
 				
 			case B_BISHOP:
-				bishopPawns = pawnColor_b[(rank + file) % 2];
+				bishopPawns = pawn_color_b[(rank + file) % 2];
 				pieces_mg -= bishopPawns * (blockedPawns_b + 1) * PAWN_ON_BISHOP_COLOR_MG;
 				pieces_eg -= bishopPawns * (blockedPawns_b + 1) * PAWN_ON_BISHOP_COLOR_EG;
-				squares = mobilityDelta(board, side, index, DELTA_BISHOP, true);
+				squares = mobilityDelta(board, pawn_attacks_w, side, index, DELTA_BISHOP, true);
 				mobility_mg -= (squares - BISHOP_MAX_SQUARES / 2) * BISHOP_MOBILITY_MG;
 				mobility_eg -= (squares - BISHOP_MAX_SQUARES / 2) * BISHOP_MOBILITY_EG;
 				break;
@@ -355,8 +363,8 @@ public class Evaluate implements Types {
 				// Give a bonus for rooks on open and semi-open files. A file without
 				// any pawns of either color is considered open. A file with an enemy
 				// pawn but no friendly pawn is considered semi-open.
-				if (pawnFile_w[file][0] == 0) {
-					if (pawnFile_b[file][0] == 0) {
+				if (pawn_file_w[file][0] == 0) {
+					if (pawn_file_b[file][0] == 0) {
 						pieces_mg += ROOK_OPEN_FILE_MG;
 						pieces_eg += ROOK_OPEN_FILE_EG;
 					}
@@ -367,26 +375,26 @@ public class Evaluate implements Types {
 				}
 				// Give a bonus for a rook on the 7th rank with the enemy king on the
 				// 8th rank
-				if (rank == 1 && kingPos_b / 16 == 0) {
+				if (rank == 1 && king_pos_b / 16 == 0) {
 					pieces_mg += ROOK_ON_7TH_MG;
 					pieces_eg += ROOK_ON_7TH_EG;
 				}
 				// Give a penalty for a rook trapped by its own uncastled king
 				if (   (index == SQ_a1 || index == SQ_a2 || index == SQ_b1)
-					&& (kingPos_w == SQ_c1 || kingPos_w == SQ_b1))
+					&& (king_pos_w == SQ_c1 || king_pos_w == SQ_b1))
 						pieces_mg += TRAPPED_ROOK;
 				if (   (index == SQ_h1 || index == SQ_h2 || index == SQ_g1)
-					&& (kingPos_w == SQ_g1 || kingPos_w == SQ_f1))
+					&& (king_pos_w == SQ_g1 || king_pos_w == SQ_f1))
 						pieces_mg += TRAPPED_ROOK;
 				// Rook mobility
-				squares = mobilityDelta(board, side, index, DELTA_ROOK, true);
+				squares = mobilityDelta(board, pawn_attacks_b, side, index, DELTA_ROOK, true);
 				mobility_mg += (squares - ROOK_MAX_SQUARES / 2) * ROOK_MOBILITY_MG;
 				mobility_eg += (squares - ROOK_MAX_SQUARES / 2) * ROOK_MOBILITY_EG;
 				break;
 				
 			case B_ROOK:
-				if (pawnFile_b[file][0] == 0) {
-					if (pawnFile_w[file][0] == 0) {
+				if (pawn_file_b[file][0] == 0) {
+					if (pawn_file_w[file][0] == 0) {
 						pieces_mg -= ROOK_OPEN_FILE_MG;
 						pieces_eg -= ROOK_OPEN_FILE_EG;
 					}
@@ -395,17 +403,17 @@ public class Evaluate implements Types {
 						pieces_eg -= ROOK_SEMIOPEN_FILE_EG;
 					}
 				}
-				if (rank == 6 && kingPos_w / 16 == 7) {
+				if (rank == 6 && king_pos_w / 16 == 7) {
 					pieces_mg -= ROOK_ON_7TH_MG;
 					pieces_eg -= ROOK_ON_7TH_EG;
 				}
 				if (   (index == SQ_a8 || index == SQ_a7 || index == SQ_b8)
-					&& (kingPos_b == SQ_c8 || kingPos_b == SQ_b8))
+					&& (king_pos_b == SQ_c8 || king_pos_b == SQ_b8))
 						pieces_mg -= TRAPPED_ROOK;
 				if (   (index == SQ_h8 || index == SQ_h7 || index == SQ_g8)
-					&& (kingPos_b == SQ_g8 || kingPos_b == SQ_f8))
+					&& (king_pos_b == SQ_g8 || king_pos_b == SQ_f8))
 						pieces_mg -= TRAPPED_ROOK;
-				squares = mobilityDelta(board, side, index, DELTA_ROOK, true);
+				squares = mobilityDelta(board, pawn_attacks_w, side, index, DELTA_ROOK, true);
 				mobility_mg -= (squares - ROOK_MAX_SQUARES / 2) * ROOK_MOBILITY_MG;
 				mobility_eg -= (squares - ROOK_MAX_SQUARES / 2) * ROOK_MOBILITY_EG;
 				break;
@@ -413,22 +421,22 @@ public class Evaluate implements Types {
 			case W_QUEEN:
 				// Give a bonus for a queen on the 7th rank with the enemy king on the
 				// 8th rank
-				if (rank == 1 && kingPos_b / 16 == 0) {
+				if (rank == 1 && king_pos_b / 16 == 0) {
 					pieces_mg += QUEEN_ON_7TH_MG;
 					pieces_eg += QUEEN_ON_7TH_EG;
 				}
 				// Queen mobility
-				squares = mobilityDelta(board, side, index, DELTA_QUEEN, true);
+				squares = mobilityDelta(board, pawn_attacks_b, side, index, DELTA_QUEEN, true);
 				mobility_mg += (squares - QUEEN_MAX_SQUARES / 2) * QUEEN_MOBILITY_MG;
 				mobility_eg += (squares - QUEEN_MAX_SQUARES / 2) * QUEEN_MOBILITY_EG;
 				break;
 				
 			case B_QUEEN:
-				if (rank == 6 && kingPos_w / 16 == 7) {
+				if (rank == 6 && king_pos_w / 16 == 7) {
 					pieces_mg -= QUEEN_ON_7TH_MG;
 					pieces_eg -= QUEEN_ON_7TH_EG;
 				}
-				squares = mobilityDelta(board, side, index, DELTA_QUEEN, true);
+				squares = mobilityDelta(board, pawn_attacks_w, side, index, DELTA_QUEEN, true);
 				mobility_mg -= (squares - QUEEN_MAX_SQUARES / 2) * QUEEN_MOBILITY_MG;
 				mobility_eg -= (squares - QUEEN_MAX_SQUARES / 2) * QUEEN_MOBILITY_EG;
 				break;
@@ -437,25 +445,18 @@ public class Evaluate implements Types {
 		
 		// Give a penalty for rook pawns, which are of diminished value since they can only
 		// capture in one direction.
-		imbalance += (pawnFile_w[0][0] + pawnFile_w[7][0]) * ROOK_PAWN;
-		imbalance -= (pawnFile_b[0][0] + pawnFile_b[7][0]) * ROOK_PAWN;
+		imbalance += (pawn_file_w[0][0] + pawn_file_w[7][0]) * ROOK_PAWN;
+		imbalance -= (pawn_file_b[0][0] + pawn_file_b[7][0]) * ROOK_PAWN;
 		
-		// Give a bonus for having the bishop pair. If the bishop pair is unopposed, i.e.
-		// the opponent has no minor pieces to contest the bishops, the bonus is larger.
+		// Give a bonus for having the bishop pair.
 		if (bishops_w >= 2) {
 			imbalance += BISHOP_PAIR;
 			// The bishop pair is worth less with the queen on board
 			if (queens_w >= 1) imbalance -= 6;
-			// But more with the enemy queen on board
-			//if (queens_b >= 1) imbalance += 3;
-			// Give a tiny bonus for each pawn on the board
-			//imbalance += pawns_w + pawns_b;
 		}
 		if (bishops_b >= 2) {
 			imbalance -= BISHOP_PAIR;
 			if (queens_b >= 1) imbalance += 6;
-			//if (queens_w >= 1) imbalance -= 3;
-			//imbalance -= pawns_w + pawns_b;
 		}
 		
 		// Give a small penalty for having the knight pair
@@ -475,28 +476,15 @@ public class Evaluate implements Types {
 			imbalance -= pawns_w;
 		}
 		
-		// Give a big bonus to knights for having more pawns, and a smaller bonus to bishops
-		// Also give a smaller bonus for enemy pawns
+		// Give a bonus to knights for having more pawns
 		imbalance += knights_w * (5 - pawns_w) * KNIGHT_PAWN_SYNERGY;
 		imbalance -= knights_b * (5 - pawns_b) * KNIGHT_PAWN_SYNERGY;
-		//imbalance += bishops_w * pawns_w * BISHOP_PAWN_SYNERGY;
-		//imbalance -= bishops_b * pawns_b * BISHOP_PAWN_SYNERGY;
-		//imbalance += (knights_w + bishops_w) * pawns_b * 2;
-		//imbalance -= (knights_b + bishops_b) * pawns_w * 2;
 		
-		// Increase queen value for each enemy pawn, bishop, and rook, and for each friendly minor
-		if (queens_w >= 1) {
+		// Increase queen value for each enemy pawn
+		if (queens_w >= 1)
 			imbalance += pawns_b * 3;
-			//imbalance += bishops_b * 4;
-			//imbalance += rooks_b * 8; 
-			//imbalance += (knights_w + bishops_w) * 4;
-		}
-		if (queens_b >= 1) {
+		if (queens_b >= 1)
 			imbalance -= pawns_w * 3;
-			//imbalance -= bishops_b * 4;
-			//imbalance -= rooks_w * 8; 
-			//imbalance -= (knights_b + bishops_b) * 4;
-		}
 		
 		// Sum all the individual component scores
 		int score_mg = material_mg + psqt_mg + imbalance + pawns_mg + pieces_mg + mobility_mg + tempo;
@@ -507,8 +495,8 @@ public class Evaluate implements Types {
 			// Count pawn asymmetry, i.e., number of unopposed pawns
 			int asymmetry = 0;
 			for (int i = 0; i < 8; i++)
-				if (   (pawnFile_w[i][0] == 0 && pawnFile_b[i][0] != 0)
-					|| (pawnFile_b[i][0] == 0 && pawnFile_w[i][0] != 0))
+				if (   (pawn_file_w[i][0] == 0 && pawn_file_b[i][0] != 0)
+					|| (pawn_file_b[i][0] == 0 && pawn_file_w[i][0] != 0))
 					asymmetry++;
 			score_eg *= (0.125 + asymmetry * 0.0625);
 		}
@@ -543,12 +531,13 @@ public class Evaluate implements Types {
 	/**
 	 * Returns the number of attacked squares not occupied by friendly pieces.
 	 */
-	private static int mobilityDelta(int[] board, int side, int start, int[] delta, boolean slider) {
+	private static int mobilityDelta(int[] board, boolean[] excludedArea, int side, int start, 
+									 int[] delta, boolean slider) {
 		int count = 0;
 		for (int i = 0; i < delta.length; i++) {
 			int target = start + delta[i];
 			while (Position.isLegalIndex(target) && board[target] * side <= 0) {
-				count++;
+				if (!excludedArea[target]) count++;
 				if (!slider || board[target] != PIECE_NONE) break;
 				target += delta[i];
 			}
