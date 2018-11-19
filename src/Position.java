@@ -7,13 +7,22 @@ import java.util.Scanner;
  */
 public class Position implements Types {
 	public int[] board;    // 0x88 board array of pieces
+	//     A   B   C   D   E   F   G   H
+	// 8   0   1   2   3   4   5   6   7 
+	// 7   16  17  18  19  20  21  22  23
+	// 6   32  33  34  35  36  37  38  39
+	// 5   48  49  50  51  52  53  54  55
+	// 4   64  65  66  67  68  69  70  71
+	// 3   80  81  82  83  84  85  86  87
+	// 2   96  97  98  99  100 101 102 103
+	// 1   112 113 114 115 116 117 118 119
 	public int sideToMove; // the side to move
 	public int castling;   // castling rights for the position, stored as 4 bits (0bKQkq)
 	public int enpassant;  // index of the enpassant square (-2 if none)
 	public int fiftyMoves; // fifty moves rule half-move clock
 	public int moveNumber; // full-move count
-	public int kingPos_w;  // index of the white king
-	public int kingPos_b;  // index of the black king
+	public int king_pos_w;  // index of the white king
+	public int king_pos_b;  // index of the black king
 	public int pieceCount; // total number of pieces left on board
 	public long zobrist;   // zobrist key of the position
 	
@@ -32,8 +41,7 @@ public class Position implements Types {
 	 */
 	public Position(String fen) {
 		initDefaults();
-		if (fen == null || fen.isBlank())
-			return;
+		if (fen == null || fen.isBlank()) return;
 		
 		Scanner input = new Scanner(fen);
 		String pieces = input.next();
@@ -44,25 +52,20 @@ public class Position implements Types {
 				char ch = pieces.charAt(i);
 				if (Character.isDigit(ch))
 					index += Character.getNumericValue(ch);
-				else if (ch == '/')
-					index += 8;
+				else if (ch == '/') index += 8;
 				else {
 					if (PIECE_STR.indexOf(ch) == -1) continue;
-					
-					if      (ch == 'K') kingPos_w = index;
-					else if (ch == 'k') kingPos_b = index;
-	
+					if      (ch == 'K') king_pos_w = index;
+					else if (ch == 'k') king_pos_b = index;
 					board[index] = PIECE_STR.indexOf(ch) - 6;
 					pieceCount++;
-					
 					index++;
 				}
 			}
 		} catch (ArrayIndexOutOfBoundsException ex) {};
 		
-		if (input.hasNext())
-			if (input.next().toLowerCase().equals("b"))
-				sideToMove = BLACK;
+		if (input.hasNext() && input.next().toLowerCase().equals("b"))
+			sideToMove = BLACK;
 		
 		if (input.hasNext()) {
 			String castl = input.next();
@@ -91,8 +94,8 @@ public class Position implements Types {
 		enpassant  = SQ_NONE;
 		fiftyMoves = 0;
 		moveNumber = 1;
-		kingPos_w  = SQ_NONE;
-		kingPos_b  = SQ_NONE;
+		king_pos_w  = SQ_NONE;
+		king_pos_b  = SQ_NONE;
 		pieceCount = 0;
 		zobrist    = 0;
 		nullCount  = 0;
@@ -107,7 +110,7 @@ public class Position implements Types {
 	}
 	
 	/**
-	 * Returns the Chebyshev distance between two given indices.
+	 * Returns the Chebyshev (chessboard) distance between two given indices.
 	 */
 	public static int distance(int index1, int index2) {
 		return Math.max(Math.abs(index1 / 16 - index2 / 16), Math.abs(index1 % 16 - index2 % 16));
@@ -155,8 +158,8 @@ public class Position implements Types {
 					zobrist ^= Zobrist.pieces[move.captured + 6][move.target];
 			}
 
-			if      (move.piece == W_KING) kingPos_w = move.target;
-			else if (move.piece == B_KING) kingPos_b = move.target;
+			if      (move.piece == W_KING) king_pos_w = move.target;
+			else if (move.piece == B_KING) king_pos_b = move.target;
 			
 			if (castling != 0) updateCastlingRights();
 		}
@@ -232,8 +235,8 @@ public class Position implements Types {
 			
 			if (move.captured != 0) pieceCount++;
 
-			if      (move.piece == W_KING) kingPos_w = move.start;
-			else if (move.piece == B_KING) kingPos_b = move.start;
+			if      (move.piece == W_KING) king_pos_w = move.start;
+			else if (move.piece == B_KING) king_pos_b = move.start;
 		}
 		
 		// Remove the current position from the repetition hash table
@@ -253,7 +256,7 @@ public class Position implements Types {
 			zobrist     ^= Zobrist.pieces[W_KING + 6][SQ_g1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_f1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_h1];
-			kingPos_w = SQ_g1;
+			king_pos_w = SQ_g1;
 			castling    &= ~W_ALL_CASTLING;
 		}
 		else {
@@ -265,7 +268,7 @@ public class Position implements Types {
 			zobrist     ^= Zobrist.pieces[B_KING + 6][SQ_g8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_f8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_h8];
-			kingPos_b = SQ_g8;
+			king_pos_b = SQ_g8;
 			castling    &= ~B_ALL_CASTLING;
 		}
 	}
@@ -283,7 +286,7 @@ public class Position implements Types {
 			zobrist     ^= Zobrist.pieces[W_KING + 6][SQ_c1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_a1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_d1];
-			kingPos_w = SQ_c1;
+			king_pos_w = SQ_c1;
 			castling    &= ~W_ALL_CASTLING;
 		}
 		else {
@@ -295,7 +298,7 @@ public class Position implements Types {
 			zobrist     ^= Zobrist.pieces[B_KING + 6][SQ_c8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_a8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_d8];
-			kingPos_b = SQ_c8;
+			king_pos_b = SQ_c8;
 			castling    &= ~B_ALL_CASTLING;
 		}
 	}
@@ -313,7 +316,7 @@ public class Position implements Types {
 			zobrist     ^= Zobrist.pieces[W_KING + 6][SQ_g1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_f1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_h1];
-			kingPos_w = SQ_e1;
+			king_pos_w = SQ_e1;
 		}
 		else {
 			board[SQ_e8] = B_KING;
@@ -324,7 +327,7 @@ public class Position implements Types {
 			zobrist     ^= Zobrist.pieces[B_KING + 6][SQ_g8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_f8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_h8];
-			kingPos_b = SQ_e8;
+			king_pos_b = SQ_e8;
 		}
 	}
 	
@@ -341,7 +344,7 @@ public class Position implements Types {
 			zobrist     ^= Zobrist.pieces[W_KING + 6][SQ_c1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_a1];
 			zobrist     ^= Zobrist.pieces[W_ROOK + 6][SQ_d1];
-			kingPos_w = SQ_e1;
+			king_pos_w = SQ_e1;
 		}
 		else {
 			board[SQ_a8] = B_ROOK;
@@ -352,7 +355,7 @@ public class Position implements Types {
 			zobrist     ^= Zobrist.pieces[B_KING + 6][SQ_c8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_a8];
 			zobrist     ^= Zobrist.pieces[B_ROOK + 6][SQ_d8];
-			kingPos_b = SQ_e8;
+			king_pos_b = SQ_e8;
 		}
 	}
 	
@@ -409,7 +412,7 @@ public class Position implements Types {
 	 * Returns whether the given side is in check.
 	 */
 	public boolean inCheck(int side) {
-		int kingPos = (side == WHITE ? kingPos_w : kingPos_b);
+		int kingPos = (side == WHITE ? king_pos_w : king_pos_b);
 		return isAttacked(kingPos, -side);
 	}
 	
@@ -442,7 +445,7 @@ public class Position implements Types {
 			case BISHOP:
 			case ROOK:
 			case QUEEN:
-				genDelta(index, PIECE_DELTAS[piece], isSlider[piece], skipQuiets, moveList);
+				genPieceMoves(index, PIECE_DELTAS[piece], isSlider[piece], skipQuiets, moveList);
 				break;
 			}
 		}
@@ -450,11 +453,11 @@ public class Position implements Types {
 	}
 	
 	/**
-	 * Filters out all moves from the given move list that leave the king in check. Returns the
-	 * new move list.
+	 * Returns a list of all legal moves that can be made from this position.
 	 */
-	public ArrayList<Move> filterLegal(ArrayList<Move> moveList) {
+	public ArrayList<Move> generateLegalMoves() {
 		ArrayList<Move> legalMoves = new ArrayList<Move>();
+		ArrayList<Move> moveList = generateMoves(false);
 		for (Move move : moveList) {
 			makeMove(move);
 			if (!inCheck(-sideToMove)) legalMoves.add(move);
@@ -553,7 +556,7 @@ public class Position implements Types {
 	 * @param qs       - True if only captures should be generated
 	 * @param moveList - The list of moves
 	 */
-	public void genDelta(int start, int[] delta, boolean slider, boolean qs, ArrayList<Move> moveList) {
+	public void genPieceMoves(int start, int[] delta, boolean slider, boolean qs, ArrayList<Move> moveList) {
 		for (int i = 0; i < delta.length; i++) {
 			int target = start + delta[i];
 			while (isLegalIndex(target) && board[target] * sideToMove <= 0) {
