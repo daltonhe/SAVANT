@@ -37,11 +37,9 @@ public class Zobrist implements Types {
 	 */
 	public static long getKey(Position pos) {
 		long key = 0;
-		for(int index = SQ_a8; index <= SQ_h1; index++) {
-			if ((index & 0x88) != 0) continue;
-			if (pos.board[index] != 0)
-				key ^= pieces[pos.board[index] + 6][index];
-		}
+		for (int index : pos.pieceList)
+			key ^= pieces[pos.board[index] + 6][index];
+					
 		if (pos.sideToMove == BLACK) key ^= side;
 		key ^= castling[pos.castling];
 		if (pos.enpassant != SQ_NONE) key ^= enpassant[pos.enpassant % 16];
