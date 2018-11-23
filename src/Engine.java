@@ -6,15 +6,17 @@ import java.util.Random;
 import java.util.Scanner;
 
 /**
+ * 
  * @author Dalton He
  * created 10-22-18
+ * 
  */
 public class Engine implements Types {
 	public static int maxDepth       = 100;   // max depth to search
 	public static boolean uciMode    = false; // true if we are in UCI mode
-	public static double timeLeft    = TIME_INF; // total time remaining
+	public static double timeLeft    = 1000;  // total time remaining
 	public static double increment   = 1000;  // increment per move
-	public static double timeForMove = 100;   // time for this move
+	public static double timeForMove = 1000;  // time for this move
 	public static boolean useBook    = true;  // true if using native opening book
 	
 	public static int currentDepth;           // current depth of search
@@ -54,11 +56,18 @@ public class Engine implements Types {
 	public static void search(Position pos) {
 		initializeSearch();
 		
+		// If we have only one legal move, just play it and don't search
+		if (pos.generateLegalMoves().size() == 1) {
+			bestMove = pos.generateLegalMoves().get(0);
+			return;
+		}
+		
 		// Calculate the time to use for this move
 		if (timeLeft > increment) {
-			timeForMove = timeLeft / 40 + increment;
-			if (pos.moveNumber <= 20)
-				timeForMove *= 2;
+			timeForMove = timeLeft / 40;
+			// Spend more time out of the opening to figure out the position
+			if (pos.moveNumber <= 20) timeForMove *= 2;
+			timeLeft += increment;
 		}
 		else
 			timeForMove = timeLeft / 5;
@@ -74,7 +83,7 @@ public class Engine implements Types {
 			
 			// For the first few depths, start with an infinite search window.
 			if (currentDepth < 5)
-				eval = alphaBeta(pos, currentDepth, 0, -VALUE_INF, VALUE_INF, true, NODE_PV);
+				eval = alphaBeta(pos, currentDepth, 0, -VALUE_INF, VALUE_INF, NODE_PV);
 			
 			// For later depths, try an aspirated search with a window around the previous
 			// iteration's eval.
@@ -87,7 +96,7 @@ public class Engine implements Types {
 				// bigger window until we succeed.
 				while (true) {
 					
-					eval = alphaBeta(pos, currentDepth, 0, alpha, beta, true, NODE_PV);
+					eval = alphaBeta(pos, currentDepth, 0, alpha, beta, NODE_PV);
 
 					// Use last iteration's move if the search was terminated early
 					if (abortedSearch) {
@@ -147,10 +156,9 @@ public class Engine implements Types {
 								   + " (n=" + nodes + " t=" + decimalTime + "s)");
 			}
 			
-			// Stop searching if a forced mate was found, or we have only one legal move,
-			// or the time left is likely not enough to search the next depth
+			// Stop searching if a forced mate was found or the time left is likely not 
+			// enough to search the next depth
 			if (   Math.abs(eval) > VALUE_MATE_THRESHOLD
-				|| pos.filterLegal(pos.generateMoves(false)).size() == 1
 				|| timeElapsed >= timeForMove / 2)
 				break;
 		}
@@ -191,7 +199,6 @@ public class Engine implements Types {
 	 * @param ext     - Number of plies we have extended the search
 	 * @param alpha   - Highest score that we have found (lower bound)
 	 * @param beta    - Lowest score that our opponent can guarantee (upper bound)
-	 * @param canNull - true if we should try a null move, false if the last move was a null move
 	 * @return          The score of the position from the perspective of the side to move
 	 */
 	private static int alphaBeta(Position pos,
@@ -199,7 +206,6 @@ public class Engine implements Types {
 								 int ext,
 								 int alpha,
 								 int beta,
-								 boolean canNull,
 								 int nodeType) {
 		
 		assert(nodeType == NODE_PV || nodeType == NODE_CUT || nodeType == NODE_ALL);
@@ -224,20 +230,18 @@ public class Engine implements Types {
 		int eval = 0;
 
 		if (!rootNode) {
-			if (pos.nullCount == 0) {			
-				
+			if (pos.nullCount == 0) {
 				// Check for draw by 50 moves rule
 				if (pos.fiftyMoves >= 100)
 					return VALUE_PATH_DRAW;
 				
-				// Check for draw by three-fold repetition		
-				HashtableEntry rentry = pos.reptable.get(pos.repKey());
-				if (rentry != null && rentry.count >= 1)
+				// Check for repeated position
+				if (pos.isRepeat())
 					return VALUE_PATH_DRAW;
 			}
 			
 			// Check for draw by insufficient material
-			if (pos.insufficientMaterial())
+			if (pos.insufficientMat())
 				return VALUE_DRAW;
 			
 			// Mate distance pruning. If a shorter mate was found upward in the tree then there is
@@ -284,26 +288,24 @@ public class Engine implements Types {
 			// Limited razoring
 			if (   ply == 3
 				&& standPat <= alpha - RAZOR_MARGIN
-				&& pos.pieceCount > 6)
+				&& pos.pieceList.size() > 6)
 				ply--;
 		}
 		
 		// Null move pruning
-		if (   canNull
+		if (   pos.nullAllowed
 			&& nodeType != NODE_PV
 			&& !inCheck
 			&& beta < VALUE_MATE_THRESHOLD
 			&& standPat >= beta
 			&& !pos.isPawnEnding(pos.sideToMove)) {
 			
-			pos.makePassingMove();
-			pos.nullCount++;
+			pos.makeNullMove();
 			
 			int R = (ply > 6 ? 3 : 2);
-			eval = -alphaBeta(pos, ply - R - 1, ext, -beta, -beta + 1, false, -nodeType);
+			eval = -alphaBeta(pos, ply - R - 1, ext, -beta, -beta + 1, -nodeType);
 			
-			pos.makePassingMove();
-			pos.nullCount--;
+			pos.unmakeNullMove();
 			
 			// Fail high
 			if (eval >= beta) {
@@ -311,7 +313,7 @@ public class Engine implements Types {
 				if (eval >= VALUE_MATE_THRESHOLD)
 					eval = beta;
 				
-				if (Math.abs(beta) < VALUE_KNOWN_WIN) {
+				if (Math.abs(beta) < VALUE_MATE_THRESHOLD) {
 					// Update the transposition table
 					ttable.add(pos.zobrist, null, ply, eval * pos.sideToMove, BOUND_LOWER);	
 					
@@ -324,10 +326,10 @@ public class Engine implements Types {
 		if (   nodeType == NODE_PV
 			&& ply >= 3 
 			&& (ttentry == null || ttentry.move == null)) {
-			eval = alphaBeta(pos, ply - 2, 0, alpha, beta, false, nodeType);
+			eval = alphaBeta(pos, ply - 2, 0, alpha, beta, nodeType);
 			// Fail low
 			if (eval <= alpha)
-				eval = alphaBeta(pos, ply - 2, 0, -VALUE_INF, VALUE_INF, false, nodeType);
+				eval = alphaBeta(pos, ply - 2, 0, -VALUE_INF, VALUE_INF, nodeType);
 			ttentry = ttable.get(pos.zobrist);
 		}
 		
@@ -359,12 +361,13 @@ public class Engine implements Types {
 			boolean pruningOk =   !inCheck 
 							   && !givesCheck 
 							   && move.type != PROMOTION 
-							   && move.captured == PIECE_NONE 
-							   && Math.abs(alpha) < VALUE_KNOWN_WIN 
-							   && Math.abs(beta) < VALUE_KNOWN_WIN;
+							   && move.captured == PIECE_NONE;
+							   
 			
 			// Futility pruning
-			if (pruningOk) {
+			if (   pruningOk
+				&& Math.abs(alpha) < VALUE_KNOWN_WIN 
+				&& Math.abs(beta) < VALUE_KNOWN_WIN) {
 				if (   (ply == 1 && standPat <= alpha - FUTILITY_MARGIN)
 					|| (ply == 2 && standPat <= alpha - FUTILITY_EXT_MARGIN)) {
 					pos.unmakeMove(move);
@@ -385,7 +388,7 @@ public class Engine implements Types {
 				if (nodeType == NODE_CUT)
 					R++;
 			
-				eval = -alphaBeta(pos, ply - R - 1, ext, -alpha - 1, -alpha, true, NODE_CUT);
+				eval = -alphaBeta(pos, ply - R - 1, ext, -alpha - 1, -alpha, NODE_CUT);
 				
 				doFullDepthSearch = eval > alpha;
 			}
@@ -395,16 +398,16 @@ public class Engine implements Types {
 			if (doFullDepthSearch) {
 				// Search the first move of PV nodes with full width
 				if (nodeType != NODE_PV || moveCount == 1)
-					eval = -alphaBeta(pos, ply - 1, ext, -beta, -alpha, true, -nodeType);
+					eval = -alphaBeta(pos, ply - 1, ext, -beta, -alpha, -nodeType);
 				else {
 					// Principal variation search (PVS)
-					eval = -alphaBeta(pos, ply - 1, ext, -alpha - 1, -alpha, true, NODE_CUT);
+					eval = -alphaBeta(pos, ply - 1, ext, -alpha - 1, -alpha, NODE_CUT);
 					
 					// PVS failed high: do a re-search if eval < beta, otherwise let the
 					// parent node fail low with value <= alpha. Re-search is done as a 
 					// PV node.
 					if (eval > alpha && eval < beta)
-						eval = -alphaBeta(pos, ply - 1, ext, -beta, -alpha, true, NODE_PV);
+						eval = -alphaBeta(pos, ply - 1, ext, -beta, -alpha, NODE_PV);
 				} 
 			}
 
@@ -482,7 +485,7 @@ public class Engine implements Types {
 		for (Move move : moveList) {
 			
 			// Delta pruning
-			if (pos.pieceCount > 6) {
+			if (pos.pieceList.size() > 6) {
 				int materialGain = PIECE_VALUE_EG[Math.abs(move.captured)];
 				if (move.type == PROMOTION)
 					materialGain += (PIECE_VALUE_EG[Math.abs(move.piece)] - PAWN_EG);
@@ -522,12 +525,12 @@ public class Engine implements Types {
 		// Go through the move list and assign priorities
 		for (Move move : moveList) {		
 			if (hashMove != null && move.longNotation().equals(hashMove))
-				move.priority = PRIORITY_HASH;
+				move.priority = PRIORITY_HASH_MOVE;
 			else if (move.type == PROMOTION) {
 				if (Math.abs(move.piece) == QUEEN)
-					move.priority = PRIORITY_QPROMOTION;
+					move.priority = PRIORITY_PROMOTION_Q;
 				else
-					move.priority = PRIORITY_UPROMOTION;
+					move.priority = PRIORITY_PROMOTION_U;
 			}
 				
 			// MVV/LVA
@@ -560,15 +563,15 @@ public class Engine implements Types {
 	/**
 	 * Gets a move from the opening book (returns null if no move).
 	 */
-	public static String getBookMove(String openingLine) throws FileNotFoundException {
+	public static String getBookMove(String moveString) throws FileNotFoundException {
 		Scanner book = new Scanner(new File("book.txt"));
 		ArrayList<String> variations = new ArrayList<String>();
 		
 		while (book.hasNextLine()) {
 			String line = book.nextLine().trim();
-			openingLine = openingLine.trim();
-			if (line.startsWith(openingLine) && !line.equals(openingLine)) {
-				Scanner continuation = new Scanner(line.substring(openingLine.length()));
+			moveString = moveString.trim();
+			if (line.startsWith(moveString) && !line.equals(moveString)) {
+				Scanner continuation = new Scanner(line.substring(moveString.length()));
 				variations.add(continuation.next());
 				continuation.close();
 			}
@@ -586,7 +589,7 @@ public class Engine implements Types {
 	public static Move getMoveObject(Position pos, String notation) {
 		if (notation == null || notation.isBlank()) return null;
 
-		ArrayList<Move> moveList = pos.filterLegal(pos.generateMoves(false));
+		ArrayList<Move> moveList = pos.generateLegalMoves();
 		for (Move move : moveList) {
 			addAlgebraicModifier(move, moveList);
 			if (   notation.equalsIgnoreCase(move.longNotation()) 
@@ -639,7 +642,7 @@ public class Engine implements Types {
 			  return ttentry.eval;
 	  }
 
-	  ArrayList<Move> moveList = pos.filterLegal(pos.generateMoves(false));
+	  ArrayList<Move> moveList = pos.generateLegalMoves();
 	  
 	  // bulk count
 	  if (depth == 1) return moveList.size();
