@@ -1,6 +1,8 @@
 /**
+ * 
  * @author Dalton He
  * created 11-15-18
+ * 
  */
 public class TranspositionTable implements Types {
 	private HashtableEntry[] table;
