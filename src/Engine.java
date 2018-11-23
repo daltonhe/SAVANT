@@ -66,7 +66,7 @@ public class Engine implements Types {
 		if (timeLeft > increment) {
 			timeForMove = timeLeft / 40;
 			// Spend more time out of the opening to figure out the position
-			if (pos.moveNumber <= 20) timeForMove *= 2;
+			if (pos.moveNumber <= 20) timeForMove *= 2.5;
 			timeLeft += increment;
 		}
 		else
@@ -471,9 +471,12 @@ public class Engine implements Types {
 		
 		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
 		
+		// Check for draw by insufficient material
+		if (pos.insufficientMat())
+			return VALUE_DRAW;
+		
 		// Get a standing evaluation first
 		int standPat = Evaluate.staticEval(pos) * pos.sideToMove;
-		
 		if (standPat >= beta) return beta;
 		if (standPat > alpha) alpha = standPat;
 
