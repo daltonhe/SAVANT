@@ -1,6 +1,8 @@
 /**
+ * 
  * @author Dalton He
  * created 10-08-18
+ * 
  */
 public class Move implements Types, Comparable<Move> {
 	public int start;           // starting index of the moving piece

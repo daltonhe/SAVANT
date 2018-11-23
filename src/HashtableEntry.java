@@ -1,6 +1,8 @@
 /**
+ * 
  * @author Dalton He
  * created 10-30-18
+ * 
  */
 public class HashtableEntry {
 	public long zobrist; // zobrist key of the position
