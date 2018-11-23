@@ -74,7 +74,6 @@ public interface Types {
 	
 	public static final int PIECE_VALUE_MG[]   = {0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
 	public static final int PIECE_VALUE_EG[]   = {0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
-	public static final int PIECE_UNIT_VALUE[] = {0, 0, 3, 3, 5, 9, 0};
 	
 	// Search
 	public static final int VALUE_INF            = 10001;
@@ -95,10 +94,10 @@ public interface Types {
 	public static final int NODE_ALL = -1;
 
 	public static final int INITIAL_WINDOW_SIZE = 10;
-	public static final int DELTA_MARGIN        = PAWN_EG * 2;
-	public static final int FUTILITY_MARGIN     = KNIGHT_EG;
-	public static final int FUTILITY_EXT_MARGIN = ROOK_EG;
-	public static final int RAZOR_MARGIN        = QUEEN_EG;
+	public static final int DELTA_MARGIN        = 200;
+	public static final int FUTILITY_MARGIN     = 400;
+	public static final int FUTILITY_EXT_MARGIN = 600;
+	public static final int RAZOR_MARGIN        = 800;
 	
 	public static final int HISTORY_MAX = 50000;
 	
@@ -111,9 +110,9 @@ public interface Types {
 	public static final int TIME_INF = 9999000;
 	
 	// Transposition table
-	public static final int HASH_SIZE_TT  = 524309;
-	public static final int HASH_SIZE_REP = 16411;
-	public static final int HASH_SIZE_PV  = 131101;
+	public static final int HASH_SIZE_TT  = 1048576;
+	public static final int HASH_SIZE_REP = 32768;
+	public static final int HASH_SIZE_PV  = 131072;
 	
 	public static final int HASH_MAX_AGE = 8;
 	
@@ -124,9 +123,8 @@ public interface Types {
 	// Evaluation
 	public static final int PHASE_WEIGHT[] = {0, 0, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
 	public static final int PHASE_MAX      = 8012;
-	public static final int PHASE_MAX_MG   = 7337;
-	public static final int PHASE_MAX_EG   = 1883;
-	
+	public static final int PHASE_MG       = 7337;
+	public static final int PHASE_EG       = 1883;
 	public static final int LAZY_THRESHOLD = 720;
 	
 	// Assorted bonuses/penalties {middlegame | endgame}
@@ -139,14 +137,14 @@ public interface Types {
 	public static final int REDUNDANT_KNIGHT     = -4;
 	public static final int REDUNDANT_ROOK       = -12;
 	public static final int REDUNDANT_QUEEN      = -4;
-	public static final int KNIGHT_PAWN_SYNERGY	 =  7;
+	public static final int KNIGHT_PAWN_SYNERGY	 =  8;
 	public static final int[] DOUBLED_PAWN       = {-5, -27};
 	public static final int[] ISOLATED_PAWN      = {-2,  -7};
 	public static final int[] BACKWARD_PAWN      = {-4, -12};
 	public static final int[] CONNECTED_PAWN     = {0, 84, 48, 31,  9, 12, 6, 0};
 	public static final int[] PAWN_PHALANX       = {0, 37, 18,  8, 11, -1, 3, 0};
 	public static final int SUPPORTED_PAWN       =  8;
-	public static final int[] BAD_BISHOP_PAWN    = {-1, -4};
+	public static final int[] BAD_BISHOP_PAWN    = {-2, -5};
 	public static final int TRAPPED_BISHOP       = -100;
 	public static final int TRAPPED_ROOK         = -47;
 	public static final int[] ROOK_OPEN_FILE     = {21, 10};
@@ -294,7 +292,12 @@ public interface Types {
 	};
 	
 	// Passed pawns
-	public static final int PASSED_PAWN_MG[][] = {
+	public static final int[] PASSED_RANK_MG = {0, 130, 78, 27,  5,  6, 2, 0};
+	public static final int[] PASSED_RANK_EG = {0, 120, 80, 30, 15, 11, 9, 0};
+	public static final int[] PASSED_FILE_MG = {0, 0, -4,-14,-14, -4, 0, 0};
+	public static final int[] PASSED_FILE_EG = {3, 4, -4, -7, -7, -4, 4, 3};
+	
+	/*public static final int PASSED_PAWN_MG[][] = {
 		{   0,   0,   0,   0,   0,   0,   0,   0 },
 		{ 130, 131, 126, 116, 116, 126, 131, 130 },
 		{  78,  78,  74,  64,  64,  74,  78,  78 },
@@ -313,8 +316,8 @@ public interface Types {
 		{  14,  15,   7,   4,   4,   7,  15,  14 },
 		{  12,  13,   5,   2,   2,   5,  13,  12 },
 		{   0,   0,   0,   0,   0,   0,   0,   0 }
-	};
-	public static final int PASSED_DANGER[] = {0, 9, 5, 3, 1, 1, 0, 0};
+	};*/
+	public static final int PASSED_DANGER[] = {0, 10, 6, 4, 2, 0, 0, 0};
 	
 	// Endgame
 	public static final int EDGE_PROXIMITY[][] = {
