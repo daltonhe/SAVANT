@@ -1,13 +1,13 @@
-import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.Scanner;
 import java.util.Stack;
 
 /**
+ * 
  * @author Dalton He
  * created 10-07-18
+ * 
  */
 public class Savant implements Types {
 	// TODO: fix opening book after user undo
@@ -18,17 +18,17 @@ public class Savant implements Types {
 	// TODO: passed pawn pushes during quiescence
 	// TODO: time management
 	// TODO: download more UCI engines
-	
-	// TODO: mobility area
 	// TODO: endgame
 	// TODO: SEE
 	// TODO: passed pawn eval
 	// TODO: king safety
-	// TODO: piece lists
+	// TODO: piece lists index board
+	// TODO: rook on pawn bonus
+	// TODO: contempt
 
-	public static Position pos       = new Position("8/2p5/1p4k1/3P2P1/2P3pp/P7/3BpP1K/8 b");
-	public static String openingLine = "";
-	public static boolean inOpening  = true;
+	public static Position pos;
+	public static String movesString;
+	public static boolean inOpening;
 	
 	/**
 	 * The main method, calls console mode or UCI mode.
@@ -45,123 +45,17 @@ public class Savant implements Types {
 		//pos = new Position("2k5/8/8/8/p7/8/8/4K3 b - - 0 1");
 		
 		if      (args.length == 0)         consoleMode();
-		else if (args[0].charAt(0) == 'u') uciMode();
+		else if (args[0].charAt(0) == 'u') UCI.main();
 	}
 	
 	/**
 	 * Initialization every time a new game starts.
 	 */
 	public static void initNewGame() {
+		pos           = new Position();
 		Engine.ttable = new TranspositionTable(HASH_SIZE_TT);
 		inOpening     = true;
-		openingLine   = "";
-	}
-	
-	/**
-	 * Run the program in UCI mode.
-	 */
-	public static void uciMode() throws IOException {
-		Engine.uciMode = true;
-		inOpening      = true;
-		
-		BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
-		
-		while (true) {
-			String command = input.readLine();
-			
-			if (command.equals("uci")) {
-				System.out.println("id name SAVANT v1.0");
-				System.out.println("id author Dalton He");
-				System.out.println("uciok");
-			}		
-			
-			if (command.equals("isready"))
-				System.out.println("readyok");
-			
-			if (command.equals("quit"))
-				System.exit(0);
-			
-			if (command.equals("ucinewgame"))
-				initNewGame();
-			
-			if (command.startsWith("position")) {
-				if (command.contains("startpos")) pos = new Position();
-				else                              pos = new Position(extractFEN(command));
-		
-				String[] moveList = extractMoves(command);
-				openingLine = "";
-				if (moveList != null) {
-					for (int i = 0; i < moveList.length; i++) {
-						Move move = Engine.getMoveObject(pos, moveList[i]);
-						if (move.captured != 0 || Math.abs(move.piece) == PAWN)
-							pos.reptable.clear();
-						
-						pos.makeMove(move);
-						openingLine += move + " ";
-					}
-				}
-			}
-			
-			if (command.startsWith("go")) {
-				String[] splitString = command.split(" ");
-				
-				int wtime = 0, btime = 0, winc = 0, binc = 0;
-				for (int i = 0; i < splitString.length; i++) {
-					try {
-						if (splitString[i].equals("wtime"))
-							wtime = Integer.parseInt(splitString[i + 1]);
-						else if (splitString[i].equals("btime"))
-							btime = Integer.parseInt(splitString[i + 1]);
-						else if (splitString[i].equals("winc"))
-							winc  = Integer.parseInt(splitString[i + 1]);
-						else if (splitString[i].equals("binc"))
-							binc  = Integer.parseInt(splitString[i + 1]);	
-					}
-					catch (ArrayIndexOutOfBoundsException ex) {}
-					catch (NumberFormatException ex) {}
-				}
-				
-				Engine.timeLeft  = (pos.sideToMove == WHITE ? wtime : btime);
-				Engine.increment = (pos.sideToMove == WHITE ? winc  : binc);
-				
-				Move move = null;
-				if (Engine.useBook && inOpening)
-					move = Engine.getMoveObject(pos, Engine.getBookMove(openingLine));
-				
-				if (move == null) {
-					inOpening = false;
-					Engine.search(pos);
-					move = Engine.bestMove;
-				}
-				
-				System.out.println("bestmove " + move.longNotation());
-			}
-		}
-	}
-	
-	/**
-	 * Extracts the FEN string from the given UCI position command.
-	 */
-	private static String extractFEN(String command) {
-		String[] splitString = command.split(" ");
-		String fen = "";
-		
-		fen += splitString[2] + " "; // Pieces
-		fen += splitString[3] + " "; // Side to move
-		fen += splitString[4] + " "; // Castling rights
-		fen += splitString[5] + " "; // Enpassant square
-		fen += splitString[6] + " "; // Half moves
-		fen += splitString[7];       // Full moves
-
-		return fen;
-	}
-	
-	/**
-	 * Extracts the moves from the given UCI position command.
-	 */
-	private static String[] extractMoves(String command) {
-		if (!command.contains("moves")) return null;
-		return command.substring(command.indexOf("moves") + 6).split(" ");
+		movesString   = "";
 	}
 	
 	/**
@@ -175,16 +69,17 @@ public class Savant implements Types {
 		boolean engineBlack     = false;
 		Scanner input           = new Scanner(System.in);	
 		
+		System.out.println("SAVANT, a UCI-compatible chess engine");
+		System.out.println("Written by Dalton He\n");
+		System.out.println("Type \"help\" for a list of commands.\n");
 		pos.print();
 		System.out.println();
 		
 		// Game loop
 		while (true) {
 			
-			System.out.println(Evaluate.staticEval(pos));
-			
 			// Check for mate/stalemate
-			if (pos.filterLegal(pos.generateMoves(false)).isEmpty()) {
+			if (pos.generateLegalMoves().isEmpty()) {
 				if (pos.inCheck(pos.sideToMove))
 					gameOverMsg = (pos.sideToMove == WHITE ? "Black" : "White") + 
 								  " wins by checkmate.";
@@ -193,23 +88,25 @@ public class Savant implements Types {
 			}
 			
 			// Check for draw by insufficient material
-			if (pos.insufficientMaterial())
+			if (pos.insufficientMat())
 				gameOverMsg = "Game drawn by insufficient material.";
 			
-			// Check for draw by repetition
-			HashtableEntry rentry = pos.reptable.get(pos.repKey());
-			if (rentry != null && rentry.count >= 3)
+			// Check for draw by 50 moves rule
+			if (pos.fiftyMoves >= 100)
+				gameOverMsg = "Game drawn by 50 moves rule.";
+			
+			// Check for draw by three-fold repetition
+			if (pos.threefoldRep())
 				gameOverMsg = "Game drawn by threefold repetition.";
 				
-			if (!gameOverMsg.isEmpty())
-				break;
+			if (!gameOverMsg.isEmpty()) break;
 			
 			boolean engineTurn =   (pos.sideToMove == WHITE && engineWhite)
 								|| (pos.sideToMove == BLACK && engineBlack);
-			if (!engineTurn)
-				System.out.print((pos.sideToMove == WHITE ? "W" : "B") + ": ");
 			
-			String command = (engineTurn ? "go" : input.next()).toLowerCase();
+			if (!engineTurn) System.out.print(">");
+			
+			String command = (engineTurn ? "go" : input.nextLine()).toLowerCase();
 			Move move = null;
 			
 			switch (command) {
@@ -225,7 +122,7 @@ public class Savant implements Types {
 			case "go":
 				engineTurn = true;
 				if (Engine.useBook && inOpening)
-					move = Engine.getMoveObject(pos, Engine.getBookMove(openingLine));
+					move = Engine.getMoveObject(pos, Engine.getBookMove(movesString));
 				
 				if (move == null) {
 					inOpening = false;
@@ -235,7 +132,7 @@ public class Savant implements Types {
 				break;
 				
 			case "undo":
-				pos.reptable.delete(pos.zobrist);
+				pos.deleteRep();
 				if (!moveHistory.isEmpty()) {
 					pos.unmakeMove(moveHistory.pop());
 					pos.print();
@@ -244,16 +141,16 @@ public class Savant implements Types {
 				engineBlack = false;
 				break;
 				
-			case "playout":
+			case "play w":
 				engineWhite = true;
+				break;
+				
+			case "play b":
 				engineBlack = true;
 				break;
 				
-			case "playwhite":
+			case "playout":
 				engineWhite = true;
-				break;
-				
-			case "playblack":
 				engineBlack = true;
 				break;
 				
@@ -265,16 +162,28 @@ public class Savant implements Types {
 				pos.print();
 				break;
 				
+			case "help":
+				System.out.println("quit    - Exit the program");
+				System.out.println("think   - Tell the engine to think");
+				System.out.println("go      - Tell the engine to make a move");
+				System.out.println("undo    - Take back the last move played");
+				System.out.println("play w  - Tell the engine to play white");
+				System.out.println("play b  - Tell the engine to play black");
+				System.out.println("playout - Engine will play out the game, moving for both sides");
+				System.out.println("fen     - Display the FEN string of the position");
+				System.out.println("print   - Display the board");
+				break;
+				
 			default: // attempt to read move
 				move = Engine.getMoveObject(pos, command);
-				if (move == null) System.out.println("Invalid move.");
+				if (move == null) System.out.println("Invalid command.");
 				break;
 			}
 
 			if (move != null) {
 				pos.makeMove(move);
 				moveHistory.push(move);
-				if (inOpening) openingLine += move + " ";
+				if (inOpening) movesString += move + " ";
 				
 				if (engineTurn) {
 					if (!inOpening) System.out.println();
