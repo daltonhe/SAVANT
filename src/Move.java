@@ -81,10 +81,7 @@ public class Move implements Types, Comparable<Move> {
 		if (other.priority != this.priority)
 			return other.priority - this.priority;
 
-		if (other.historyScore != this.historyScore)
-			return other.historyScore - this.historyScore;
-		
-		return Math.abs(this.piece) - Math.abs(other.piece);
+		return other.historyScore - this.historyScore;
 	}
 
 	/**
