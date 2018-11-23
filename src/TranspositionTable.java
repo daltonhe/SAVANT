@@ -31,7 +31,7 @@ public class TranspositionTable implements Types {
 			if (table[i] != null) {
 				table[i].age++;
 				// delete old entries
-				if (table[i].age >= HASH_MAX_AGE) table[i] = null;
+				if (table[i].age > HASH_MAX_AGE) table[i] = null;
 			}
 		}
 	}
@@ -98,11 +98,12 @@ public class TranspositionTable implements Types {
 				if (entry.move == null && move != null)
 					table[hashKey].move = move;
 			}
-			else replace = (entry.age > 0);
+			else replace = entry.age > 0;
 		}
 		else replace = true;
 		
-		if (replace) table[hashKey] = new HashtableEntry(zobrist, move, depth, eval, type);
+		if (replace) table[hashKey] = 
+				new HashtableEntry(zobrist, move, (byte) depth, eval, (byte) type);
 	}
 	
 
