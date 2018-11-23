@@ -45,8 +45,7 @@ public class Move implements Types, Comparable<Move> {
 		String result = "";
 		
 		if (type == PROMOTION || Math.abs(piece) == PAWN) {
-			if (captured != 0)
-				result += "abcdefgh".charAt(start % 16);
+			if (captured != 0) result += "abcdefgh".charAt(start % 16);
 		}
 		else
 			result += PIECE_STR.charAt(Math.abs(piece) + 6);
@@ -66,10 +65,7 @@ public class Move implements Types, Comparable<Move> {
 	 */
 	public String longNotation() {
 		String result = Position.indexToAlgebraic(start) + Position.indexToAlgebraic(target);	
-		
-		if (type == PROMOTION)
-			result += "nbrq".charAt(Math.abs(piece) - 2);
-		
+		if (type == PROMOTION) result += "nbrq".charAt(Math.abs(piece) - 2);	
 		return result;
 	}
 	
@@ -81,7 +77,10 @@ public class Move implements Types, Comparable<Move> {
 		if (other.priority != this.priority)
 			return other.priority - this.priority;
 
-		return other.historyScore - this.historyScore;
+		if (other.historyScore != this.historyScore)
+			return other.historyScore - this.historyScore;
+		
+		return Math.abs(this.piece) - Math.abs(other.piece);
 	}
 
 	/**
