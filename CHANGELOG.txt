@@ -1,0 +1,309 @@
+////////////////////////////////////////////////////////////////////////////////
+Change log
+
+10-07
+  -Started project
+
+  -Added Position class
+  -Added Types interface
+
+10-08
+  -Added Move class
+
+10-22
+  -Finished make and unmake move
+
+  -Finished legal move generation
+  -Perft tested move generation
+
+10-23 
+  -Added Engine class
+
+  -Added basic alpha-beta search
+
+  -Added basic material evaluation function
+  -Added iterative deepening framework
+
+  -Added PV extraction
+
+  -Added quiescence search for captures/promotions
+
+  -Added delta pruning to quiescence search
+  -Added MVV/LVA sorting scheme
+
+  -Removed underpromotions from move generation
+
+  -Added basic console UI
+  -Played first online test games
+  -Attined a 1700 blitz rating on chess24
+  -Added delta pruning to quiescence search
+
+  -Added aspiration windows
+
+  -Last iteration's PV move is now searched first in subsequent iterations
+
+  -Moves are now checked for legality during search instead of during move
+   generation to save time
+  -Added mobility to evaluation
+
+  -Added tempo to evaluation
+
+  -Added history heuristic
+
+  -Added principal variation search (PVS)
+
+  -Added crude repetition detection using FEN history strings
+
+10-26
+  -Fixed a bug where quiescence search was generating non-captures/promotions
+
+  -Ran Bratko-Kopec test: score=14 (T=9, L=5)
+
+  -Added basic time controls
+
+
+10-27
+  -Added basic opening book with ~120 most common variations from master play
+
+  -Cleaned up UI and added commands for engine to play white/black
+
+  -Fixed algebraic notation for ambiguous knight/rook moves (e.g. Nbd7, R1a2)
+
+  -Added crude king safety metrics to evaluation
+
+
+10-28
+  -Added null move pruning
+
+  -Added check evasion extension
+
+
+10-29
+  -Attained a 2350 blitz rating on Lichess (100+ games)
+
+  -Added tapered evaluation
+
+  -Added middle and endgame piece-square tables
+
+10-30
+  -Added Zobrist class
+  -Added HashtableEntry class
+  -Added transposition table (TT) using zobrist hashing
+  -Added replace-by-depth scheme to TT
+  -Changed to new repetition detection scheme using zobrist keys  
+  -PV is now extracted from the transposition table after search
+
+  -Added mobility area (based on Fruit)
+
+10-31
+  -Changed mobility area to exclude blocked pawns, pawns on the 2nd and
+   3rd ranks, and king and queen
+ (based on Stockfish)
+  -Updated material values to reflect some ideas from Larry Kaufman's paper
+
+   titled "The Evaluation of Material Imbalances"
+  -Added bishop pair bonus
+  -Added late move reductions (LMR)
+
+
+11-01
+  -Updated material values (based on Stockfish)
+  -Updated piece square tables (based on Stockfish)
+  -Added penalties for major piece redundancy based on Kaufman's paper)
+ 
+  -Reverted to old mobility area (based on Fruit)
+  -Updated mobility bonuses (based on Stockfish)
+  -Displayed node count is now cumulative for all search depths
+
+
+11-02
+  -Reverted to old material values (Kaufman)
+
+
+11-05
+  -Reverted to old material values
+ (Stockfish)
+  -Added Evaluate class
+  -Updated phase weights to be roughly proportional to material values
+  -Aspiration window width is now incrementally adjusted 
+after failing
+  -Fixed a TT bug where evals were being stored as from the point of view of
+   the side to move instead of from a fixed point of view (white)
+  -Added various imbalance bonuses
+
+11-06: 
+  -Added mate distance pruning
+  	    
+  -Null moves, LMR, and TT values are no longer used in PV nodes
+  -Node count is no longer incremented in quiescence search
+
+  -Pawn moves to the 7th rank are now considered in quiescence search
+
+  -Fixed a bug where castling moves were being generated for quiescence search
+
+  -Check extensions are no longer used at the root node
+ 
+  -Added simple passed pawn evaluation
+
+  -Added penalties for doubled and isolated pawns
+  -Added bonuses for rooks on open and semi-open file
+s
+
+11-07
+  -Added bonuses for connected pawns
+ (based on Stockfish)
+  -Reverted to old material values (Kaufman)
+  -Reverted to old phase weights (Fruit)
+
+  -Tweaks to imbalance evaluation
+
+  -Reached 2400 blitz and 2250 bullet rating on Lichess
+  
+  -Added penalty for pawns on the same color square as bishops
+  -Added penalties for trapped bishop and trapped rook
+  -Added bonuses for rook and queen on the 7th rank
+
+  -Tempo bonus is no longer applied to endgame score
+
+  -Placed limit on the number of plies the search can be extended
+  
+  -Added insufficient material check to search
+
+  -Opened GitHub repository
+ (github.com/daltonhe/SAVANT)
+  -Fixed a bug where repetitions were being detected after null moves
+
+  -Fixed a bug where zobrist keys were being initialized incorrectly
+  -Added game over detection to the UI
+  -Attained a 2300 bullet rating on Lichess
+
+  -Attained a 2450 blitz rating on Lichess (account was finally flagged)
+
+
+11-09
+  -Zobrist keys are now more efficiently updated during make and unmakeMove()
+
+  -Reinstated underpromotions to move generation
+
+  -Changed castling rights storage from string to int
+
+  -Perft tested move generation
+  -Sanity checked hash table
+ using perft
+  -Added node type parameter to alphaBeta()
+  -Fixed a bug concerning incorrect PVS implementation
+
+  -Added special evaluation function for mating with KX vs K
+
+
+11-10
+  -Added Universal Chess Interface (UCI) support
+
+  -Removed trapped bishop penalty
+  -Fixed a bug where getMoveObject() failed to recognize promotion inputs
+
+
+11-11
+  -Changed formula for calculating aspiration windows
+ (based on Stockfish)
+  -Search is now terminated early when there is only one legal move
+
+
+11-12
+  -Added time control support for UCI
+
+  -Search is now terminated instantly when time is up
+
+  -Added internal iterative deepening (IID)
+
+  -Added static evaluation restriction to null move pruning
+
+  -LMR reduction factor is now dynamically based on node type, ply, and number
+   of moves searched
+  -Endgame eval score is now scaled down for opposite color bishops (OCB)
+  -Endgame eval score is now scaled down when a draw due to insufficient
+   material seems likely
+
+  -Fixed a bug where zobrist keys were not parity-adjusted to be irrespective
+   of the side to move for repetition detection
+
+11-13
+  -Added endgame bonus for king proximity to passed pawns (based on Stockfish)
+
+11-14
+  -Added in-search repetition detection
+
+  -Repetition hash table is now stored in Position class
+  -Moved null move parameters to Position class
+
+  -Fixed a bug where the inCheck flag was incorrectly set during search
+
+  -Fixed a bug where the delta pruning margin was not changed for promotions
+
+  -Delta pruning is now switched off in the late endgame (hacky detection
+   for now)
+  -Changed hash table lengths to prime numbers
+
+  -Added replace-by-age scheme to TT
+  -TT is no longer cleared between searches
+
+  -PV hash table is now cleared between searches
+
+  -Added limited razoring
+
+  -Added penalty for backward pawns
+
+  -More time is now allocated for early moves
+
+  -Search is now terminated early when the time used for the last depth exceeds
+   half the allocated time for this move
+
+  -Fixed a UCI bug where PV lines were being sent using the wrong format
+
+  -Restructured alpha-beta search
+  -Removed bonus to rooks for having more pawns
+
+
+11-15
+  -Added a check to prevent history table overflow
+  -Established a statistical testing framework for accepting changes to
+   evaluation and search
+  -Reverted to old material values (Stockfish)
+  -Added lazy evaluation for positions with a very large material difference
+  -Added TranspositionTable class
+
+  -Fixed several bugs related to TT draw scores; path-dependent
+ draw (i.e. draws
+   arising from three-fold repetition or by the 50-moves rule)
+ evaluations are
+   now excluded from being used as TT cutoffs
+
+11-16
+  -Added bonus for unblocked passed pawns
+  -Added pawn phalanx bonus based on rank (based on Stockfish)
+  -Penalty for pawns on the same color square as bishops is now increased when
+   central pawns are blocked
+  -Several tweaks and additions to imbalance evaluation
+
+11-19
+  -Reverted to old mobility area (Stockfish)
+  -Added consideration for bishop and rook x-ray attacks to mobility evaluation
+   (based on Stockfish)
+
+11-22
+  -Fixed a bug where null moving allowed the wrong side to capture enpassant
+  -Added piece lists (using slow LinkedList implementation for now)
+  -Fixed a console UI bug where enpassant move inputs were not recognized
+  -Added UCI class
+  -Tuned phase weights
+  -Tweaks to queen PSQT (based on Stockfish)
+  -Tweaks to rook PSQT (based on Stockfish)
+  -Tweaks to knight PSQT (based on Stockfish)
+  -Tweaks to bishop PSQT (based on Stockfish)
+  -Tweaks to king PSQT (based on Stockfish)
+  -Tweaks to passed pawn PSQT (based on Stockfish)
+  -Changed corner push table to edge push table for KX vs K mate function
+  -Tweaks to kings proximity table
+  -Tweak to time allocation formula
+
+	
