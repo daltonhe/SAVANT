@@ -221,23 +221,25 @@ public class Evaluate implements Types {
 					pawns_mg += PASSED_PAWN_MG[rank][file];
 					pawns_eg += PASSED_PAWN_EG[rank][file];
 					
-					int rankBonus = PASSED_DANGER[rank];
-					// distance from king to block square of pawn, capped at 5
-					int kingDist_w = Math.min(Position.distance(king_pos_w, index - 16), 5);
-					int kingDist_b = Math.min(Position.distance(king_pos_b, index - 16), 5);
-					pawns_eg += kingDist_b * 5 * rankBonus;
-					pawns_eg -= kingDist_w * 2 * rankBonus;
-					
-					// If the block square is not the queening square, consider a second push
-					if (rank > 1) {
-						int kingDist2_w = Math.min(Position.distance(king_pos_w, index - 32), 5);
-						pawns_eg -= kingDist2_w * rankBonus;
-					}
-					
-					// If the pawn is free to advance, increase the bonus
-					if (board[index - 16] == PIECE_NONE) {
-						pawns_mg += 5 * rankBonus;
-						pawns_eg += 5 * rankBonus;
+					if (rank < 5) {
+						int rankBonus = PASSED_DANGER[rank];
+						// distance from king to block square of pawn, capped at 5
+						int kingDist_w = Math.min(Position.distance(king_pos_w, index - 16), 5);
+						int kingDist_b = Math.min(Position.distance(king_pos_b, index - 16), 5);
+						pawns_eg += kingDist_b * 5 * rankBonus;
+						pawns_eg -= kingDist_w * 2 * rankBonus;
+						
+						// If the block square is not the queening square, consider a second push
+						if (rank > 1) {
+							int kingDist2_w = Math.min(Position.distance(king_pos_w, index - 32), 5);
+							pawns_eg -= kingDist2_w * rankBonus;
+						}
+						
+						// If the pawn is free to advance, increase the bonus
+						if (board[index - 16] == PIECE_NONE) {
+							pawns_mg += 5 * rankBonus;
+							pawns_eg += 5 * rankBonus;
+						}
 					}
 				}
 				
@@ -301,20 +303,22 @@ public class Evaluate implements Types {
 					pawns_mg -= PASSED_PAWN_MG[7 - rank][file];
 					pawns_eg -= PASSED_PAWN_EG[7 - rank][file];
 					
-					int rankBonus = PASSED_DANGER[7 - rank];
-					int kingDist_b = Math.min(Position.distance(king_pos_b, index + 16), 5);
-					int kingDist_w = Math.min(Position.distance(king_pos_w, index + 16), 5);
-					pawns_eg -= kingDist_w * rankBonus * 5;
-					pawns_eg += kingDist_b * rankBonus * 2;
-					
-					if (rank < 6) {
-						int kingDist2_b = Math.min(Position.distance(king_pos_b, index + 32), 5);
-						pawns_eg += kingDist2_b * rankBonus;
-					}
-					
-					if (board[index + 16] == PIECE_NONE) {
-						pawns_mg -= 5 * rankBonus;
-						pawns_eg -= 5 * rankBonus;
+					if (rank > 2) {
+						int rankBonus = PASSED_DANGER[7 - rank];
+						int kingDist_b = Math.min(Position.distance(king_pos_b, index + 16), 5);
+						int kingDist_w = Math.min(Position.distance(king_pos_w, index + 16), 5);
+						pawns_eg -= kingDist_w * rankBonus * 5;
+						pawns_eg += kingDist_b * rankBonus * 2;
+						
+						if (rank < 6) {
+							int kingDist2_b = Math.min(Position.distance(king_pos_b, index + 32), 5);
+							pawns_eg += kingDist2_b * rankBonus;
+						}
+						
+						if (board[index + 16] == PIECE_NONE) {
+							pawns_mg -= 5 * rankBonus;
+							pawns_eg -= 5 * rankBonus;
+						}
 					}
 				}
 				
