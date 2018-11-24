@@ -81,7 +81,7 @@ public class Position implements Types {
 			if (c.contains("q")) castling |= B_LONG_CASTLE;
 		}
 		
-		if (input.hasNext())    enpassant = algebraicToIndex(input.next());
+		if (input.hasNext())    enpassant = algToIndex(input.next());
 		if (input.hasNextInt()) fiftyMoves = input.nextInt();
 		if (input.hasNextInt()) moveNumber = input.nextInt();
 
@@ -482,7 +482,6 @@ public class Position implements Types {
 			int piece = board[index] * sideToMove;
 
 			switch (piece) {
-
 			case PAWN:
 				genPawnMoves(index, skipQuiets, moveList);
 				break;
@@ -699,11 +698,10 @@ public class Position implements Types {
 	public boolean insufficientMat() {
 		int pieceCount = pieceList.size();
 		// Too many pieces left
-		if (pieceCount > 5)
-			return false;
+		if (pieceCount > 5) return false;
+		
 		// K vs K
-		if (pieceCount == 2)
-			return true;
+		if (pieceCount == 2) return true;
 		
 		// Count pieces
 		int[] pieces_w = new int[7], pieces_b = new int[7];
@@ -712,8 +710,9 @@ public class Position implements Types {
 			int piece = board[index];
 			
 			// Non-minor piece left
-			if (Math.abs(piece) == PAWN || Math.abs(piece) == ROOK || Math.abs(piece) == QUEEN)
-				return false;
+			if (   Math.abs(piece) == PAWN 
+				|| Math.abs(piece) == ROOK 
+				|| Math.abs(piece) == QUEEN) return false;
 			
 			if (piece > 0) {
 				pieces_w[piece]++;
@@ -726,16 +725,16 @@ public class Position implements Types {
 		}
 		
 		// Km vs K
-		if (pieceCount == 3)
-			return true;
+		if (pieceCount == 3) return true;
 
 		if (pieceCount == 4) {
 			// Km vs Km
-			if (count_w == 2)
-				return true;
+			if (count_w == 2) return true;
+			
 			// KNN vs K
-			if (pieces_w[KNIGHT] == 2 || pieces_b[KNIGHT] == 2)
-				return true;
+			
+			if (pieces_w[KNIGHT] == 2 || pieces_b[KNIGHT] == 2) return true;
+			
 			// KBB vs K || KBN vs K
 			return false;
 		}
@@ -743,12 +742,12 @@ public class Position implements Types {
 		assert(pieceCount == 5);
 		
 		// 3 minors vs 1
-		if (count_w == 4 || count_b == 4)
-			return false;
+		if (count_w == 4 || count_b == 4) return false;
+		
 		// KBB vs KN
 		if (   pieces_w[BISHOP] == 2 && pieces_b[BISHOP] == 0
-			|| pieces_b[BISHOP] == 2 && pieces_w[BISHOP] == 0)
-			return false;
+			|| pieces_b[BISHOP] == 2 && pieces_w[BISHOP] == 0) return false;
+		
 		// all other 2 minors vs 1 minor combinations
 		return true;
 	}
@@ -788,35 +787,13 @@ public class Position implements Types {
 			result += (canCastle(B_SHORT_CASTLE) ? "k" : "");
 			result += (canCastle(B_LONG_CASTLE)  ? "q" : "");
 		}
-		result += " " + indexToAlgebraic(enpassant);
+		result += " " + indexToAlg(enpassant);
 		result += " " + fiftyMoves;
 		result += " " + moveNumber;
 		return result;
 	}
 	
 	/* HELPERS */
-	
-	/**
-	 * Returns the algebraic coordinate of the given board index.
-	 */
-	public static String indexToAlgebraic(int index) {
-		if (!isLegalIndex(index)) return "-";
-		return "" + "abcdefgh".charAt(index % 16) + (8 - index / 16);
-	}
-	
-	/**
-	 * Returns the board index of the given algebraic coordinate.
-	 */
-	public static int algebraicToIndex(String coord) {
-		if (coord.length() != 2) return SQ_NONE;
-		
-		coord = coord.toLowerCase();
-		int index = 16 * (8 - Character.getNumericValue(coord.charAt(1))) + 
-				"abcdefgh".indexOf(coord.charAt(0));
-		if (!isLegalIndex(index)) return SQ_NONE;
-		
-		return index;
-	}
 	
 	/**
 	 * Returns true if index corresponds to a square on the board.
@@ -826,9 +803,31 @@ public class Position implements Types {
 	}
 	
 	/**
+	 * Returns the algebraic coordinate of the given board index.
+	 */
+	public static String indexToAlg(int index) {
+		if (!isLegalIndex(index)) return "-";
+		return "" + "abcdefgh".charAt(index % 16) + (8 - index / 16);
+	}
+	
+	/**
+	 * Returns the board index of the given algebraic coordinate.
+	 */
+	public static int algToIndex(String coord) {
+		if (coord.length() != 2) return SQ_NONE;
+		
+		coord = coord.toLowerCase();
+		int index = 16 * (8 - Character.getNumericValue(coord.charAt(1))) + 
+				"abcdefgh".indexOf(coord.charAt(0));
+		if (!isLegalIndex(index)) return SQ_NONE;
+		
+		return index;
+	}
+
+	/**
 	 * Returns the Chebyshev (chessboard) distance between two given indices.
 	 */
-	public static int distance(int index1, int index2) {
+	public static int dist(int index1, int index2) {
 		return Math.max(Math.abs(index1 / 16 - index2 / 16), Math.abs(index1 % 16 - index2 % 16));
 	}
 }
