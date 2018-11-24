@@ -37,21 +37,18 @@ public class Evaluate implements Types {
 		int bishopParity = 0; // used for determining opposite color bishops
 		
 		// pawn_file[file A..H][count | rank of least advanced pawn]
-		int[][] pawn_file_w = new int[8][2]; 
-		int[][] pawn_file_b = new int[8][2];
+		int[][] pawn_file_w = new int[8][2], pawn_file_b = new int[8][2];
 		for (int i = 0; i < 8; i++) pawn_file_b[i][1] = 7;
 		
 		// pawn_color[pawns on light squares | dark squares]
-		int[] pawn_color_w = new int[2];
-		int[] pawn_color_b = new int[2];
+		int[] pawn_color_w = new int[2], pawn_color_b = new int[2];
 		
 		// Area excluded from mobility. A square is excluded if it is:
 		//   1) protected by an enemy pawn
 		//   2) occupied by a friendly pawn on rank 2 or 3
 		//   3) occupied by a blocked friendly pawn
 		//   4) occupied by our king or queen
-		boolean[] excluded_area_w = new boolean[120];
-		boolean[] excluded_area_b = new boolean[120];
+		boolean[] excluded_area_w = new boolean[120], excluded_area_b = new boolean[120];
 		
 		// number of blocked pawns on the 4 center files (C, D, E, and F)
 		int blocked_pawns_w = 0, blocked_pawns_b = 0;
@@ -200,14 +197,12 @@ public class Evaluate implements Types {
 		// for keeping distance between the two kings small.
 		if (pawns_b == 0 && knights_b == 0 && bishops_b == 0 && rooks_b == 0 && queens_b == 0) {
 			int cornerProximity = EDGE_PROXIMITY[pos.king_pos_b / 16][pos.king_pos_b % 16];
-			int kingDist = Position.dist(pos.king_pos_w, pos.king_pos_b);
-			int kingProximity = KINGS_PROXIMITY[kingDist];
+			int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.king_pos_w, pos.king_pos_b)];
 			return mat_mg + (cornerProximity + kingProximity) * 10;
 		}
 		if (pawns_w == 0 && knights_w == 0 && bishops_w == 0 && rooks_w == 0 && queens_w == 0) {
 			int cornerProximity = EDGE_PROXIMITY[pos.king_pos_w / 16][pos.king_pos_w % 16];
-			int kingDist = Position.dist(pos.king_pos_w, pos.king_pos_b);
-			int kingProximity = KINGS_PROXIMITY[kingDist];
+			int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.king_pos_w, pos.king_pos_b)];
 			return mat_mg - (cornerProximity + kingProximity) * 10;
 		}
 		
@@ -308,10 +303,10 @@ public class Evaluate implements Types {
 				
 				// Penalty for weak and unopposed pawns. The penalty is only applied if the
 				// opponent has a rook or queen.
-				/*if (!opposed && (isolated || backward) && (rooks_b != 0 || queens_b != 0)) {
+				if (!opposed && (isolated || backward) && (rooks_b != 0 || queens_b != 0)) {
 					pawns_mg += WEAK_PAWN[MG];
 					pawns_eg += WEAK_PAWN[EG];
-				}*/
+				}
 				
 				// Bonus for connected pawns. Any pawn which is supported diagonally or
 				// adjacent to a friendly pawn (phalanx) is considered connected. Bonus is
@@ -394,10 +389,10 @@ public class Evaluate implements Types {
 					pawns_eg -= BACKWARD_PAWN[EG];
 				}
 				
-				/*if (!opposed && (isolated || backward) && (rooks_w != 0 || queens_w != 0)) {
+				if (!opposed && (isolated || backward) && (rooks_w != 0 || queens_w != 0)) {
 					pawns_mg -= WEAK_PAWN[MG];
 					pawns_eg -= WEAK_PAWN[EG];
-				}*/
+				}
 				
 				if (supporters > 0 || phalanx) {
 					int connected_bonus = CONNECTED_PAWN[7 - rank];
@@ -622,7 +617,7 @@ public class Evaluate implements Types {
 		// Scale down scores of likely draws due to insufficient material advantage. Draws that
 		// are certain will be caught by a check during search.
 		if (pawns_w == 0 && pawns_b == 0 && Math.abs(npm_w - npm_b) <= BISHOP_MG)
-			score_eg /= 64;
+			score_eg = VALUE_DRAW;
 		else {
 			// If one side has no pawns and only a small material advantage, scale down the upper
 			// bound of the eval.
@@ -656,7 +651,7 @@ public class Evaluate implements Types {
 	 * through any "x-ray" pieces.
 	 */
 	private static int mobScan(int[] board, boolean[] excludedArea, int start, int[] delta,
-			 				   boolean slider, String xray) {
+			boolean slider, String xray) {
 		int count = 0;
 		for (int i = 0; i < delta.length; i++) {
 			int target = start + delta[i];
