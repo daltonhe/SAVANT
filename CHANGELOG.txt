@@ -295,7 +295,6 @@ s
   -Added piece lists (using slow LinkedList implementation for now)
   -Fixed a console UI bug where enpassant move inputs were not recognized
   -Added UCI class
-  -Tuned phase weights
   -Tweaks to queen PSQT (based on Stockfish)
   -Tweaks to rook PSQT (based on Stockfish)
   -Tweaks to knight PSQT (based on Stockfish)
@@ -304,6 +303,21 @@ s
   -Tweaks to passed pawn PSQT (based on Stockfish)
   -Changed corner push table to edge push table for KX vs K mate function
   -Tweaks to kings proximity table
-  -Tweak to time allocation formula
+  -Passed pawn bonus is now halved when the pawn is blocked by a friendly pawn
+  -TT entry memory optimization
 
-	
+11-23
+  -Fixed a bug where endgame bonus for connected pawns was calculated
+   incorrectly
+  -KBB vs KN is now excluded from likely draw detection 
+  -Upper bound of likely draws is now scaled down instead of set to zero
+  -Fixed faulty backward pawn detection
+  -Path draws are now never stored in the TT, instead of being detected and
+   filtered out at hash retrieval
+  -Added penalty to minor pieces for being far from the king
+  -Added penalty for a weak unopposed pawn
+
+11-24
+  -Changed IID depth
+  -Fixed root node detection
+
