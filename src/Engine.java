@@ -14,9 +14,9 @@ import java.util.Scanner;
 public class Engine implements Types {
 	public static int maxDepth       = 100;   // max depth to search
 	public static boolean uciMode    = false; // true if we are in UCI mode
-	public static double timeLeft    = 1000;  // total time remaining
-	public static double increment   = 1000;  // increment per move
-	public static double timeForMove = 1000;  // time for this move
+	public static double timeLeft    = 60000;  // total time remaining
+	public static double increment   = 0;     // increment per move
+	public static double timeForMove = 0;  // time for this move
 	public static boolean useBook    = true;  // true if using native opening book
 	
 	public static int currentDepth;           // current depth of search
@@ -157,9 +157,7 @@ public class Engine implements Types {
 			
 			// Stop searching if a forced mate was found or the time left is likely not 
 			// enough to search the next depth
-			if (   Math.abs(eval) > VALUE_MATE_THRESHOLD
-				|| timeElapsed >= timeForMove / 2)
-				break;
+			if (Math.abs(eval) > VALUE_MATE_THRESHOLD || timeElapsed >= timeForMove / 2) break;
 		}
 	}
 	
@@ -225,7 +223,7 @@ public class Engine implements Types {
 		// Increment node count
 		nodes++;
 		
-		boolean rootNode = (nodeType == NODE_PV && ply == currentDepth);
+		boolean rootNode = nodeType == NODE_PV && ply - ext == currentDepth;
 		int eval = 0;
 
 		if (!rootNode) {
@@ -266,7 +264,7 @@ public class Engine implements Types {
 		
 		// Extend the search if we are in check
 		boolean inCheck = pos.inCheck(pos.sideToMove);
-		if (ply < currentDepth && inCheck) {
+		if (!rootNode && inCheck) {
 			ply++;
 			ext++;
 		}
@@ -320,12 +318,12 @@ public class Engine implements Types {
 		
 		// Internal iterative deepening at PV nodes if we have no hash move
 		if (   nodeType == NODE_PV
-			&& ply >= 3 
+			&& ply >= 6 
 			&& (ttentry == null || ttentry.move == null)) {
-			eval = alphaBeta(pos, ply - 2, 0, alpha, beta, nodeType);
+			eval = alphaBeta(pos, ply - 5, 0, alpha, beta, nodeType);
 			// Fail low
 			if (eval <= alpha)
-				eval = alphaBeta(pos, ply - 2, 0, -VALUE_INF, VALUE_INF, nodeType);
+				eval = alphaBeta(pos, ply - 5, 0, -VALUE_INF, VALUE_INF, nodeType);
 			ttentry = ttable.get(pos.zobrist);
 		}
 		
@@ -354,10 +352,10 @@ public class Engine implements Types {
 			
 			boolean doFullDepthSearch = false;
 			boolean givesCheck = pos.inCheck(pos.sideToMove);
-			boolean pruningOk =   !inCheck 
-							   && !givesCheck 
-							   && move.type != PROMOTION 
-							   && move.captured == PIECE_NONE;
+			boolean pruningOk =    !inCheck 
+							    && !givesCheck 
+							    && move.type != PROMOTION 
+							    && move.captured == PIECE_NONE;
 							   
 			
 			// Futility pruning
@@ -466,11 +464,7 @@ public class Engine implements Types {
 	private static int quiescence(Position pos, int alpha, int beta) {
 		
 		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
-		
-		// Check for draw by insufficient material
-		if (pos.insufficientMat())
-			return VALUE_DRAW;
-		
+	
 		// Get a standing evaluation first
 		int standPat = Evaluate.staticEval(pos) * pos.sideToMove;
 		if (standPat >= beta) return beta;
