@@ -97,7 +97,7 @@ public interface Types {
 	public static final int DELTA_MARGIN        = 200;
 	public static final int FUTILITY_MARGIN     = 400;
 	public static final int FUTILITY_EXT_MARGIN = 600;
-	public static final int RAZOR_MARGIN        = 1200;
+	public static final int RAZOR_MARGIN        = 800;
 	
 	public static final int HISTORY_MAX = 50000;
 	
@@ -110,7 +110,7 @@ public interface Types {
 	public static final int TIME_INF = 9999000;
 	
 	// Transposition table
-	public static final int HASH_SIZE_TT  = 1048576;
+	public static final int HASH_SIZE_TT  = 524288;
 	public static final int HASH_SIZE_REP = 32768;
 	public static final int HASH_SIZE_PV  = 131072;
 	
@@ -206,7 +206,7 @@ public interface Types {
 	    	{  31,  42,  24,   0,   0,  24,  42,  31 },
 	    	{  42,  58,  31,  12,  12,  31,  58,  42 },
 	    	{  59,  76,  41,  17,  17,  41,  76,  59 },
-	    	{  70,  85,  54,  33,  33,  55,  85,  70 },
+	    	{  70,  85,  54,  33,  33,  54,  85,  70 },
 	    	{  81,  92,  65,  52,  52,  65,  92,  81 },
 	    	{  95, 122,  81,  58,  58,  81, 122,  95 },
 	    	{ 133, 147, 116,  88,  88, 116, 147, 133 },
@@ -294,16 +294,16 @@ public interface Types {
 	};
 	
 	// Passed pawns
-	public static final int[] PASSED_DANGER  = { 0, 10, 6, 2, 1, 0, 0, 0 };
+	public static final int[] PASSED_DANGER  = { 0, 10, 6, 4, 2, 0, 0, 0 };
 	
 	public static final int PASSED_PAWN_MG[][] = {
 		{   0,   0,   0,   0,   0,   0,   0,   0 },
 		{ 130, 131, 126, 116, 116, 126, 131, 130 },
 		{  78,  78,  74,  64,  64,  74,  78,  78 },
 		{  27,  27,  23,  13,  13,  23,  27,  27 },
-		{   4,   5,   0, -10, -10,   0,   5,   4 },
-		{   5,   6,   1,  -9,  -9,   1,   6,   5 },
-		{   2,   2,  -2, -12, -12,  -2,   2,   2 },
+		{   4,   5,   0,   0,   0,   0,   5,   4 },
+		{   5,   6,   1,   0,   0,   1,   6,   5 },
+		{   2,   2,   0,   0,   0,   0,   2,   2 },
 		{   0,   0,   0,   0,   0,   0,   0,   0 }
 	};
 	public static final int PASSED_PAWN_EG[][] = {
