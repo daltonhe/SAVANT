@@ -72,8 +72,8 @@ public interface Types {
 	public static final int ROOK_MG   = 620,  ROOK_EG   = 663;
 	public static final int QUEEN_MG  = 1216, QUEEN_EG  = 1292;
 	
-	public static final int PIECE_VALUE_MG[]   = {0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
-	public static final int PIECE_VALUE_EG[]   = {0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
+	public static final int[] PIECE_VALUE_MG = {0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
+	public static final int[] PIECE_VALUE_EG = {0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
 	
 	// Search
 	public static final int VALUE_INF            = 10001;
@@ -81,12 +81,12 @@ public interface Types {
 	public static final int VALUE_MATE_THRESHOLD = 9900;
 	public static final int VALUE_KNOWN_WIN      = 1000;
 	public static final int VALUE_DRAW           = 0;
-	public static final int VALUE_PATH_DRAW      = 1;
 		// This is a special value to distinguish path-dependent draws (i.e. draws by three-fold
 		// repetition or by the 50-move rule). These draws are linked to move order rather than
 	    // being solely position-dependent (i.e. draw by stalemate or insufficient material).
 		// We want to be able to distinguish path-dependent draw evaluations, specifically to
 	    // exclude them from being used as TT cutoffs.
+	public static final int VALUE_PATH_DRAW      = 1;
 	public static final int VALUE_CONTEMPT       = 20;
 	
 	public static final int NODE_PV  =  0;
@@ -97,7 +97,7 @@ public interface Types {
 	public static final int DELTA_MARGIN        = 200;
 	public static final int FUTILITY_MARGIN     = 400;
 	public static final int FUTILITY_EXT_MARGIN = 600;
-	public static final int RAZOR_MARGIN        = 800;
+	public static final int RAZOR_MARGIN        = 1200;
 	
 	public static final int HISTORY_MAX = 50000;
 	
@@ -121,39 +121,40 @@ public interface Types {
 	public static final int BOUND_UPPER = 2;
 	
 	// Evaluation
-	public static final int PHASE_WEIGHT[] = {0, 0, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
-	public static final int PHASE_MAX      = 8012;
-	public static final int PHASE_MG       = 7337;
-	public static final int PHASE_EG       = 1883;
+	public static final int PHASE_WT_MINOR = 2;
+	public static final int PHASE_WT_ROOK  = 3;
+	public static final int PHASE_WT_QUEEN = 6;
+	public static final int PHASE_MAX      = 40;
+	public static final int PHASE_MG       = 37;
+	public static final int PHASE_EG       = 9;
 	public static final int LAZY_THRESHOLD = 720;
 	
 	// Assorted bonuses/penalties {middlegame | endgame}
 	public static final int MG = 0;
 	public static final int EG = 1;
 	
-	public static final int TEMPO                =  10;
-	public static final int ROOK_PAWN            = -15;
-	public static final int BISHOP_PAIR          =  43;
-	public static final int REDUNDANT_KNIGHT     = -4;
-	public static final int REDUNDANT_ROOK       = -12;
-	public static final int REDUNDANT_QUEEN      = -4;
-	public static final int KNIGHT_PAWN_SYNERGY	 =  8;
-	public static final int[] DOUBLED_PAWN       = {-5, -27};
-	public static final int[] ISOLATED_PAWN      = {-2,  -7};
-	public static final int[] BACKWARD_PAWN      = {-4, -12};
-	public static final int[] CONNECTED_PAWN     = {0, 84, 48, 31,  9, 12, 6, 0};
-	public static final int[] PAWN_PHALANX       = {0, 37, 18,  8, 11, -1, 3, 0};
-	public static final int SUPPORTED_PAWN       =  8;
-	public static final int[] BAD_BISHOP_PAWN    = {-2, -5};
-	public static final int TRAPPED_BISHOP       = -100;
-	public static final int TRAPPED_ROOK         = -47;
-	public static final int[] ROOK_OPEN_FILE     = {21, 10};
-	public static final int[] ROOK_SEMIOPEN_FILE = { 9,  3};
-	public static final int[] ROOK_ON_7TH        = {20, 40};
-	public static final int[] QUEEN_ON_7TH       = {10, 20};
+	public static final int TEMPO               =  10;
+	public static final int BISHOP_PAIR         =  43;
+	public static final int REDUNDANT_KNIGHT    = -4;
+	public static final int REDUNDANT_ROOK      = -12;
+	public static final int REDUNDANT_QUEEN     = -4;
+	public static final int KNIGHT_PAWN_SYNERGY	=  7;
+	public static final int TRAPPED_BISHOP      = -100;
+	public static final int TRAPPED_ROOK        = -50;
+	public static final int[] ROOK_OPEN_FILE    = { 21,  10 };
+	public static final int[] ROOK_SEMI_FILE    = {  9,   4 };
+	public static final int[] ROOK_ON_7TH       = { 20,  40 };
+	public static final int[] QUEEN_ON_7TH      = { 10,  20 };
+	public static final int[] DOUBLED_PAWN      = { -5, -27 };
+	public static final int[] ISOLATED_PAWN     = { -3,  -8 };
+	public static final int[] BACKWARD_PAWN     = { -5, -12 };
+	public static final int[] BAD_BISHOP_PAWN   = { -2,  -5 };
+	public static final int[] CONNECTED_PAWN    = { 0, 84, 48, 31,  9, 12, 6, 0 };
+	public static final int[] PAWN_PHALANX      = { 0, 37, 18,  8, 11, -1, 3, 0 };
+	public static final int SUPPORTED_PAWN      =  8;
 	
 	// Piece-square tables
-	public static final int PSQT_MG[][][] = {
+	public static final int[][][] PSQT_MG = {
 	    {{}},
 	    { // Pawn
 	    	{   0,   0,   0,   0,   0,   0,   0,   0 },
@@ -210,7 +211,7 @@ public interface Types {
 	    	{ 133, 147, 116,  88,  88, 116, 147, 133 },
 	    	{ 131, 156, 131,  91,  91, 131, 156, 131 }}
 	};
-	public static final int PSQT_EG[][][] = {
+	public static final int[][][] PSQT_EG = {
 		{{}},
 	    { // Pawn
 			{   0,   0,   0,   0,   0,   0,   0,   0 },
@@ -270,32 +271,33 @@ public interface Types {
 	};
 	
 	// Mobility
-	public static final int MOB_MG[][] = {
+	public static final int[][] MOB_MG = {
 		{},
 		{},
-		{-30, -25, -6, -2,  1,  6, 11, 13, 16                          }, // Knight
-		{-23, -10,  8, 13, 18, 25, 26, 30, 30, 33, 39, 39, 44, 47      }, // Bishop
-		{-28, -13, -7, -5, -2, -1,  4,  8, 14, 14, 15, 18, 22, 23, 28  }, // Rook
-		{-19, -10,  1,  1,  7, 11, 13, 20, 21, 23, 27, 29, 29, 32, 32,    // Queen
-		  34,  34, 35, 38, 42, 42, 47, 49, 49, 51, 52, 54, 56          },
+		{ -30, -25, -6, -2,  1,  6, 11, 13, 16                          }, // Knight
+		{ -23, -10,  8, 13, 18, 25, 26, 30, 30, 33, 39, 39, 44, 47      }, // Bishop
+		{ -28, -13, -7, -5, -2, -1,  4,  8, 14, 14, 15, 18, 22, 23, 28  }, // Rook
+		{ -19, -10,  1,  1,  7, 11, 13, 20, 21, 23, 27, 29, 29, 32, 32,    // Queen
+		   34,  34, 35, 38, 42, 42, 47, 49, 49, 51, 52, 54, 56          },
 		{}
 	};
-	public static final int MOB_EG[][] = {
+	public static final int[][] MOB_EG = {
 		{},
 		{},
-		{-39, -27,-14, -7,  4,  7, 11, 13, 16                         }, // Knight
-		{-28, -11, -1,  6, 12, 20, 26, 27, 31, 35, 38, 41, 42, 47     }, // Bishop
-		{-37, -9,  13, 26, 33, 39, 54, 57, 63, 68, 75, 79, 80, 81, 82 }, // Rook
-		{-17, -7,   4,  9, 16, 26, 29, 35, 38, 44, 45, 50, 54, 58, 59,   // Queen
-		  61,  64, 65, 67, 69, 71, 80, 82, 84, 88, 92, 99,102         },
+		{ -39, -27,-14, -7,  4,  7, 11, 13, 16                         }, // Knight
+		{ -28, -11, -1,  6, 12, 20, 26, 27, 31, 35, 38, 41, 42, 47     }, // Bishop
+		{ -37, -9,  13, 26, 33, 39, 54, 57, 63, 68, 75, 79, 80, 81, 82 }, // Rook
+		{ -17, -7,   4,  9, 16, 26, 29, 35, 38, 44, 45, 50, 54, 58, 59,   // Queen
+		   61,  64, 65, 67, 69, 71, 80, 82, 84, 88, 92, 99,102         },
 		{}
 	};
 	
 	// Passed pawns
-	public static final int[] PASSED_RANK_MG = {0, 130, 78, 27,  5,  6, 2, 0};
-	public static final int[] PASSED_RANK_EG = {0, 120, 80, 30, 15, 11, 9, 0};
-	public static final int[] PASSED_FILE_MG = {0, 0, -4,-14,-14, -4, 0, 0};
-	public static final int[] PASSED_FILE_EG = {3, 4, -4, -7, -7, -4, 4, 3};
+	public static final int[] PASSED_DANGER  = { 0, 10, 6, 2, 0, 0, 0, 0 };
+	//public static final int[] PASSED_RANK_MG = { 0, 130, 78, 27,  5,  6, 2, 0 };
+	//public static final int[] PASSED_RANK_EG = { 0, 120, 80, 30, 15, 11, 9, 0 };
+	//public static final int[] PASSED_FILE_MG = { 0, 0, -4,-14,-14, -4, 0, 0 };
+	//public static final int[] PASSED_FILE_EG = { 3, 4, -4, -7, -7, -4, 4, 3 };
 	
 	/*public static final int PASSED_PAWN_MG[][] = {
 		{   0,   0,   0,   0,   0,   0,   0,   0 },
@@ -317,10 +319,30 @@ public interface Types {
 		{  12,  13,   5,   2,   2,   5,  13,  12 },
 		{   0,   0,   0,   0,   0,   0,   0,   0 }
 	};*/
-	public static final int PASSED_DANGER[] = {0, 10, 6, 4, 2, 0, 0, 0};
+	
+	public static final int PASSED_PAWN_MG[][] = {
+		{  0,   0,   0,   0,   0,   0,   0,   0},
+		{130, 130, 126, 115, 115, 126, 130, 130},
+		{ 81,  81,  77,  66,  66,  77,  81,  81},
+		{ 28,  28,  24,  13,  13,  24,  28,  28},
+		{  5,   5,   1,   0,   0,   1,   5,   5},
+		{  6,   6,   2,   0,   0,   2,   6,   6},
+		{  2,   2,  -2,   0,   0,  -2,   2,   2},
+		{  0,   0,   0,   0,   0,   0,   0,   0}
+	};
+	public static final int PASSED_PAWN_EG[][] = {
+		{  0,   0,   0,   0,   0,   0,   0,   0},
+		{128, 129, 121, 118, 118, 121, 129, 128},
+		{ 86,  87,  79,  76,  76,  79,  87,  86},
+		{ 34,  35,  27,  24,  24,  27,  35,  34},
+		{ 18,  19,  11,   8,   8,  11,  19,  18},
+		{ 14,  14,   7,   4,   4,   7,  14,  14},
+		{ 12,  13,   5,   2,   2,   5,  13,  12},
+		{  0,   0,   0,   0,   0,   0,   0,   0}
+	};
 	
 	// Endgame
-	public static final int EDGE_PROXIMITY[][] = {
+	public static final int[][] EDGE_PROXIMITY = {
 		{ 50, 45, 40, 35, 35, 40, 45, 50 },
 		{ 45, 35, 30, 25, 25, 30, 35, 45 },
 		{ 40, 30, 20, 15, 15, 20, 30, 40 },
@@ -330,7 +352,7 @@ public interface Types {
 		{ 45, 35, 30, 25, 25, 30, 35, 45 },
 		{ 50, 45, 40, 35, 35, 40, 45, 50 }
 	};
-	public static final int KINGS_PROXIMITY[] = {0, 0, 50, 40, 30, 20, 10, 5};
+	public static final int[] KINGS_PROXIMITY = { 0, 0, 50, 40, 30, 20, 10, 5 };
 	
 	// Board coordinates
 	public static final int SQ_NONE = -2;
