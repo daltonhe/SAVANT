@@ -306,6 +306,13 @@ public class Evaluate implements Types {
 					pawns_eg += BACKWARD_PAWN[EG];
 				}
 				
+				// Penalty for weak and unopposed pawns. The penalty is only applied if the
+				// opponent has a rook or queen.
+				/*if (!opposed && (isolated || backward) && (rooks_b != 0 || queens_b != 0)) {
+					pawns_mg += WEAK_PAWN[MG];
+					pawns_eg += WEAK_PAWN[EG];
+				}*/
+				
 				// Bonus for connected pawns. Any pawn which is supported diagonally or
 				// adjacent to a friendly pawn (phalanx) is considered connected. Bonus is
 				// adjusted based on rank, whether the pawn is in a phalanx, whether the
@@ -387,6 +394,11 @@ public class Evaluate implements Types {
 					pawns_eg -= BACKWARD_PAWN[EG];
 				}
 				
+				/*if (!opposed && (isolated || backward) && (rooks_w != 0 || queens_w != 0)) {
+					pawns_mg -= WEAK_PAWN[MG];
+					pawns_eg -= WEAK_PAWN[EG];
+				}*/
+				
 				if (supporters > 0 || phalanx) {
 					int connected_bonus = CONNECTED_PAWN[7 - rank];
 					if (phalanx) connected_bonus += PAWN_PHALANX[7 - rank];
@@ -399,6 +411,11 @@ public class Evaluate implements Types {
 				break;
 				
 			case W_KNIGHT:
+				// Give a penalty if the knight is far from the king
+				int kingDist = Position.dist(pos.king_pos_w, index);
+				pieces_mg -= kingDist * 3;
+				pieces_eg -= kingDist * 3;
+				
 				// Knight mobility
 				squares = mobScan(board, excluded_area_w, index, MOVE_DELTA[KNIGHT], false, "");
 				mob_mg += MOB_MG[KNIGHT][squares];
@@ -406,6 +423,10 @@ public class Evaluate implements Types {
 				break;
 				
 			case B_KNIGHT:
+				kingDist = Position.dist(pos.king_pos_b, index);
+				pieces_mg += kingDist * 3;
+				pieces_eg += kingDist * 3;
+				
 				squares = mobScan(board, excluded_area_b, index, MOVE_DELTA[KNIGHT], false, "");
 				mob_mg -= MOB_MG[KNIGHT][squares];
 				mob_eg -= MOB_EG[KNIGHT][squares];
@@ -418,6 +439,11 @@ public class Evaluate implements Types {
 					pieces_mg += TRAPPED_BISHOP;
 				else if (index == SQ_h7 && board[SQ_g6] == B_PAWN && board[SQ_f7] == B_PAWN)
 					pieces_mg += TRAPPED_BISHOP;
+				
+				// Give a penalty if the bishop is far from the king
+				kingDist = Position.dist(pos.king_pos_w, index);
+				pieces_mg -= kingDist * 3;
+				pieces_eg -= kingDist * 3;
 				
 				// Give a penalty for the number of pawns on the same color square
 				// as the bishop. The penalty is increased for each blocked pawn on the
@@ -437,6 +463,10 @@ public class Evaluate implements Types {
 					pieces_mg -= TRAPPED_BISHOP;
 				else if (index == SQ_h2 && board[SQ_g3] == W_PAWN && board[SQ_f2] == W_PAWN)
 					pieces_mg -= TRAPPED_BISHOP;
+				
+				kingDist = Position.dist(pos.king_pos_b, index);
+				pieces_mg += kingDist * 3;
+				pieces_eg += kingDist * 3;
 				
 				bishopPawns = pawn_color_b[(rank + file) % 2];
 				pieces_mg -= bishopPawns * (blocked_pawns_b + 1) * BAD_BISHOP_PAWN[MG];
