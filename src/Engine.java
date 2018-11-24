@@ -64,10 +64,9 @@ public class Engine implements Types {
 		
 		// Calculate the time to use for this move
 		if (timeLeft > increment) {
-			timeForMove = timeLeft / 40;
+			timeForMove = timeLeft / 40 + increment;
 			// Spend more time out of the opening to figure out the position
-			if (pos.moveNumber <= 20) timeForMove *= 2.5;
-			timeLeft += increment;
+			if (pos.moveNumber <= 20) timeForMove *= 2;
 		}
 		else
 			timeForMove = timeLeft / 5;
@@ -253,14 +252,11 @@ public class Engine implements Types {
 			if (alpha >= beta) return alpha;
 		}
 				
-		// At non-PV nodes check for an early transposition table cutoff. Do not use 
-		// path-dependent draw evaluations arising from three-fold repetition or 50 moves rule,
-		// since these evaluations may not hold for other branches of the search.
+		// At non-PV nodes check for an early transposition table cutoff.
 		HashtableEntry ttentry = ttable.get(pos.zobrist);
 		if (   nodeType != NODE_PV 
 			&& ttentry != null 
-			&& ttentry.depth >= ply
-			&& Math.abs(ttentry.eval) != VALUE_PATH_DRAW) {
+			&& ttentry.depth >= ply) {
 			
 			if (    ttentry.type == BOUND_EXACT
 				|| (ttentry.type == BOUND_UPPER && ttentry.eval * pos.sideToMove <= alpha)
@@ -529,19 +525,16 @@ public class Engine implements Types {
 		for (Move move : moveList) {		
 			if (hashMove != null && move.longNotation().equals(hashMove))
 				move.priority = PRIORITY_HASH_MOVE;
-			else if (move.type == PROMOTION) {
-				if (Math.abs(move.piece) == QUEEN)
-					move.priority = PRIORITY_PROMOTION_Q;
-				else
-					move.priority = PRIORITY_PROMOTION_U;
-			}
+			else if (move.type == PROMOTION)
+				move.priority = Math.abs(move.piece) == QUEEN ? 
+						PRIORITY_PROMOTION_Q : PRIORITY_PROMOTION_U;
+			else if (move.type == CASTLE_SHORT || move.type == CASTLE_LONG)
+				move.priority = PRIORITY_CASTLING;
 				
 			// MVV/LVA
 			else if (move.captured != PIECE_NONE)
 				move.priority = Math.abs(move.captured) * 10 - Math.abs(move.piece);
-			else if (move.type == CASTLE_SHORT || move.type == CASTLE_LONG)
-				move.priority = PRIORITY_CASTLING;
-			
+
 			// History heuristic
 			move.historyScore = historyScore[move.piece + 6][move.target];
 		}
