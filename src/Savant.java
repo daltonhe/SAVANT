@@ -34,6 +34,15 @@ public class Savant implements Types {
 	 * The main method, calls console mode or UCI mode.
 	 */
 	public static void main(String[] args) throws IOException {
+		if      (args.length == 0)         consoleMode();
+		else if (args[0].charAt(0) == 'u') UCI.main();
+	}
+	
+	/**
+	 * Initialization every time a new game starts.
+	 */
+	public static void initNewGame() {
+		pos           = new Position();
 		//pos = new Position("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
 		//pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
 		//pos = new Position("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
@@ -44,15 +53,6 @@ public class Savant implements Types {
 		//pos = new Position("7k/8/8/8/R2K3q/8/8/8 w - - 0 1");
 		//pos = new Position("2k5/8/8/8/p7/8/8/4K3 b - - 0 1");
 		
-		if      (args.length == 0)         consoleMode();
-		else if (args[0].charAt(0) == 'u') UCI.main();
-	}
-	
-	/**
-	 * Initialization every time a new game starts.
-	 */
-	public static void initNewGame() {
-		pos           = new Position();
 		Engine.ttable = new TranspositionTable(HASH_SIZE_TT);
 		inOpening     = true;
 		movesString   = "";
@@ -101,8 +101,8 @@ public class Savant implements Types {
 				
 			if (!gameOverMsg.isEmpty()) break;
 			
-			boolean engineTurn =   (pos.sideToMove == WHITE && engineWhite)
-								|| (pos.sideToMove == BLACK && engineBlack);
+			boolean engineTurn =    (pos.sideToMove == WHITE && engineWhite)
+								 || (pos.sideToMove == BLACK && engineBlack);
 			
 			if (!engineTurn) System.out.print(">");
 			
@@ -110,7 +110,6 @@ public class Savant implements Types {
 			Move move = null;
 			
 			switch (command) {
-			
 			case "quit":
 				System.exit(0);
 				break;
@@ -169,7 +168,7 @@ public class Savant implements Types {
 				System.out.println("undo    - Take back the last move played");
 				System.out.println("play w  - Tell the engine to play white");
 				System.out.println("play b  - Tell the engine to play black");
-				System.out.println("playout - Engine will play out the game, moving for both sides");
+				System.out.println("playout - Engine will move for both sides");
 				System.out.println("fen     - Display the FEN string of the position");
 				System.out.println("print   - Display the board");
 				break;

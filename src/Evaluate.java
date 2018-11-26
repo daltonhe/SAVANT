@@ -25,6 +25,7 @@ public class Evaluate implements Types {
 		int pawns_mg  = 0, pawns_eg  = 0;
 		int pieces_mg = 0, pieces_eg = 0;
 		int mob_mg    = 0, mob_eg    = 0; // mobility
+		int space     = 0;
 		int tempo     = TEMPO * pos.sideToMove;
 		
 		// Initialize piece counts
@@ -53,7 +54,11 @@ public class Evaluate implements Types {
 		// number of blocked pawns on the 4 center files (C, D, E, and F)
 		int blocked_pawns_w = 0, blocked_pawns_b = 0;
 		
-		// First pass: piece count, material, phase, mobility area, pawn info
+		// First pass:
+		//   - Count pieces, material, phase
+		//   - Get pawn structure information
+		//   - Set mobility area
+		
 		for (int index : pos.pieceList) {
 			
 			int piece = board[index];
@@ -193,14 +198,18 @@ public class Evaluate implements Types {
 			}
 		}
 		
-		// Mate with KX vs K. Give a bonus for driving the enemy king to the edge of board and
+		// Sum piece counts
+		int pieces_w = pawns_w + knights_w + bishops_w + rooks_w + queens_w + 1;
+		int pieces_b = pawns_b + knights_b + bishops_b + rooks_b + queens_b + 1;
+		
+		// Mate with KX vs K: Give a bonus for driving the enemy king to the edge of board and
 		// for keeping distance between the two kings small.
-		if (pawns_b == 0 && knights_b == 0 && bishops_b == 0 && rooks_b == 0 && queens_b == 0) {
+		if (pieces_b == 1) {
 			int cornerProximity = EDGE_PROXIMITY[pos.king_pos_b / 16][pos.king_pos_b % 16];
 			int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.king_pos_w, pos.king_pos_b)];
 			return mat_mg + (cornerProximity + kingProximity) * 10;
 		}
-		if (pawns_w == 0 && knights_w == 0 && bishops_w == 0 && rooks_w == 0 && queens_w == 0) {
+		if (pieces_w == 1) {
 			int cornerProximity = EDGE_PROXIMITY[pos.king_pos_w / 16][pos.king_pos_w % 16];
 			int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.king_pos_w, pos.king_pos_b)];
 			return mat_mg - (cornerProximity + kingProximity) * 10;
@@ -210,7 +219,58 @@ public class Evaluate implements Types {
 		int score_lazy = (mat_mg + psqt_mg + mat_eg + psqt_eg) / 2;
 		if (Math.abs(score_lazy) > LAZY_THRESHOLD) return score_lazy;
 		
-		// Second pass: calculate mobility, and evaluate pieces and pawns.
+		// Space
+		if (npm_w + npm_b >= SPACE_THRESHOLD) {
+			// Count number of open files
+			int openFiles = 0;
+			for (int file = 0; file < 8; file++)
+				if (pawn_file_w[file][0] == 0 && pawn_file_b[file][0] == 0)
+					openFiles++;
+			
+			// Space area: Number of safe squares available for minor pieces on the central four
+			// files on ranks 2 to 4. Safe squares one, two, or three squares behind a friendly
+			// pawn are counted twice.
+			int space_area_w = 0, space_area_b = 0;
+			for (int rank = 4; rank <= 6; rank++) {
+				for (int file = 2; file <= 5; file++) {
+					int index = rank * 16 + file;
+					if (   board[index] != W_PAWN 
+						&& board[index - 15] != B_PAWN 
+						&& board[index - 17] != B_PAWN) {
+						space_area_w++;
+						if (   board[index - 16] == W_PAWN
+							|| board[index - 32] == W_PAWN
+							|| board[index - 48] == W_PAWN)
+							space_area_w++;
+					}
+				}
+			}
+			for (int rank = 1; rank <= 3; rank++) {
+				for (int file = 2; file <= 5; file++) {
+					int index = rank * 16 + file;
+					if (   board[index] != B_PAWN 
+						&& board[index + 15] != W_PAWN 
+						&& board[index + 17] != W_PAWN) {
+						space_area_b++;
+						if (   board[index + 16] == B_PAWN
+							|| board[index + 32] == B_PAWN
+							|| board[index + 48] == B_PAWN)
+							space_area_b++;
+					}
+				}
+			}
+			
+			// Weight by number of pieces minus 2x number of open files
+			int weight_w = pieces_w - openFiles * 2;
+			int weight_b = pieces_b - openFiles * 2;
+			space += space_area_w * weight_w * weight_w / 33;
+			space -= space_area_b * weight_b * weight_b / 33;
+		}
+		
+		// Second pass: 
+		//   -Calculate piece mobility
+		//   -Evaluate pieces and pawns
+		
 		for (int index : pos.pieceList) {
 			
 			int piece = board[index];
@@ -563,6 +623,8 @@ public class Evaluate implements Types {
 			}
 		}
 		
+		// Imbalances
+		
 		// Give a bonus for having the bishop pair.
 		if (bishops_w >= 2) {
 			imbal += BISHOP_PAIR;
@@ -600,7 +662,7 @@ public class Evaluate implements Types {
 		if (queens_b >= 1) imbal -= pawns_w * 3;
 		
 		// Sum all the individual component scores
-		double score_mg = mat_mg + psqt_mg + imbal + pawns_mg + pieces_mg + mob_mg + tempo;
+		double score_mg = mat_mg + psqt_mg + imbal + pawns_mg + pieces_mg + mob_mg + space + tempo;
 		double score_eg = mat_eg + psqt_eg + imbal + pawns_eg + pieces_eg + mob_eg;
 
 		// Scale down endgame score for bishops of opposite colors depending on the pawn

@@ -121,13 +121,14 @@ public interface Types {
 	public static final int BOUND_UPPER = 2;
 	
 	// Evaluation
-	public static final int PHASE_WT_MINOR = 2;
-	public static final int PHASE_WT_ROOK  = 3;
-	public static final int PHASE_WT_QUEEN = 6;
-	public static final int PHASE_MAX      = 40;
-	public static final int PHASE_MG       = 37;
-	public static final int PHASE_EG       = 9;
-	public static final int LAZY_THRESHOLD = 720;
+	public static final int PHASE_WT_MINOR  = 2;
+	public static final int PHASE_WT_ROOK   = 3;
+	public static final int PHASE_WT_QUEEN  = 6;
+	public static final int PHASE_MAX       = 40;
+	public static final int PHASE_MG        = 37;
+	public static final int PHASE_EG        = 9;
+	public static final int LAZY_THRESHOLD  = 720;
+	public static final int SPACE_THRESHOLD = 5875;
 	
 	// Assorted bonuses/penalties {middlegame | endgame}
 	public static final int MG = 0;
