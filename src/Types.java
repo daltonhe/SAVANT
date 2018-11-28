@@ -55,15 +55,12 @@ public interface Types {
 	public static final int PROMOTION    = 5;
 	
 	// Move generation deltas
-	public static final int[][] MOVE_DELTA = {
-		{},
-		{ -17, -16, -15                      }, // Pawn
-		{ -33, -31, -18, -14, 14, 18, 31, 33 }, // Knight
-		{ -17, -15,  15,  17                 }, // Bishop
-		{ -16,  -1,   1,  16                 }, // Rook
-		{ -17, -16, -15,  -1,  1, 15, 16, 17 }, // Queen
-		{ -17, -16, -15,  -1,  1, 15, 16, 17 }, // King
-	};
+	public static final int[] PAWN_DELTA   = { -16, -17, -15                      };
+	public static final int[] KNIGHT_DELTA = { -33, -31, -18, -14, 14, 18, 31, 33 };
+	public static final int[] BISHOP_DELTA = { -17, -15,  15,  17                 };
+	public static final int[] ROOK_DELTA   = { -16,  -1,   1,  16                 };
+	public static final int[] QUEEN_DELTA  = { -17, -16, -15,  -1,  1, 15, 16, 17 };
+	public static final int[] KING_DELTA   = { -17, -16, -15,  -1,  1, 15, 16, 17 };
 	
 	// Piece values
 	public static final int PAWN_MG   = 65,   PAWN_EG   = 100;
@@ -72,8 +69,10 @@ public interface Types {
 	public static final int ROOK_MG   = 620,  ROOK_EG   = 663;
 	public static final int QUEEN_MG  = 1216, QUEEN_EG  = 1292;
 	
-	public static final int[] PIECE_VALUE_MG = {0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
-	public static final int[] PIECE_VALUE_EG = {0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
+	public static final int[] PIECE_VALUE_MG = 
+		{0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
+	public static final int[] PIECE_VALUE_EG = 
+		{0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
 	
 	// Search
 	public static final int VALUE_INF            = 10001;
@@ -102,10 +101,11 @@ public interface Types {
 	public static final int HISTORY_MAX = 50000;
 	
 	// Move ordering
-	public static final int PRIORITY_HASH_MOVE   = 121;
+	public static final int PRIORITY_HASH_MOVE   = 1000;
 	public static final int PRIORITY_PROMOTION_Q = 120;
-	public static final int PRIORITY_PROMOTION_U = 4;
+	public static final int PRIORITY_PROMOTION_N = 0;
 	public static final int PRIORITY_CASTLING    = 3;
+	public static final int PRIORITY_PRUNE       = -1;
 	
 	public static final int TIME_INF = 9999000;
 	
@@ -114,7 +114,7 @@ public interface Types {
 	public static final int HASH_SIZE_REP = 32768;
 	public static final int HASH_SIZE_PV  = 131072;
 	
-	public static final int HASH_MAX_AGE = 8;
+	public static final int HASH_MAX_AGE = 5;
 	
 	public static final int BOUND_EXACT = 0;
 	public static final int BOUND_LOWER = 1;

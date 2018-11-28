@@ -98,7 +98,7 @@ public class TranspositionTable implements Types {
 		boolean replace;
 		if (entry != null) {
 			if (zobrist == entry.zobrist) {
-				replace = (depth > entry.depth);
+				replace = depth > entry.depth;
 				if (entry.move == null && move != null)
 					table[hashKey].move = move;
 			}
@@ -107,7 +107,7 @@ public class TranspositionTable implements Types {
 		else replace = true;
 		
 		if (replace) table[hashKey] = 
-				new HashtableEntry(zobrist, move, (byte) depth, eval, (byte) type);
+				new HashtableEntry(zobrist, move, depth, eval, type);
 	}
 	
 

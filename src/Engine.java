@@ -14,9 +14,9 @@ import java.util.Scanner;
 public class Engine implements Types {
 	public static int maxDepth       = 100;   // max depth to search
 	public static boolean uciMode    = false; // true if we are in UCI mode
-	public static double timeLeft    = 60000;  // total time remaining
+	public static double timeLeft    = 60000; // total time remaining
 	public static double increment   = 0;     // increment per move
-	public static double timeForMove = 0;  // time for this move
+	public static double timeForMove = 0;     // time for this move
 	public static boolean useBook    = true;  // true if using native opening book
 	
 	public static int currentDepth;           // current depth of search
@@ -166,7 +166,7 @@ public class Engine implements Types {
 	 */
 	public static ArrayList<Move> extractPV(Position pos) {
 		ArrayList<Move> PV = new ArrayList<Move>();
-		HashtableEntry entry = pvtable.get(pos.zobrist);
+		HashtableEntry entry = pvtable.get(pos.key);
 		while (entry != null && entry.move != null) {
 			Move move = getMoveObject(pos, entry.move);
 			// In the rare case of a key collision the stored move may be invalid
@@ -179,7 +179,7 @@ public class Engine implements Types {
 			HashtableEntry rentry = pos.reptable.get(pos.repKey());
 			if (rentry != null && rentry.count >= 2) break;
 
-			entry = pvtable.get(pos.zobrist);
+			entry = pvtable.get(pos.key);
 		}
 		
 		// Unmake all the moves
@@ -191,12 +191,12 @@ public class Engine implements Types {
 
 	/**
 	 * The alpha-beta recursive search.
-	 * @param pos     - The position we are searching
-	 * @param ply     - Remaining number of plies to search
-	 * @param ext     - Number of plies we have extended the search
-	 * @param alpha   - Highest score that we have found (lower bound)
-	 * @param beta    - Lowest score that our opponent can guarantee (upper bound)
-	 * @return          The score of the position from the perspective of the side to move
+	 * @param pos   - The position we are searching
+	 * @param ply   - Remaining number of plies to search
+	 * @param ext   - Number of plies we have extended the search
+	 * @param alpha - Highest score that we have found (lower bound)
+	 * @param beta  - Lowest score that our opponent can guarantee (upper bound)
+	 * @return        The score of the position from the perspective of the side to move
 	 */
 	private static int alphaBeta(Position pos,
 								 int ply,
@@ -216,12 +216,12 @@ public class Engine implements Types {
 				return 0;
 			}
 		}
-
-		// Enter quiescence search once we reach a leaf node
-		if (ply <= 0) return quiescence(pos, alpha, beta);
 		
 		// Increment node count
 		nodes++;
+		
+		// Enter quiescence search once we reach a leaf node
+		if (ply <= 0) return quiescence(pos, alpha, beta);
 		
 		boolean rootNode = nodeType == NODE_PV && ply - ext == currentDepth;
 		int eval = 0;
@@ -251,7 +251,7 @@ public class Engine implements Types {
 		}
 				
 		// At non-PV nodes check for an early transposition table cutoff.
-		HashtableEntry ttentry = ttable.get(pos.zobrist);
+		HashtableEntry ttentry = ttable.get(pos.key);
 		if (   nodeType != NODE_PV 
 			&& ttentry != null 
 			&& ttentry.depth >= ply) {
@@ -309,7 +309,7 @@ public class Engine implements Types {
 				
 				if (Math.abs(beta) < VALUE_MATE_THRESHOLD) {
 					// Update the transposition table
-					ttable.add(pos.zobrist, null, ply, eval * pos.sideToMove, BOUND_LOWER);	
+					ttable.add(pos.key, null, ply, eval * pos.sideToMove, BOUND_LOWER);	
 					
 					return beta;
 				}
@@ -324,7 +324,7 @@ public class Engine implements Types {
 			// Fail low
 			if (eval <= alpha)
 				eval = alphaBeta(pos, ply - 5, 0, -VALUE_INF, VALUE_INF, nodeType);
-			ttentry = ttable.get(pos.zobrist);
+			ttentry = ttable.get(pos.key);
 		}
 		
 		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
@@ -339,6 +339,9 @@ public class Engine implements Types {
 		
 		// Move loop
 		for (Move move : moveList) {
+			
+			// Prune moves with low priority
+			if (move.priority == PRIORITY_PRUNE) continue;
 
 			pos.makeMove(move);
 			
@@ -417,7 +420,7 @@ public class Engine implements Types {
 					
 					// Update PV hash table at PV nodes
 					if (nodeType == NODE_PV)
-						pvtable.add(pos.zobrist, move.longNotation());
+						pvtable.add(pos.key, move.longNotation());
 					
 					if (eval < beta) alpha = eval; // Update alpha. Always alpha < beta
 					else { // Fail high
@@ -446,12 +449,12 @@ public class Engine implements Types {
 		if (moveCount == 0) return (inCheck ? matedScore(ply - ext) : VALUE_DRAW);
 		
 		// Update the transposition table
-		ttable.add(pos.zobrist,
-				   		bestMove,
-				   		ply,
-				   		bestEval * pos.sideToMove,
-				   		bestEval >= beta ? BOUND_LOWER : 
-				   			bestMove != null ? BOUND_EXACT : BOUND_UPPER);
+		ttable.add(pos.key,
+			   	   bestMove,
+			   	   ply,
+			   	   bestEval * pos.sideToMove,
+			   	   bestEval >= beta ? BOUND_LOWER :
+			   		   bestMove != null ? BOUND_EXACT : BOUND_UPPER);
 		
 		assert(bestEval > -VALUE_INF && bestEval < VALUE_INF);
 		
@@ -476,6 +479,11 @@ public class Engine implements Types {
 		
 		// Loop through all the moves
 		for (Move move : moveList) {
+			
+			assert(move.captured != PIECE_NONE || move.type == PROMOTION);
+			
+			// Prune moves with low priority
+			if (move.priority == PRIORITY_PRUNE) continue;
 			
 			// Delta pruning
 			if (pos.pieceList.size() > 6) {
@@ -510,27 +518,33 @@ public class Engine implements Types {
 	}
 
 	/**
-	 * Sorts the given move list to improve pruning by the alpha-beta search.
+	 * Sorts the given move list in order of most promising move to least promising move,
+	 * in order to improve the efficiency of alpha-beta search.
 	 */
 	private static void sortMoves(Position pos, ArrayList<Move> moveList, HashtableEntry ttentry) {
-		String hashMove = (ttentry != null ? ttentry.move : null);
+		String hashMove = ttentry != null ? ttentry.move : null;
 		
 		// Go through the move list and assign priorities
-		for (Move move : moveList) {		
+		for (Move move : moveList) {
 			if (hashMove != null && move.longNotation().equals(hashMove))
 				move.priority = PRIORITY_HASH_MOVE;
-			else if (move.type == PROMOTION)
-				move.priority = Math.abs(move.piece) == QUEEN ? 
-						PRIORITY_PROMOTION_Q : PRIORITY_PROMOTION_U;
-			else if (move.type == CASTLE_SHORT || move.type == CASTLE_LONG)
-				move.priority = PRIORITY_CASTLING;
-				
-			// MVV/LVA
-			else if (move.captured != PIECE_NONE)
-				move.priority = Math.abs(move.captured) * 10 - Math.abs(move.piece);
-
-			// History heuristic
-			move.historyScore = historyScore[move.piece + 6][move.target];
+			else {
+				if (move.type == PROMOTION) {
+					move.priority = Math.abs(move.captured) * 10;
+					if      (Math.abs(move.piece) == QUEEN)  move.priority += PRIORITY_PROMOTION_Q;
+					else if (Math.abs(move.piece) == KNIGHT) move.priority += PRIORITY_PROMOTION_N;
+					else                                     move.priority  = PRIORITY_PRUNE;
+				}
+				else if (move.type == CASTLE_SHORT || move.type == CASTLE_LONG)
+					move.priority = PRIORITY_CASTLING;
+					
+				// MVV/LVA
+				else if (move.captured != PIECE_NONE)
+					move.priority += Math.abs(move.captured) * 10 - Math.abs(move.piece);
+	
+				// History heuristic
+				move.historyScore = historyScore[move.piece + 6][move.target];
+			}
 		}
 		
 		Collections.sort(moveList);
@@ -627,7 +641,7 @@ public class Engine implements Types {
 	  
 	  // using hash table (node count stored in eval slot)
 	  if (useHash) {
-		  HashtableEntry ttentry = ttable.get(pos.zobrist);
+		  HashtableEntry ttentry = ttable.get(pos.key);
 		  if (ttentry != null && ttentry.depth == depth)
 			  return ttentry.eval;
 	  }
@@ -643,7 +657,7 @@ public class Engine implements Types {
 		  pos.unmakeMove(move);
 	  }
 	  
-	  if (useHash) ttable.add(pos.zobrist, null, depth, nodes, 0);
+	  if (useHash) ttable.add(pos.key, null, depth, nodes, 0);
 	  
 	  return nodes;
 	}

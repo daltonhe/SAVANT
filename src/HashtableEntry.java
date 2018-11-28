@@ -9,38 +9,38 @@ public class HashtableEntry {
 	public String move;  // best move
 	public int depth;    // depth to which the position was evaluated
 	public int eval;     // score of the position
-	public byte type;    // bound type of the eval
-	public byte count;   // number of times this position has been repeated
-	public byte age;     // number of searches ago this entry was from
+	public int type;    // bound type of the eval
+	public int count;   // number of times this position has been repeated
+	public int age;     // number of searches ago this entry was from
 	
-	// memory usage: 56 bytes
+	// memory usage: 68 bytes
 	//
 	// zobrist  64 bit
 	// move     40 byte
-	// depth    8  bit
+	// depth    32 bit
 	// eval     32 bit
-	// type     8  bit
-	// count    8  bit
-	// age      8  bit
+	// type     32 bit
+	// count    32 bit
+	// age      32 bit
 	
 	/**
 	 * Repetition table entry
 	 */
 	public HashtableEntry(long zobrist) {
-		this(zobrist, null, (byte) 0, 0, (byte) 0);
+		this(zobrist, null, 0, 0, 0);
 	}
 	
 	/**
 	 * PV table entry
 	 */
 	public HashtableEntry(long zobrist, String move) {
-		this(zobrist, move, (byte) 0, 0, (byte) 0);
+		this(zobrist, move, 0, 0, 0);
 	}
 
 	/**
 	 * Full transposition table entry
 	 */
-	public HashtableEntry(long zobrist, String move, byte depth, int eval, byte type) {
+	public HashtableEntry(long zobrist, String move, int depth, int eval, int type) {
 		this.zobrist = zobrist;
 		this.move    = move;
 		this.depth   = depth;

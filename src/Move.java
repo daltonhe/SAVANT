@@ -9,9 +9,6 @@ public class Move implements Types, Comparable<Move> {
 	public int target;          // target index of the moving piece
 	public int piece;           // piece type of the moving piece
 	public int captured;        // piece type of the captured piece (0 if none)
-	public int prevCastling;    // castling rights prior to the move being made
-	public int prevEnpassant;   // enpassant square index prior to the move being made
-	public int prevFiftyMoves;  // fifty moves count prior to the move being made
 	public int type;            // type of the move (see Definitions interface)
 	public int priority;        // priority of the move, used for move ordering
 	public int historyScore;    // history heuristic weight, used for move ordering
@@ -20,19 +17,15 @@ public class Move implements Types, Comparable<Move> {
 	/**
 	 * Creates a move with the given parameters.
 	 */
-	public Move(int start, int target, int piece, int captured, int prevCastling,
-				int prevEnpassant, int prevFiftyMoves, int type) {
-		this.start          = start;
-		this.target         = target;
-		this.piece          = piece;
-		this.captured       = captured;
-		this.prevCastling   = prevCastling;
-		this.prevEnpassant  = prevEnpassant;
-		this.prevFiftyMoves = prevFiftyMoves;
-		this.type           = type;
-		this.priority       = 0;
-		this.historyScore   = 0;
-		this.modifier       = "";
+	public Move(int start, int target, int piece, int captured, int type) {
+		this.start        = start;
+		this.target       = target;
+		this.piece        = piece;
+		this.captured     = captured;
+		this.type         = type;
+		this.priority     = 0;
+		this.historyScore = 0;
+		this.modifier     = "";
 	}
 	
 	/**

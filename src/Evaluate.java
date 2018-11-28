@@ -472,7 +472,7 @@ public class Evaluate implements Types {
 				pieces_eg -= kingDist * 3;
 				
 				// Knight mobility
-				squares = mobScan(board, excluded_area_w, index, MOVE_DELTA[KNIGHT], false, "");
+				squares = mobScan(board, excluded_area_w, index, KNIGHT_DELTA, false, "");
 				mob_mg += MOB_MG[KNIGHT][squares];
 				mob_eg += MOB_EG[KNIGHT][squares];
 				break;
@@ -482,7 +482,7 @@ public class Evaluate implements Types {
 				pieces_mg += kingDist * 3;
 				pieces_eg += kingDist * 3;
 				
-				squares = mobScan(board, excluded_area_b, index, MOVE_DELTA[KNIGHT], false, "");
+				squares = mobScan(board, excluded_area_b, index, KNIGHT_DELTA, false, "");
 				mob_mg -= MOB_MG[KNIGHT][squares];
 				mob_eg -= MOB_EG[KNIGHT][squares];
 				break;
@@ -508,7 +508,7 @@ public class Evaluate implements Types {
 				pieces_eg += bishopPawns * (blocked_pawns_w + 1) * BAD_BISHOP_PAWN[EG];
 				
 				// Bishop mobility
-				squares = mobScan(board, excluded_area_w, index, MOVE_DELTA[BISHOP], true, "Qq");
+				squares = mobScan(board, excluded_area_w, index, BISHOP_DELTA, true, "Qq");
 				mob_mg += MOB_MG[BISHOP][squares];
 				mob_eg += MOB_EG[BISHOP][squares];
 				break;
@@ -527,7 +527,7 @@ public class Evaluate implements Types {
 				pieces_mg -= bishopPawns * (blocked_pawns_b + 1) * BAD_BISHOP_PAWN[MG];
 				pieces_eg -= bishopPawns * (blocked_pawns_b + 1) * BAD_BISHOP_PAWN[EG];
 				
-				squares = mobScan(board, excluded_area_b, index, MOVE_DELTA[BISHOP], true, "Qq");
+				squares = mobScan(board, excluded_area_b, index, BISHOP_DELTA, true, "Qq");
 				mob_mg -= MOB_MG[BISHOP][squares];
 				mob_eg -= MOB_EG[BISHOP][squares];
 				break;
@@ -562,7 +562,7 @@ public class Evaluate implements Types {
 						pieces_mg += TRAPPED_ROOK;
 				
 				// Rook mobility
-				squares = mobScan(board, excluded_area_w, index, MOVE_DELTA[ROOK], true, "QqR");
+				squares = mobScan(board, excluded_area_w, index, ROOK_DELTA, true, "QqR");
 				mob_mg += MOB_MG[ROOK][squares];
 				mob_eg += MOB_EG[ROOK][squares];
 				break;
@@ -591,7 +591,7 @@ public class Evaluate implements Types {
 					&& (pos.king_pos_b == SQ_g8 || pos.king_pos_b == SQ_f8))
 						pieces_mg -= TRAPPED_ROOK;
 				
-				squares = mobScan(board, excluded_area_b, index, MOVE_DELTA[ROOK], true, "Qqr");
+				squares = mobScan(board, excluded_area_b, index, ROOK_DELTA, true, "Qqr");
 				mob_mg -= MOB_MG[ROOK][squares];
 				mob_eg -= MOB_EG[ROOK][squares];
 				
@@ -605,7 +605,7 @@ public class Evaluate implements Types {
 				}
 				
 				// Queen mobility
-				squares = mobScan(board, excluded_area_w, index, MOVE_DELTA[QUEEN], true, "");
+				squares = mobScan(board, excluded_area_w, index, QUEEN_DELTA, true, "");
 				mob_mg += MOB_MG[QUEEN][squares];
 				mob_eg += MOB_EG[QUEEN][squares];
 				break;
@@ -616,7 +616,7 @@ public class Evaluate implements Types {
 					pieces_eg -= QUEEN_ON_7TH[EG];
 				}
 				
-				squares = mobScan(board, excluded_area_b, index, MOVE_DELTA[QUEEN], true, "");
+				squares = mobScan(board, excluded_area_b, index, QUEEN_DELTA, true, "");
 				mob_mg -= MOB_MG[QUEEN][squares];
 				mob_eg -= MOB_EG[QUEEN][squares];
 				break;
@@ -666,7 +666,7 @@ public class Evaluate implements Types {
 		double score_eg = mat_eg + psqt_eg + imbal + pawns_eg + pieces_eg + mob_eg;
 
 		// Scale down endgame score for bishops of opposite colors depending on the pawn
-		// asymmetry (total number of unopposed pawns)
+		// asymmetry (total number of unopposed pawns).
 		if (npm_w == BISHOP_MG && npm_b == BISHOP_MG && bishopParity == 1) {
 			int asymmetry = 0;
 			for (int i = 0; i < 8; i++)
@@ -676,10 +676,10 @@ public class Evaluate implements Types {
 			score_eg *= (asymmetry * 0.0625 + 0.125);
 		}
 		
-		// Scale down scores of likely draws due to insufficient material advantage. Draws that
-		// are certain will be caught by a check during search.
+		// Scale down scores of likely draws due to insufficient material advantage. Certain draws
+		// will be caught by a check during search and need not be handled here.
 		if (pawns_w == 0 && pawns_b == 0 && Math.abs(npm_w - npm_b) <= BISHOP_MG)
-			score_eg = VALUE_DRAW;
+			score_eg = score_eg / 64;
 		else {
 			// If one side has no pawns and only a small material advantage, scale down the upper
 			// bound of the eval.

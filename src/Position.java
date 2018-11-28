@@ -2,6 +2,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Scanner;
+import java.util.Stack;
 
 /**
  * 
@@ -26,11 +27,12 @@ public class Position implements Types {
 	public int fiftyMoves; // fifty moves rule half-move clock
 	public int moveNumber; // full-move count
 	
+	public Stack<State> stateHist;      // previous states
+	public long key;                    // zobrist key of the position
 	public List<Integer> pieceList;     // board indices of all pieces
 	public int king_pos_w;              // index of the white king
 	public int king_pos_b;              // index of the black king
-	public long zobrist;                // zobrist key of the position
-	public TranspositionTable reptable; // hash table of previous positions
+	public TranspositionTable reptable; // hash table for detecting repetitions
 	public int nullCount;               // number of null moves made before this position
 	public boolean nullAllowed;         // false if a null move was just made
 	
@@ -87,7 +89,7 @@ public class Position implements Types {
 
 		input.close();
 		Zobrist.initialize();
-		zobrist = Zobrist.getKey(this);
+		key = Zobrist.getKey(this);
 	}
 
 	/**
@@ -100,10 +102,11 @@ public class Position implements Types {
 		enpassant   = SQ_NONE;
 		fiftyMoves  = 0;
 		moveNumber  = 1;
+		stateHist   = new Stack<State>();
+		key         = 0;
+		pieceList   = new LinkedList<Integer>();
 		king_pos_w  = SQ_NONE;
 		king_pos_b  = SQ_NONE;
-		zobrist     = 0;
-		pieceList   = new LinkedList<Integer>();
 		nullCount   = 0;
 		nullAllowed = true;
 		reptable    = new TranspositionTable(HASH_SIZE_REP);
@@ -127,10 +130,13 @@ public class Position implements Types {
 	 * Makes the given move on the board.
 	 */
 	public void makeMove(Move move) {
-		// Save the current position in the repetition hash table
+		saveState();
+		
 		if (nullCount == 0) saveRep();
 		
-		zobrist ^= Zobrist.castling[castling];
+		key ^= Zobrist.castling[castling];
+		
+		fiftyMoves++;
 		
 		if      (move.type == CASTLE_SHORT) castleShort();
 		else if (move.type == CASTLE_LONG)  castleLong();
@@ -142,8 +148,8 @@ public class Position implements Types {
 			if (move.captured == PIECE_NONE || move.type == ENPASSANT)
 				pieceList.add(move.target);
 			
-			zobrist ^= Zobrist.pieces[move.piece + 6][move.target];
-			zobrist ^= Zobrist.pieces[move.type == PROMOTION ? 
+			key ^= Zobrist.pieces[move.piece + 6][move.target];
+			key ^= Zobrist.pieces[move.type == PROMOTION ? 
 					PAWN * sideToMove + 6 : move.piece + 6][move.start];
 			
 			if (move.captured != PIECE_NONE) {
@@ -151,10 +157,10 @@ public class Position implements Types {
 					int captureIndex = move.target + 16 * sideToMove;
 					board[captureIndex] = PIECE_NONE;
 					pieceList.remove((Integer) captureIndex);
-					zobrist ^= Zobrist.pieces[PAWN * -sideToMove + 6][captureIndex];
+					key ^= Zobrist.pieces[PAWN * -sideToMove + 6][captureIndex];
 				}
 				else
-					zobrist ^= Zobrist.pieces[move.captured + 6][move.target];
+					key ^= Zobrist.pieces[move.captured + 6][move.target];
 			}
 			
 			if      (move.piece == W_KING) king_pos_w = move.target;
@@ -163,33 +169,73 @@ public class Position implements Types {
 			updateCastlingRights();
 		}
 		
-		zobrist ^= Zobrist.castling[castling];
+		key ^= Zobrist.castling[castling];
 		
 		if (enpassant != SQ_NONE)
-			zobrist ^= Zobrist.enpassant[enpassant % 16];
+			key ^= Zobrist.enpassant[enpassant % 16];
 		
 		if (move.type == PAWN_TWO) {
 			enpassant = move.target + 16 * sideToMove;
-			zobrist ^= Zobrist.enpassant[enpassant % 16];
+			key ^= Zobrist.enpassant[enpassant % 16];
 		}
 		else
 			enpassant = SQ_NONE;
 		
 		if (sideToMove == BLACK) moveNumber++;
 
-		boolean irreversible = move.captured != PIECE_NONE || Math.abs(move.piece) == PAWN;
-		fiftyMoves = irreversible ? 0 : fiftyMoves + 1; 
+		if (move.captured != PIECE_NONE || move.type == PROMOTION || Math.abs(move.piece) == PAWN)
+			fiftyMoves = 0;
 
 		sideToMove *= -1;
-		zobrist    ^= Zobrist.side;
+		key ^= Zobrist.side;
+	}
+	
+	/**
+	 * Unmakes the given move on the board.
+	 */
+	public void unmakeMove(Move move) {
+		revertState();
+		
+		sideToMove *= -1;
+		
+		if (sideToMove == BLACK) moveNumber--;
+
+		if      (move.type == CASTLE_SHORT) uncastleShort();
+		else if (move.type == CASTLE_LONG)  uncastleLong();
+		else {
+			board[move.start] = move.type == PROMOTION ? PAWN * sideToMove : move.piece;
+
+			pieceList.add(move.start);
+			if (move.captured == PIECE_NONE || move.type == ENPASSANT)
+				pieceList.remove((Integer) move.target);
+			
+			if (move.type == ENPASSANT) {
+				board[move.target] = PIECE_NONE;
+				int captureIndex = move.target + 16 * sideToMove;
+				board[captureIndex] = PAWN * -sideToMove;
+				pieceList.add(captureIndex);
+			}
+			else
+				board[move.target] = move.captured;
+
+			if      (move.piece == W_KING) king_pos_w = move.start;
+			else if (move.piece == B_KING) king_pos_b = move.start;
+		}
+		
+		if (nullCount == 0) deleteRep();
 	}
 	
 	/**
 	 * Makes a null (passing) move.
 	 */
 	public void makeNullMove() {
+		saveState();
 		sideToMove *= -1;
-		zobrist    ^= Zobrist.side;
+		key ^= Zobrist.side;
+		if (enpassant != SQ_NONE) {
+			key ^= Zobrist.enpassant[enpassant % 16];
+			enpassant = SQ_NONE;
+		}
 		nullCount++;
 		nullAllowed = false;
 	}
@@ -198,67 +244,10 @@ public class Position implements Types {
 	 * Unmakes a null (passing) move.
 	 */
 	public void unmakeNullMove() {
+		revertState();
 		sideToMove *= -1;
-		zobrist    ^= Zobrist.side;
 		nullCount--;
 		nullAllowed = true;
-	}
-	
-	/**
-	 * Unmakes the given move on the board.
-	 */
-	public void unmakeMove(Move move) {	
-		sideToMove *= -1;
-		zobrist    ^= Zobrist.side;
-		
-		zobrist  ^= Zobrist.castling[castling];
-		castling  = move.prevCastling;
-		zobrist  ^= Zobrist.castling[castling];
-		
-		if (enpassant != SQ_NONE) zobrist ^= Zobrist.enpassant[enpassant % 16];
-		enpassant = move.prevEnpassant;
-		if (enpassant != SQ_NONE) zobrist ^= Zobrist.enpassant[enpassant % 16];
-		
-		fiftyMoves = move.prevFiftyMoves;
-		
-		if (sideToMove == BLACK) moveNumber--;
-
-		if      (move.type == CASTLE_SHORT) uncastleShort();
-		else if (move.type == CASTLE_LONG)  uncastleLong();
-		else {
-			if (move.type == PROMOTION) {
-				board[move.start] = PAWN * sideToMove;
-				zobrist ^= Zobrist.pieces[PAWN * sideToMove + 6][move.start];
-			}
-			else {
-				board[move.start] = move.piece;
-				zobrist ^= Zobrist.pieces[move.piece + 6][move.start];
-			}
-			
-			pieceList.add(move.start);
-			if (move.captured == PIECE_NONE || move.type == ENPASSANT)
-				pieceList.remove((Integer) move.target);
-			
-			zobrist ^= Zobrist.pieces[move.piece + 6][move.target];
-			if (move.type == ENPASSANT) {
-				board[move.target] = PIECE_NONE;
-				int captureIndex = move.target + 16 * sideToMove;
-				board[captureIndex] = PAWN * -sideToMove;
-				pieceList.add(captureIndex);
-				zobrist ^= Zobrist.pieces[PAWN * -sideToMove + 6][captureIndex];
-			}
-			else {
-				board[move.target] = move.captured;
-				if (move.captured != PIECE_NONE)
-					zobrist ^= Zobrist.pieces[move.captured + 6][move.target];
-			}
-
-			if      (move.piece == W_KING) king_pos_w = move.start;
-			else if (move.piece == B_KING) king_pos_b = move.start;
-		}
-		
-		// Remove the current position from the repetition hash table
-		if (nullCount == 0) deleteRep();
 	}
 	
 	/**
@@ -274,10 +263,7 @@ public class Position implements Types {
 			pieceList.add(SQ_f1);
 			pieceList.add(SQ_g1);
 			pieceList.remove((Integer) SQ_h1);
-			zobrist ^= Zobrist.pieces[W_KING + 6][SQ_e1];
-			zobrist ^= Zobrist.pieces[W_KING + 6][SQ_g1];
-			zobrist ^= Zobrist.pieces[W_ROOK + 6][SQ_f1];
-			zobrist ^= Zobrist.pieces[W_ROOK + 6][SQ_h1];
+			key ^= Zobrist.w_short_castle;
 			king_pos_w = SQ_g1;
 			castling &= ~W_ALL_CASTLING;
 		}
@@ -290,10 +276,7 @@ public class Position implements Types {
 			pieceList.add(SQ_f8);
 			pieceList.add(SQ_g8);
 			pieceList.remove((Integer) SQ_h8);
-			zobrist ^= Zobrist.pieces[B_KING + 6][SQ_e8];
-			zobrist ^= Zobrist.pieces[B_KING + 6][SQ_g8];
-			zobrist ^= Zobrist.pieces[B_ROOK + 6][SQ_f8];
-			zobrist ^= Zobrist.pieces[B_ROOK + 6][SQ_h8];
+			key ^= Zobrist.b_short_castle;
 			king_pos_b = SQ_g8;
 			castling &= ~B_ALL_CASTLING;
 		}
@@ -312,10 +295,7 @@ public class Position implements Types {
 			pieceList.add(SQ_c1);
 			pieceList.add(SQ_d1);
 			pieceList.remove((Integer) SQ_e1);
-			zobrist ^= Zobrist.pieces[W_KING + 6][SQ_e1];
-			zobrist ^= Zobrist.pieces[W_KING + 6][SQ_c1];
-			zobrist ^= Zobrist.pieces[W_ROOK + 6][SQ_a1];
-			zobrist ^= Zobrist.pieces[W_ROOK + 6][SQ_d1];
+			key ^= Zobrist.w_long_castle;
 			king_pos_w = SQ_c1;
 			castling &= ~W_ALL_CASTLING;
 		}
@@ -328,10 +308,7 @@ public class Position implements Types {
 			pieceList.add(SQ_c8);
 			pieceList.add(SQ_d8);
 			pieceList.remove((Integer) SQ_e8);
-			zobrist ^= Zobrist.pieces[B_KING + 6][SQ_e8];
-			zobrist ^= Zobrist.pieces[B_KING + 6][SQ_c8];
-			zobrist ^= Zobrist.pieces[B_ROOK + 6][SQ_a8];
-			zobrist ^= Zobrist.pieces[B_ROOK + 6][SQ_d8];
+			key ^= Zobrist.b_long_castle;
 			king_pos_b = SQ_c8;
 			castling &= ~B_ALL_CASTLING;
 		}
@@ -350,10 +327,6 @@ public class Position implements Types {
 			pieceList.remove((Integer) SQ_f1);
 			pieceList.remove((Integer) SQ_g1);
 			pieceList.add(SQ_h1);
-			zobrist ^= Zobrist.pieces[W_KING + 6][SQ_e1];
-			zobrist ^= Zobrist.pieces[W_KING + 6][SQ_g1];
-			zobrist ^= Zobrist.pieces[W_ROOK + 6][SQ_f1];
-			zobrist ^= Zobrist.pieces[W_ROOK + 6][SQ_h1];
 			king_pos_w = SQ_e1;
 		}
 		else {
@@ -365,10 +338,6 @@ public class Position implements Types {
 			pieceList.remove((Integer) SQ_f8);
 			pieceList.remove((Integer) SQ_g8);
 			pieceList.add(SQ_h8);
-			zobrist ^= Zobrist.pieces[B_KING + 6][SQ_e8];
-			zobrist ^= Zobrist.pieces[B_KING + 6][SQ_g8];
-			zobrist ^= Zobrist.pieces[B_ROOK + 6][SQ_f8];
-			zobrist ^= Zobrist.pieces[B_ROOK + 6][SQ_h8];
 			king_pos_b = SQ_e8;
 		}
 	}
@@ -386,10 +355,6 @@ public class Position implements Types {
 			pieceList.remove((Integer) SQ_c1);
 			pieceList.remove((Integer) SQ_d1);
 			pieceList.add(SQ_e1);
-			zobrist ^= Zobrist.pieces[W_KING + 6][SQ_e1];
-			zobrist ^= Zobrist.pieces[W_KING + 6][SQ_c1];
-			zobrist ^= Zobrist.pieces[W_ROOK + 6][SQ_a1];
-			zobrist ^= Zobrist.pieces[W_ROOK + 6][SQ_d1];
 			king_pos_w = SQ_e1;
 		}
 		else {
@@ -401,10 +366,6 @@ public class Position implements Types {
 			pieceList.remove((Integer) SQ_c8);
 			pieceList.remove((Integer) SQ_d8);
 			pieceList.add(SQ_e8);
-			zobrist ^= Zobrist.pieces[B_KING + 6][SQ_e8];
-			zobrist ^= Zobrist.pieces[B_KING + 6][SQ_c8];
-			zobrist ^= Zobrist.pieces[B_ROOK + 6][SQ_a8];
-			zobrist ^= Zobrist.pieces[B_ROOK + 6][SQ_d8];
 			king_pos_b = SQ_e8;
 		}
 	}
@@ -415,12 +376,13 @@ public class Position implements Types {
 	 */
 	public void updateCastlingRights() {
 		if (castling == 0) return;
-		
+
 		if (board[SQ_e1] != W_KING) castling &= ~W_ALL_CASTLING;
 		else {
 			if (board[SQ_h1] != W_ROOK) castling &= ~W_SHORT_CASTLE;
 			if (board[SQ_a1] != W_ROOK) castling &= ~W_LONG_CASTLE;
 		}
+
 		if (board[SQ_e8] != B_KING) castling &= ~B_ALL_CASTLING;
 		else {
 			if (board[SQ_h8] != B_ROOK) castling &= ~B_SHORT_CASTLE;
@@ -429,14 +391,211 @@ public class Position implements Types {
 	}
 	
 	/**
+	 * Returns a list of all pseudolegal moves (moves that follow the basic rules but may leave
+	 * the king in check) that can be made from this position.
+	 * @param qs - {@code true} if generating moves for quiescence search, false otherwise
+	 * @return     List of pseudolegal moves
+	 */
+	public ArrayList<Move> generateMoves(boolean skipQuiets) {
+		ArrayList<Move> moveList = new ArrayList<Move>();
+		
+		for (int index : pieceList) {
+			int piece = board[index] * sideToMove;
+			if (piece < 0) continue;
+
+			switch (piece) {
+			case PAWN:
+				genPawnMoves(index, skipQuiets, moveList);
+				break;
+				
+			case KNIGHT:
+				genPieceMoves(index, KNIGHT_DELTA, false, skipQuiets, moveList);
+				break;
+				
+			case BISHOP:
+				genPieceMoves(index, BISHOP_DELTA, true, skipQuiets, moveList);
+				break;
+			
+			case ROOK:
+				genPieceMoves(index, ROOK_DELTA, true, skipQuiets, moveList);
+				break;
+				
+			case QUEEN:
+				genPieceMoves(index, QUEEN_DELTA, true, skipQuiets, moveList);
+				break;
+				
+			case KING:
+				if (!skipQuiets && castling != 0) genCastling(index, moveList);
+				genPieceMoves(index, KING_DELTA, false, skipQuiets, moveList);
+				break;
+			}
+		}
+		return moveList;
+	}
+	
+	/**
+	 * Returns a list of all legal moves that can be made from this position.
+	 */
+	public ArrayList<Move> generateLegalMoves() {
+		ArrayList<Move> legalMoves = new ArrayList<Move>();
+		ArrayList<Move> moveList = generateMoves(false);
+		for (Move move : moveList) {
+			makeMove(move);
+			if (!inCheck(-sideToMove)) legalMoves.add(move);
+			unmakeMove(move);
+		}
+		return legalMoves;
+	}
+	
+	/**
+	 * Adds all pseudolegal pawn moves to the move list.
+	 */
+	public void genPawnMoves(int start, boolean qs, ArrayList<Move> moveList) {
+		for (int i = 0; i < 3; i++) {
+			int target = start + PAWN_DELTA[i] * sideToMove;
+			if (!isLegalIndex(target)) continue;
+
+			if (   (i == 0 && board[target] == PIECE_NONE) 
+				|| (i != 0 && board[target] * sideToMove < 0)) {
+				// promotion
+				if (target <= SQ_h8 || target >= SQ_a1) {
+					moveList.add(new Move(start, target, QUEEN  * sideToMove, board[target], PROMOTION));
+					moveList.add(new Move(start, target, KNIGHT * sideToMove, board[target], PROMOTION));
+					moveList.add(new Move(start, target, ROOK   * sideToMove, board[target], PROMOTION));
+					moveList.add(new Move(start, target, BISHOP * sideToMove, board[target], PROMOTION));
+				}
+				// push or capture
+				else if (!qs || board[target] != PIECE_NONE)
+					moveList.add(new Move(start, target, PAWN * sideToMove, board[target], NORMAL));
+			} 
+			
+			// enpassant
+			if (i != 0 && target == enpassant)
+				moveList.add(new Move(start, enpassant, PAWN * sideToMove, PAWN * -sideToMove, ENPASSANT));
+			
+			// push two squares
+			if (   !qs && i == 0 && ((sideToMove == WHITE && start / 16 == 6)
+			    || sideToMove == BLACK && start / 16 == 1))
+				if (board[target] == PIECE_NONE && board[target - 16 * sideToMove] == PIECE_NONE)
+					moveList.add(new Move(start, target - 16 * sideToMove, PAWN * sideToMove, PIECE_NONE,  PAWN_TWO));
+		}
+	}
+	
+	/**
+	 * Adds all legal castling moves to the move list.
+	 */
+	public void genCastling(int start, ArrayList<Move> moveList) {
+		if (sideToMove == WHITE) {
+			if (   canCastle(W_SHORT_CASTLE)
+				&& board[SQ_f1] == PIECE_NONE 
+				&& board[SQ_g1] == PIECE_NONE
+			    && !isAttacked(SQ_e1, BLACK) 
+			    && !isAttacked(SQ_f1, BLACK))
+				moveList.add(new Move(SQ_e1, SQ_g1, W_KING, PIECE_NONE, CASTLE_SHORT));
+
+			if (   canCastle(W_LONG_CASTLE)
+				&& board[SQ_d1] == PIECE_NONE 
+				&& board[SQ_c1] == PIECE_NONE
+				&& board[SQ_b1] == PIECE_NONE
+				&& !isAttacked(SQ_e1, BLACK) 
+				&& !isAttacked(SQ_d1, BLACK))
+				moveList.add(new Move(SQ_e1, SQ_c1, W_KING, PIECE_NONE, CASTLE_LONG));
+		}
+		else {
+			if (   canCastle(B_SHORT_CASTLE)
+				&& board[SQ_f8] == PIECE_NONE 
+				&& board[SQ_g8] == PIECE_NONE
+				&& !isAttacked(SQ_e8, WHITE) 
+				&& !isAttacked(SQ_f8, WHITE))
+				moveList.add(new Move(SQ_e8, SQ_g8, B_KING, PIECE_NONE, CASTLE_SHORT));
+			
+			if (   canCastle(B_LONG_CASTLE)
+				&& board[SQ_d8] == PIECE_NONE 
+				&& board[SQ_c8] == PIECE_NONE 
+				&& board[SQ_b8] == PIECE_NONE 
+				&& !isAttacked(SQ_e8, WHITE) 
+				&& !isAttacked(SQ_d8, WHITE))
+				moveList.add(new Move(SQ_e8, SQ_c8, B_KING, PIECE_NONE, CASTLE_LONG));
+		}
+	}
+	
+	/**
+	 * Generates moves using piece deltas and adds them to the move list.
+	 * @param start    - Index of piece
+	 * @param delta    - Piece delta for calculating target indices
+	 * @param slider   - {@code true} if the piece is a bishop, rook, or queen
+	 * @param qs       - {@code true} if only captures should be generated
+	 * @param moveList - The list of moves
+	 */
+	public void genPieceMoves(int start, int[] delta, boolean slider, boolean qs, 
+							  ArrayList<Move> moveList) {
+		for (int i = 0; i < delta.length; i++) {
+			int target = start + delta[i];
+			while (isLegalIndex(target)) {
+				int captured = board[target];
+				if (captured * sideToMove > 0) break;
+				if (!qs || captured != PIECE_NONE)
+					moveList.add(new Move(start, target, board[start], captured, NORMAL));
+
+				if (!slider || captured != PIECE_NONE) break;
+
+				target += delta[i];
+			}
+		}
+	}
+	
+	/**
+	 * Returns whether the given index is attacked by the given side.
+	 */
+	public boolean isAttacked(int index, int side) {
+		
+		if (side == WHITE) {
+			if (isLegalIndex(index + 15) && board[index + 15] == W_PAWN) return true;
+			if (isLegalIndex(index + 17) && board[index + 17] == W_PAWN) return true;
+		}
+		else {
+			if (isLegalIndex(index - 17) && board[index - 17] == B_PAWN) return true;
+			if (isLegalIndex(index - 15) && board[index - 15] == B_PAWN) return true;
+		}
+
+		if (attackScan(index, KING_DELTA,   side == WHITE ? "K"  : "k",  false)) return true;
+		if (attackScan(index, KNIGHT_DELTA, side == WHITE ? "N"  : "n",  false)) return true;
+		if (attackScan(index, BISHOP_DELTA, side == WHITE ? "BQ" : "bq", true))  return true;
+		if (attackScan(index, ROOK_DELTA,   side == WHITE ? "RQ" : "rq", true))  return true;
+		
+		return false;
+	}
+	
+	/**
+	 * Scans the given piece delta for an attacker and returns whether one was found.
+	 */
+	public boolean attackScan(int start, int[] delta, String attackers, boolean slider) {	
+		for (int i = 0; i < delta.length; i++) {
+			int target = start + delta[i];
+			while (isLegalIndex(target)) {
+				int captured = board[target];
+				if (captured != PIECE_NONE) {
+					char piece = PIECE_STR.charAt(captured + 6);
+					if (attackers.indexOf(piece) != -1) return true;
+				}
+				
+				if (!slider || captured != PIECE_NONE) break;
+
+				target += delta[i];
+			}
+		}
+		return false;
+	}
+	
+	/**
 	 * Returns the parity-corrected zobrist key for use in repetition detection.
 	 */
 	public long repKey() {
-		long rzobrist = zobrist;
-		if (sideToMove == BLACK)  rzobrist ^= Zobrist.side;
-		if (enpassant != SQ_NONE) rzobrist ^= Zobrist.enpassant[enpassant % 16];
-		rzobrist ^= Zobrist.castling[castling];
-		return rzobrist;
+		long rkey = key;
+		if (sideToMove == BLACK)  rkey ^= Zobrist.side;
+		if (enpassant != SQ_NONE) rkey ^= Zobrist.enpassant[enpassant % 16];
+		rkey ^= Zobrist.castling[castling];
+		return rkey;
 	}
 	
 	/**
@@ -469,206 +628,10 @@ public class Position implements Types {
 	}
 	
 	/**
-	 * Returns a list of all pseudolegal moves that can be made from this position (moves may
-	 * leave the king in check).
-	 * @param qs - True if generating moves for quiescence search, false otherwise
-	 * @return     List of pseudolegal moves
-	 */
-	public ArrayList<Move> generateMoves(boolean skipQuiets) {
-		ArrayList<Move> moveList = new ArrayList<Move>();
-		boolean[] isSlider = {false, false, false, true, true, true, false};
-		
-		for (int index : pieceList) {
-			int piece = board[index] * sideToMove;
-
-			switch (piece) {
-			case PAWN:
-				genPawnMoves(index, skipQuiets, moveList);
-				break;
-				
-			case KING:
-				if (!skipQuiets && castling != 0)
-					genCastling(index, moveList);
-			case KNIGHT:
-			case BISHOP:
-			case ROOK:
-			case QUEEN:
-				genPieceMoves(index, MOVE_DELTA[piece], isSlider[piece], skipQuiets, moveList);
-				break;
-			}
-		}
-		return moveList;
-	}
-	
-	/**
-	 * Returns a list of all legal moves that can be made from this position.
-	 */
-	public ArrayList<Move> generateLegalMoves() {
-		ArrayList<Move> legalMoves = new ArrayList<Move>();
-		ArrayList<Move> moveList = generateMoves(false);
-		for (Move move : moveList) {
-			makeMove(move);
-			if (!inCheck(-sideToMove)) legalMoves.add(move);
-			unmakeMove(move);
-		}
-		return legalMoves;
-	}
-	
-	/**
-	 * Adds all pseudolegal pawn moves to the move list.
-	 */
-	public void genPawnMoves(int start, boolean qs, ArrayList<Move> moveList) {
-		for (int i = 0; i < MOVE_DELTA[PAWN].length; i++) {
-			int target = start + MOVE_DELTA[PAWN][i] * sideToMove;
-			if (!isLegalIndex(target)) continue;
-
-			if (   (i == 1 && board[target] == PIECE_NONE) 
-				|| (i != 1 && board[target] * sideToMove < 0)) {
-				// promotion
-				if (target <= SQ_h8 || target >= SQ_a1) {
-					moveList.add(new Move(start, target, QUEEN * sideToMove, board[target],
-							castling, enpassant, fiftyMoves, PROMOTION));
-					moveList.add(new Move(start, target, ROOK * sideToMove, board[target],
-							castling, enpassant, fiftyMoves, PROMOTION));
-					moveList.add(new Move(start, target, BISHOP * sideToMove, board[target],
-							castling, enpassant, fiftyMoves, PROMOTION));
-					moveList.add(new Move(start, target, KNIGHT * sideToMove, board[target],
-							castling, enpassant, fiftyMoves, PROMOTION));
-				}
-				// push or capture
-				else if (!qs || board[target] != PIECE_NONE || target <= SQ_h7 || target >= SQ_a2)
-					moveList.add(new Move(start, target, PAWN * sideToMove, board[target],
-							castling, enpassant, fiftyMoves, NORMAL));
-			} 
-			
-			// enpassant
-			if (nullAllowed && i != 1 && target == enpassant)
-				moveList.add(new Move(start, enpassant, PAWN * sideToMove, PAWN * -sideToMove,
-						castling, enpassant, fiftyMoves, ENPASSANT));
-			
-			// push two squares
-			if (   !qs && i == 1 && ((sideToMove == WHITE && start / 16 == 6)
-			    || sideToMove == BLACK && start / 16 == 1))
-				if (board[target] == PIECE_NONE && board[target - 16 * sideToMove] == PIECE_NONE)
-					moveList.add(new Move(start, target - 16 * sideToMove, PAWN * sideToMove, 
-							PIECE_NONE, castling, enpassant, fiftyMoves, PAWN_TWO));
-		}
-	}
-	
-	/**
-	 * Adds all legal castling moves to the move list.
-	 */
-	public void genCastling(int start, ArrayList<Move> moveList) {
-		if (sideToMove == WHITE) {
-			if (   canCastle(W_SHORT_CASTLE)
-				&& board[SQ_f1] == PIECE_NONE 
-				&& board[SQ_g1] == PIECE_NONE
-			    && !isAttacked(SQ_e1, BLACK) 
-			    && !isAttacked(SQ_f1, BLACK))
-				moveList.add(new Move(SQ_e1, SQ_g1, W_KING, PIECE_NONE, 
-						castling, enpassant, fiftyMoves, CASTLE_SHORT));
-			
-			if (   canCastle(W_LONG_CASTLE)
-				&& board[SQ_d1] == PIECE_NONE 
-				&& board[SQ_c1] == PIECE_NONE 
-				&& board[SQ_b1] == PIECE_NONE
-				&& !isAttacked(SQ_e1, BLACK) 
-				&& !isAttacked(SQ_d1, BLACK))
-				moveList.add(new Move(SQ_e1, SQ_c1, W_KING, PIECE_NONE, 
-						castling, enpassant, fiftyMoves, CASTLE_LONG));
-		}
-		else {
-			if (   canCastle(B_SHORT_CASTLE)
-				&& board[SQ_f8] == PIECE_NONE 
-				&& board[SQ_g8] == PIECE_NONE
-				&& !isAttacked(SQ_e8, WHITE) 
-				&& !isAttacked(SQ_f8, WHITE))
-				moveList.add(new Move(SQ_e8, SQ_g8, B_KING, PIECE_NONE, 
-						castling, enpassant, fiftyMoves, CASTLE_SHORT));
-			
-			if (   canCastle(B_LONG_CASTLE)
-				&& board[SQ_d8] == PIECE_NONE 
-				&& board[SQ_c8] == PIECE_NONE 
-				&& board[SQ_b8] == PIECE_NONE 
-				&& !isAttacked(SQ_e8, WHITE) 
-				&& !isAttacked(SQ_d8, WHITE))
-				moveList.add(new Move(SQ_e8, SQ_c8, B_KING, PIECE_NONE, 
-						castling, enpassant, fiftyMoves, CASTLE_LONG));
-		}
-	}
-	
-	/**
-	 * Generates moves using piece deltas and adds them to the move list.
-	 * @param start    - Index of piece
-	 * @param delta    - Piece delta for calculating target indices
-	 * @param slider   - True if the piece is a bishop, rook, or queen
-	 * @param qs       - True if only captures should be generated
-	 * @param moveList - The list of moves
-	 */
-	public void genPieceMoves(int start, int[] delta, boolean slider, boolean qs, 
-							  ArrayList<Move> moveList) {
-		for (int i = 0; i < delta.length; i++) {
-			int target = start + delta[i];
-			while (isLegalIndex(target) && board[target] * sideToMove <= 0) {
-				int captured = board[target];
-				if (!qs || captured != PIECE_NONE)
-					moveList.add(new Move(start, target, board[start], captured, 
-							castling, enpassant, fiftyMoves, NORMAL));
-
-				if (!slider || captured != PIECE_NONE) break;
-
-				target += delta[i];
-			}
-		}
-	}
-	
-	/**
-	 * Returns whether the given index is attacked by the given side.
-	 */
-	public boolean isAttacked(int index, int side) {
-		
-		if (side == WHITE) {
-			if (isLegalIndex(index + 15) && board[index + 15] == W_PAWN) return true;
-			if (isLegalIndex(index + 17) && board[index + 17] == W_PAWN) return true;
-		}
-		else {
-			if (isLegalIndex(index - 17) && board[index - 17] == B_PAWN) return true;
-			if (isLegalIndex(index - 15) && board[index - 15] == B_PAWN) return true;
-		}
-
-		if (attackScan(index, MOVE_DELTA[KNIGHT], side == WHITE ? "N"  : "n",  false)) return true;
-		if (attackScan(index, MOVE_DELTA[BISHOP], side == WHITE ? "BQ" : "bq", true))  return true;
-		if (attackScan(index, MOVE_DELTA[ROOK],   side == WHITE ? "RQ" : "rq", true))  return true;
-		if (attackScan(index, MOVE_DELTA[KING],   side == WHITE ? "K"  : "k",  false)) return true;
-
-		return false;
-	}
-	
-	/**
-	 * Scans the given piece delta for an attacker and returns whether one was found.
-	 */
-	public boolean attackScan(int start, int[] delta, String attackers, boolean slider) {	
-		for (int i = 0; i < delta.length; i++) {
-			int target = start + delta[i];
-			while (isLegalIndex(target)) {
-				int captured = board[target];
-				if (captured != PIECE_NONE) {
-					char piece = PIECE_STR.charAt(captured + 6);
-					if (attackers.indexOf(piece) != -1) return true;
-				}
-				
-				if (!slider || captured != PIECE_NONE) break;
-
-				target += delta[i];
-			}
-		}
-		return false;
-	}
-	
-	/**
 	 * Returns whether the given side has any pieces left (NBRQ).
 	 */
 	public boolean isPawnEnding(int side) {
+		if (pieceList.size() > 18) return false;
 		for (int index : pieceList) {
 			int piece = board[index] * side;
 			if (piece > 0 && piece != PAWN && piece != KING) return false;
@@ -687,7 +650,7 @@ public class Position implements Types {
 	/**
 	 * Returns whether the position is a three-fold repetition.
 	 */
-	public boolean threefoldRep() {
+	public boolean isThreefoldRep() {
 		HashtableEntry rentry = reptable.get(repKey());
 		return rentry != null && rentry.count >= 3;
 	}
@@ -793,10 +756,48 @@ public class Position implements Types {
 		return result;
 	}
 	
+	/**
+	 * Stores information needed to restore a Position object to its previous state after we
+	 * unmake a move. Whenever a move is made on the board by calling makeMove() or makeNullMove(), 
+	 * a State object must be pushed to the stateHist stack.
+	 */
+	private class State {
+		long key;
+		int  castling;
+		int  enpassant;
+		int  fiftyMoves;
+		
+		public State(long key, int castling, int enpassant, int fiftyMoves) {
+			this.key        = key;
+			this.castling   = castling;
+			this.enpassant  = enpassant;
+			this.fiftyMoves = fiftyMoves;
+		}
+	}
+	
+	/**
+	 * Pushes a State object for the current position to the stateHist stack.
+	 */
+	private void saveState() {
+		stateHist.push(new State(key, castling, enpassant, fiftyMoves));
+	}
+	
+	/**
+	 * Pop the last State off the stateHist stack and use to revert the position.
+	 */
+	private void revertState() {
+		State prev = stateHist.pop();
+		key        = prev.key;
+		castling   = prev.castling;
+		enpassant  = prev.enpassant;
+		fiftyMoves = prev.fiftyMoves;
+		
+	}
+	
 	/* HELPERS */
 	
 	/**
-	 * Returns true if index corresponds to a square on the board.
+	 * Returns {@code true} if index corresponds to a square on the board.
 	 */
 	public static boolean isLegalIndex(int index) {
 		return (index & 0x88) == 0;
@@ -817,8 +818,7 @@ public class Position implements Types {
 		if (coord.length() != 2) return SQ_NONE;
 		
 		coord = coord.toLowerCase();
-		int index = 16 * (8 - Character.getNumericValue(coord.charAt(1))) + 
-				"abcdefgh".indexOf(coord.charAt(0));
+		int index = 16 * (8 - coord.charAt(1)) + "abcdefgh".indexOf(coord.charAt(0));
 		if (!isLegalIndex(index)) return SQ_NONE;
 		
 		return index;

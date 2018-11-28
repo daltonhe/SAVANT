@@ -25,6 +25,8 @@ public class Savant implements Types {
 	// TODO: piece lists index board
 	// TODO: rook on pawn bonus
 	// TODO: contempt
+	// TODO: eval debug
+	// TODO: in-check special move gen
 
 	public static Position pos;
 	public static String movesString;
@@ -77,7 +79,7 @@ public class Savant implements Types {
 		
 		// Game loop
 		while (true) {
-			
+
 			// Check for mate/stalemate
 			if (pos.generateLegalMoves().isEmpty()) {
 				if (pos.inCheck(pos.sideToMove))
@@ -96,8 +98,9 @@ public class Savant implements Types {
 				gameOverMsg = "Game drawn by 50 moves rule.";
 			
 			// Check for draw by three-fold repetition
-			if (pos.threefoldRep())
+			if (pos.isThreefoldRep()) {
 				gameOverMsg = "Game drawn by threefold repetition.";
+			}
 				
 			if (!gameOverMsg.isEmpty()) break;
 			
