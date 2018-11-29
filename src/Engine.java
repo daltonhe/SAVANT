@@ -87,7 +87,7 @@ public class Engine implements Types {
 			// For later depths, try an aspirated search with a window around the previous
 			// iteration's eval.
 			else {
-				int delta = INITIAL_WINDOW_SIZE;
+				int delta = INITIAL_WINDOW;
 				int alpha = Math.max(eval - delta, -VALUE_INF);
 				int beta  = Math.min(eval + delta, VALUE_INF);
 				
@@ -441,8 +441,7 @@ public class Engine implements Types {
 				}	
 			}
 
-			if (nodeType == NODE_CUT)
-				nodeType = NODE_ALL;
+			if (nodeType == NODE_CUT) nodeType = NODE_ALL;
 		}
 		
 		// No legal moves were found: return mate/stalemate score
@@ -530,10 +529,12 @@ public class Engine implements Types {
 				move.priority = PRIORITY_HASH_MOVE;
 			else {
 				if (move.type == PROMOTION) {
-					move.priority = Math.abs(move.captured) * 10;
-					if      (Math.abs(move.piece) == QUEEN)  move.priority += PRIORITY_PROMOTION_Q;
-					else if (Math.abs(move.piece) == KNIGHT) move.priority += PRIORITY_PROMOTION_N;
-					else                                     move.priority  = PRIORITY_PRUNE;
+					if (Math.abs(move.piece) == QUEEN)
+						move.priority = PRIORITY_PROMOTION_Q + Math.abs(move.captured);
+					else if (Math.abs(move.piece) == KNIGHT)
+						move.priority = PRIORITY_PROMOTION_N;
+					else
+						move.priority = PRIORITY_PRUNE;
 				}
 				else if (move.type == CASTLE_SHORT || move.type == CASTLE_LONG)
 					move.priority = PRIORITY_CASTLING;

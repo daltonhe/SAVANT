@@ -79,8 +79,8 @@ public class Evaluate implements Types {
 					excluded_area_w[index] = true;
 				mat_mg  += PAWN_MG;
 				mat_eg  += PAWN_EG;
-				psqt_mg += PSQT_MG[PAWN][rank][file];
-				psqt_eg += PSQT_EG[PAWN][rank][file];
+				psqt_mg += PAWN_PSQT_MG[rank][file];
+				psqt_eg += PAWN_PSQT_EG[rank][file];
 				break;
 				
 			case B_PAWN:
@@ -96,8 +96,8 @@ public class Evaluate implements Types {
 					excluded_area_b[index] = true;
 				mat_mg  -= PAWN_MG;
 				mat_eg  -= PAWN_EG;
-				psqt_mg -= PSQT_MG[PAWN][7 - rank][file];
-				psqt_eg -= PSQT_EG[PAWN][7 - rank][file];
+				psqt_mg -= PAWN_PSQT_MG[7 - rank][file];
+				psqt_eg -= PAWN_PSQT_EG[7 - rank][file];
 				break;
 				
 			case W_KNIGHT:
@@ -106,8 +106,8 @@ public class Evaluate implements Types {
 				mat_eg  += KNIGHT_EG;
 				npm_w   += KNIGHT_MG;
 				phase   += PHASE_WT_MINOR;
-				psqt_mg += PSQT_MG[KNIGHT][rank][file];
-				psqt_eg += PSQT_EG[KNIGHT][rank][file];
+				psqt_mg += KNIGHT_PSQT_MG[rank][file];
+				psqt_eg += KNIGHT_PSQT_EG[rank][file];
 				break;
 				
 			case B_KNIGHT:
@@ -116,8 +116,8 @@ public class Evaluate implements Types {
 				mat_eg  -= KNIGHT_EG;
 				npm_b   += KNIGHT_MG;
 				phase   += PHASE_WT_MINOR;
-				psqt_mg -= PSQT_MG[KNIGHT][7 - rank][file];
-				psqt_eg -= PSQT_EG[KNIGHT][7 - rank][file];
+				psqt_mg -= KNIGHT_PSQT_MG[7 - rank][file];
+				psqt_eg -= KNIGHT_PSQT_EG[7 - rank][file];
 				break;
 				
 			case W_BISHOP:
@@ -127,8 +127,8 @@ public class Evaluate implements Types {
 				mat_eg  += BISHOP_EG;
 				npm_w   += BISHOP_MG;
 				phase   += PHASE_WT_MINOR;
-				psqt_mg += PSQT_MG[BISHOP][rank][file];
-				psqt_eg += PSQT_EG[BISHOP][rank][file];
+				psqt_mg += BISHOP_PSQT_MG[rank][file];
+				psqt_eg += BISHOP_PSQT_EG[rank][file];
 				break;
 				
 			case B_BISHOP:
@@ -138,8 +138,8 @@ public class Evaluate implements Types {
 				mat_eg  -= BISHOP_EG;
 				npm_b   += BISHOP_MG;
 				phase   += PHASE_WT_MINOR;
-				psqt_mg -= PSQT_MG[BISHOP][7 - rank][file];
-				psqt_eg -= PSQT_EG[BISHOP][7 - rank][file];
+				psqt_mg -= BISHOP_PSQT_MG[7 - rank][file];
+				psqt_eg -= BISHOP_PSQT_EG[7 - rank][file];
 				break;
 				
 			case W_ROOK:
@@ -148,8 +148,8 @@ public class Evaluate implements Types {
 				mat_eg  += ROOK_EG;
 				npm_w   += ROOK_MG;
 				phase   += PHASE_WT_ROOK;
-				psqt_mg += PSQT_MG[ROOK][rank][file];
-				psqt_eg += PSQT_EG[ROOK][rank][file];
+				psqt_mg += ROOK_PSQT_MG[rank][file];
+				psqt_eg += ROOK_PSQT_EG[rank][file];
 				break;
 				
 			case B_ROOK:
@@ -158,8 +158,8 @@ public class Evaluate implements Types {
 				mat_eg  -= ROOK_EG;
 				npm_b   += ROOK_MG;
 				phase   += PHASE_WT_ROOK;
-				psqt_mg -= PSQT_MG[ROOK][7 - rank][file];
-				psqt_eg -= PSQT_EG[ROOK][7 - rank][file];
+				psqt_mg -= ROOK_PSQT_MG[7 - rank][file];
+				psqt_eg -= ROOK_PSQT_EG[7 - rank][file];
 				break;
 				
 			case W_QUEEN:
@@ -169,8 +169,8 @@ public class Evaluate implements Types {
 				mat_eg  += QUEEN_EG;
 				npm_w   += QUEEN_MG;
 				phase   += PHASE_WT_QUEEN;
-				psqt_mg += PSQT_MG[QUEEN][rank][file];
-				psqt_eg += PSQT_EG[QUEEN][rank][file];
+				psqt_mg += QUEEN_PSQT_MG[rank][file];
+				psqt_eg += QUEEN_PSQT_EG[rank][file];
 				break;
 				
 			case B_QUEEN:
@@ -180,20 +180,20 @@ public class Evaluate implements Types {
 				mat_eg  -= QUEEN_EG;
 				npm_b   += QUEEN_MG;
 				phase   += PHASE_WT_QUEEN;
-				psqt_mg -= PSQT_MG[QUEEN][7 - rank][file];
-				psqt_eg -= PSQT_EG[QUEEN][7 - rank][file];
+				psqt_mg -= QUEEN_PSQT_MG[7 - rank][file];
+				psqt_eg -= QUEEN_PSQT_EG[7 - rank][file];
 				break;
 			
 			case W_KING:
 				excluded_area_w[index] = true;
-				psqt_mg += PSQT_MG[KING][rank][file];
-				psqt_eg += PSQT_EG[KING][rank][file];
+				psqt_mg += KING_PSQT_MG[rank][file];
+				psqt_eg += KING_PSQT_EG[rank][file];
 				break;
 			
 			case B_KING:
 				excluded_area_b[index] = true;
-				psqt_mg -= PSQT_MG[KING][7 - rank][file];
-				psqt_eg -= PSQT_EG[KING][7 - rank][file];
+				psqt_mg -= KING_PSQT_MG[7 - rank][file];
+				psqt_eg -= KING_PSQT_EG[7 - rank][file];
 				break;
 			}
 		}
@@ -473,8 +473,8 @@ public class Evaluate implements Types {
 				
 				// Knight mobility
 				squares = mobScan(board, excluded_area_w, index, KNIGHT_DELTA, false, "");
-				mob_mg += MOB_MG[KNIGHT][squares];
-				mob_eg += MOB_EG[KNIGHT][squares];
+				mob_mg += KNIGHT_MOB_MG[squares];
+				mob_eg += KNIGHT_MOB_EG[squares];
 				break;
 				
 			case B_KNIGHT:
@@ -483,8 +483,8 @@ public class Evaluate implements Types {
 				pieces_eg += kingDist * 3;
 				
 				squares = mobScan(board, excluded_area_b, index, KNIGHT_DELTA, false, "");
-				mob_mg -= MOB_MG[KNIGHT][squares];
-				mob_eg -= MOB_EG[KNIGHT][squares];
+				mob_mg -= KNIGHT_MOB_MG[squares];
+				mob_eg -= KNIGHT_MOB_EG[squares];
 				break;
 				
 			case W_BISHOP:
@@ -509,8 +509,8 @@ public class Evaluate implements Types {
 				
 				// Bishop mobility
 				squares = mobScan(board, excluded_area_w, index, BISHOP_DELTA, true, "Qq");
-				mob_mg += MOB_MG[BISHOP][squares];
-				mob_eg += MOB_EG[BISHOP][squares];
+				mob_mg += BISHOP_MOB_MG[squares];
+				mob_eg += BISHOP_MOB_EG[squares];
 				break;
 				
 			case B_BISHOP:
@@ -528,8 +528,8 @@ public class Evaluate implements Types {
 				pieces_eg -= bishopPawns * (blocked_pawns_b + 1) * BAD_BISHOP_PAWN[EG];
 				
 				squares = mobScan(board, excluded_area_b, index, BISHOP_DELTA, true, "Qq");
-				mob_mg -= MOB_MG[BISHOP][squares];
-				mob_eg -= MOB_EG[BISHOP][squares];
+				mob_mg -= BISHOP_MOB_MG[squares];
+				mob_eg -= BISHOP_MOB_EG[squares];
 				break;
 				
 			case W_ROOK:
@@ -563,8 +563,8 @@ public class Evaluate implements Types {
 				
 				// Rook mobility
 				squares = mobScan(board, excluded_area_w, index, ROOK_DELTA, true, "QqR");
-				mob_mg += MOB_MG[ROOK][squares];
-				mob_eg += MOB_EG[ROOK][squares];
+				mob_mg += ROOK_MOB_MG[squares];
+				mob_eg += ROOK_MOB_EG[squares];
 				break;
 				
 			case B_ROOK:
@@ -592,8 +592,8 @@ public class Evaluate implements Types {
 						pieces_mg -= TRAPPED_ROOK;
 				
 				squares = mobScan(board, excluded_area_b, index, ROOK_DELTA, true, "Qqr");
-				mob_mg -= MOB_MG[ROOK][squares];
-				mob_eg -= MOB_EG[ROOK][squares];
+				mob_mg -= ROOK_MOB_MG[squares];
+				mob_eg -= ROOK_MOB_EG[squares];
 				
 				break;
 				
@@ -606,8 +606,8 @@ public class Evaluate implements Types {
 				
 				// Queen mobility
 				squares = mobScan(board, excluded_area_w, index, QUEEN_DELTA, true, "");
-				mob_mg += MOB_MG[QUEEN][squares];
-				mob_eg += MOB_EG[QUEEN][squares];
+				mob_mg += QUEEN_MOB_MG[squares];
+				mob_eg += QUEEN_MOB_EG[squares];
 				break;
 				
 			case B_QUEEN:
@@ -617,8 +617,8 @@ public class Evaluate implements Types {
 				}
 				
 				squares = mobScan(board, excluded_area_b, index, QUEEN_DELTA, true, "");
-				mob_mg -= MOB_MG[QUEEN][squares];
-				mob_eg -= MOB_EG[QUEEN][squares];
+				mob_mg -= QUEEN_MOB_MG[squares];
+				mob_eg -= QUEEN_MOB_EG[squares];
 				break;
 			}
 		}
