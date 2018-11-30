@@ -103,18 +103,19 @@ public interface Types {
 	// Move ordering
 	public static final int PRIORITY_HASH_MOVE   = 1000;
 	public static final int PRIORITY_PROMOTION_Q = 120;
-	public static final int PRIORITY_PROMOTION_N = 4;
-	public static final int PRIORITY_CASTLING    = 3;
-	public static final int PRIORITY_PRUNE       = -1;
+	public static final int PRIORITY_PROMOTION_N = 3;
+	public static final int PRIORITY_CASTLING    = 2;
+	public static final int PRIORITY_BAD_CAPTURE = -1;
+	public static final int PRIORITY_PRUNE       = -2;
 	
 	public static final int TIME_INF = 9999000;
 	
 	// Transposition table
-	public static final int HASH_SIZE_TT  = 524288;
-	public static final int HASH_SIZE_REP = 32768;
-	public static final int HASH_SIZE_PV  = 131072;
+	public static final int HASH_SIZE_TT  = 65536;
+	public static final int HASH_SIZE_REP = 8192;
+	public static final int HASH_SIZE_PV  = 16384;
 	
-	public static final int HASH_MAX_AGE = 5;
+	public static final int DEPTH_QS = -1;
 	
 	public static final int BOUND_EXACT = 0;
 	public static final int BOUND_LOWER = 1;
@@ -124,7 +125,7 @@ public interface Types {
 	public static final int PHASE_WT_MINOR  = 2;
 	public static final int PHASE_WT_ROOK   = 3;
 	public static final int PHASE_WT_QUEEN  = 6;
-	public static final int PHASE_MAX       = 40;
+	public static final int PHASE_INITIAL   = 40;
 	public static final int PHASE_MG        = 37;
 	public static final int PHASE_EG        = 9;
 	public static final int LAZY_THRESHOLD  = 720;

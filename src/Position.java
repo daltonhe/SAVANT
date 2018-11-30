@@ -27,8 +27,8 @@ public class Position implements Types {
 	public int fiftyMoves; // fifty moves rule half-move clock
 	public int moveNumber; // full-move count
 	
-	public Stack<State> stateHist;      // previous states
 	public long key;                    // zobrist key of the position
+	public Stack<State> stateHist;      // previous states
 	public List<Integer> pieceList;     // board indices of all pieces
 	public int king_pos_w;              // index of the white king
 	public int king_pos_b;              // index of the black king
@@ -102,8 +102,8 @@ public class Position implements Types {
 		enpassant   = SQ_NONE;
 		fiftyMoves  = 0;
 		moveNumber  = 1;
-		stateHist   = new Stack<State>();
 		key         = 0;
+		stateHist   = new Stack<State>();
 		pieceList   = new LinkedList<Integer>();
 		king_pos_w  = SQ_NONE;
 		king_pos_b  = SQ_NONE;
@@ -178,8 +178,7 @@ public class Position implements Types {
 			enpassant = move.target + 16 * sideToMove;
 			key ^= Zobrist.enpassant[enpassant % 16];
 		}
-		else
-			enpassant = SQ_NONE;
+		else enpassant = SQ_NONE;
 		
 		if (sideToMove == BLACK) moveNumber++;
 
@@ -215,8 +214,7 @@ public class Position implements Types {
 				board[captureIndex] = PAWN * -sideToMove;
 				pieceList.add(captureIndex);
 			}
-			else
-				board[move.target] = move.captured;
+			else board[move.target] = move.captured;
 
 			if      (move.piece == W_KING) king_pos_w = move.start;
 			else if (move.piece == B_KING) king_pos_b = move.start;
@@ -391,6 +389,20 @@ public class Position implements Types {
 	}
 	
 	/**
+	 * Returns a list of all legal moves that can be made from this position.
+	 */
+	public ArrayList<Move> generateLegalMoves() {
+		ArrayList<Move> legalMoves = new ArrayList<Move>();
+		ArrayList<Move> moveList = generateMoves(false);
+		for (Move move : moveList) {
+			makeMove(move);
+			if (!inCheck(-sideToMove)) legalMoves.add(move);
+			unmakeMove(move);
+		}
+		return legalMoves;
+	}
+	
+	/**
 	 * Returns a list of all pseudolegal moves (moves that follow the basic rules but may leave
 	 * the king in check) that can be made from this position.
 	 * @param qs - {@code true} if generating moves for quiescence search, false otherwise
@@ -434,17 +446,28 @@ public class Position implements Types {
 	}
 	
 	/**
-	 * Returns a list of all legal moves that can be made from this position.
+	 * Generates moves using piece deltas and adds them to the move list.
+	 * @param start    - Index of piece
+	 * @param delta    - Piece delta for calculating target indices
+	 * @param slider   - {@code true} if the piece is a bishop, rook, or queen
+	 * @param qs       - {@code true} if only captures should be generated
+	 * @param moveList - The list of moves
 	 */
-	public ArrayList<Move> generateLegalMoves() {
-		ArrayList<Move> legalMoves = new ArrayList<Move>();
-		ArrayList<Move> moveList = generateMoves(false);
-		for (Move move : moveList) {
-			makeMove(move);
-			if (!inCheck(-sideToMove)) legalMoves.add(move);
-			unmakeMove(move);
+	public void genPieceMoves(int start, int[] delta, boolean slider, boolean qs, 
+							  ArrayList<Move> moveList) {
+		for (int i = 0; i < delta.length; i++) {
+			int target = start + delta[i];
+			while (isLegalIndex(target)) {
+				int captured = board[target];
+				if (captured * sideToMove > 0) break;
+				if (!qs || captured != PIECE_NONE)
+					moveList.add(new Move(start, target, board[start], captured, NORMAL));
+
+				if (!slider || captured != PIECE_NONE) break;
+
+				target += delta[i];
+			}
 		}
-		return legalMoves;
 	}
 	
 	/**
@@ -460,9 +483,11 @@ public class Position implements Types {
 				// promotion
 				if (target <= SQ_h8 || target >= SQ_a1) {
 					moveList.add(new Move(start, target, QUEEN  * sideToMove, board[target], PROMOTION));
-					moveList.add(new Move(start, target, KNIGHT * sideToMove, board[target], PROMOTION));
-					moveList.add(new Move(start, target, ROOK   * sideToMove, board[target], PROMOTION));
-					moveList.add(new Move(start, target, BISHOP * sideToMove, board[target], PROMOTION));
+					if (!qs) {
+						moveList.add(new Move(start, target, KNIGHT * sideToMove, board[target], PROMOTION));
+						moveList.add(new Move(start, target, ROOK   * sideToMove, board[target], PROMOTION));
+						moveList.add(new Move(start, target, BISHOP * sideToMove, board[target], PROMOTION));
+					}
 				}
 				// push or capture
 				else if (!qs || board[target] != PIECE_NONE)
@@ -520,35 +545,9 @@ public class Position implements Types {
 	}
 	
 	/**
-	 * Generates moves using piece deltas and adds them to the move list.
-	 * @param start    - Index of piece
-	 * @param delta    - Piece delta for calculating target indices
-	 * @param slider   - {@code true} if the piece is a bishop, rook, or queen
-	 * @param qs       - {@code true} if only captures should be generated
-	 * @param moveList - The list of moves
-	 */
-	public void genPieceMoves(int start, int[] delta, boolean slider, boolean qs, 
-							  ArrayList<Move> moveList) {
-		for (int i = 0; i < delta.length; i++) {
-			int target = start + delta[i];
-			while (isLegalIndex(target)) {
-				int captured = board[target];
-				if (captured * sideToMove > 0) break;
-				if (!qs || captured != PIECE_NONE)
-					moveList.add(new Move(start, target, board[start], captured, NORMAL));
-
-				if (!slider || captured != PIECE_NONE) break;
-
-				target += delta[i];
-			}
-		}
-	}
-	
-	/**
-	 * Returns whether the given index is attacked by the given side.
+	 * Returns {@code true} if the square given by index is attacked by the given side.
 	 */
 	public boolean isAttacked(int index, int side) {
-		
 		if (side == WHITE) {
 			if (isLegalIndex(index + 15) && board[index + 15] == W_PAWN) return true;
 			if (isLegalIndex(index + 17) && board[index + 17] == W_PAWN) return true;
@@ -578,13 +577,39 @@ public class Position implements Types {
 					char piece = PIECE_STR.charAt(captured + 6);
 					if (attackers.indexOf(piece) != -1) return true;
 				}
-				
 				if (!slider || captured != PIECE_NONE) break;
 
 				target += delta[i];
 			}
 		}
 		return false;
+	}
+	
+	/**
+	 * Returns {@code true} if the piece at the given index is defended.
+	 * Returns {@code false} if there is no piece at the given index.
+	 */
+	public boolean isDefended(int index) {
+		if (board[index] == PIECE_NONE) return false;
+		return isAttacked(index, board[index] > 0 ? WHITE : BLACK);
+	}
+	
+	/**
+	 * Returns {@code true} if the piece at the given index is defended by a pawn.
+	 * Returns (@code false} if there is no piece at the given index.
+	 */
+	public boolean isDefendedByPawn(int index) {
+		if (board[index] == PIECE_NONE) return false;
+		if (board[index] > 0) {
+			if (isLegalIndex(index + 15) && board[index + 15] == W_PAWN) return true;
+			if (isLegalIndex(index + 17) && board[index + 17] == W_PAWN) return true;
+			return false;
+		}
+		else {
+			if (isLegalIndex(index - 17) && board[index - 17] == B_PAWN) return true;
+			if (isLegalIndex(index - 15) && board[index - 15] == B_PAWN) return true;
+			return false;
+		}
 	}
 	
 	/**
@@ -695,7 +720,6 @@ public class Position implements Types {
 			if (count_w == 2) return true;
 			
 			// KNN vs K
-			
 			if (pieces_w[KNIGHT] == 2 || pieces_b[KNIGHT] == 2) return true;
 			
 			// KBB vs K || KBN vs K
@@ -794,7 +818,7 @@ public class Position implements Types {
 		
 	}
 	
-	/* HELPERS */
+	/* STATIC HELPERS */
 	
 	/**
 	 * Returns {@code true} if index corresponds to a square on the board.

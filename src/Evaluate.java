@@ -688,8 +688,6 @@ public class Evaluate implements Types {
 			else if (pawns_b == 0 && npm_b - npm_w <= BISHOP_MG)
 				score_eg = Math.max(score_eg, score_eg / 64);
 		}
-
-		assert(phase <= PHASE_MAX);
 		
 		// Calculate the middlegame and endgame weights (range 0 to 1)
 		phase = Math.max(PHASE_EG, Math.min(phase, PHASE_MG));

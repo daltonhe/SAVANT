@@ -88,7 +88,7 @@ public class UCI implements Types{
 					move = Engine.bestMove;
 				}
 				
-				System.out.println("bestmove " + move.longNotation());
+				System.out.println("bestmove " + move.longNot());
 			}
 		}
 	}
