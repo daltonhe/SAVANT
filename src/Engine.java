@@ -14,7 +14,7 @@ import java.util.Scanner;
 public class Engine implements Types {
 	public static int maxDepth       = 100;      // max search depth
 	public static boolean uciMode    = false;    // true if we are in UCI mode
-	public static double timeLeft    = 60000; // total time remaining
+	public static double timeLeft    = 1000; // total time remaining
 	public static double increment   = 0;        // increment per move
 	public static double timeForMove = 0;        // time for this move
 	public static boolean useBook    = true;     // true if using native opening book
@@ -56,7 +56,7 @@ public class Engine implements Types {
 	public static void search(Position pos) {
 		initializeSearch();
 		
-		// If we have only one legal move, just play it and don't search
+		// If we have only one legal move, just play it and don't bother searching
 		if (pos.generateLegalMoves().size() == 1) {
 			bestMove = pos.generateLegalMoves().get(0);
 			return;
@@ -128,6 +128,7 @@ public class Engine implements Types {
 			
 			// Update the pv and previous best move
 			pv = extractPV(pos);
+			if (!pv.isEmpty()) assert(bestMove.equals(pv.get(0)));
 			prevBestMove = bestMove;
 			
 			// Update the GUI
@@ -164,7 +165,7 @@ public class Engine implements Types {
 	public static ArrayList<Move> extractPV(Position pos) {
 		ArrayList<Move> PV = new ArrayList<Move>();
 		HashtableEntry entry = pvtable.get(pos.key);
-		while (entry != null && entry.move != null) {
+		while (entry != null && entry.move != null && PV.size() < 100) {
 			Move move = getMoveObject(pos, entry.move);
 			// In the rare case of a key collision the stored move may be invalid
 			if (move == null) break;
@@ -197,16 +198,16 @@ public class Engine implements Types {
 	 */
 	private static int alphaBeta(Position pos,
 								 int ply,
-								 int ext,
+								 int height,
 								 int alpha,
 								 int beta,
 								 int nodeType) {
 		
+		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
 		assert(nodeType == NODE_PV || nodeType == NODE_CUT || nodeType == NODE_ALL);
 		
 		// Check if time is up every 1000 nodes
 		if (abortedSearch) return 0;
-		
 		if (nodes % 1000 == 0) {
 			if ((System.currentTimeMillis() - startTime) > timeForMove) {
 				abortedSearch = true;
@@ -214,25 +215,23 @@ public class Engine implements Types {
 			}
 		}
 		
-		// Increment node count
+		// Increment the node count
 		nodes++;
 		
-		// Enter quiescence search once we reach a leaf node
+		// Enter quiescence search when we reach a leaf node
 		if (ply <= 0) return quiescence(pos, alpha, beta);
 		
-		boolean rootNode = nodeType == NODE_PV && ply - ext == currentDepth;
+		boolean rootNode = nodeType == NODE_PV && height == 0;
 		int eval = 0;
 
 		if (!rootNode) {
-			if (pos.nullCount == 0) {
-				// Check for draw by 50 moves rule
-				if (pos.fiftyMoves >= 100)
-					return VALUE_PATH_DRAW;
-				
-				// Check for repeated position
-				if (pos.isRepeat())
-					return VALUE_PATH_DRAW;
-			}
+			// Check for draw by 50 moves rule
+			if (pos.fiftyMoves >= 100)
+				return VALUE_PATH_DRAW;
+			
+			// Check for repetition
+			if (pos.nullCount == 0 && pos.isRepeat())
+				return VALUE_PATH_DRAW;
 			
 			// Check for draw due to insufficient material
 			if (pos.insufficientMat())
@@ -242,12 +241,12 @@ public class Engine implements Types {
 			// no need to search further because we can impossibly improve alpha. Same logic but
 			// with reversed signs applies in the opposite condition of being mated. In this case
 			// return a fail-high score.
-			alpha = Math.max(matedScore(ply - ext), alpha);
-			beta  = Math.min(mateScore(ply - ext), beta);
+			alpha = Math.max(matedScore(height), alpha);
+			beta  = Math.min(mateScore(height), beta);
 			if (alpha >= beta) return alpha;
 		}
 				
-		// At non-PV nodes check for an early transposition table cutoff.
+		// At non-PV nodes check for an early transposition table cutoff
 		HashtableEntry ttentry = ttable.get(pos.key);
 		if (   nodeType != NODE_PV 
 			&& ttentry != null 
@@ -259,12 +258,9 @@ public class Engine implements Types {
 				return ttentry.eval * pos.sideToMove;
 		}
 		
-		// Extend the search if we are in check
+		// Extend the search if the side to move is in check
 		boolean inCheck = pos.inCheck(pos.sideToMove);
-		if (!rootNode && inCheck) {
-			ply++;
-			ext++;
-		}
+		if (!rootNode && inCheck) ply++;
 		
 		int standPat = 0;
 		if (!inCheck) {
@@ -295,7 +291,7 @@ public class Engine implements Types {
 				pos.makeNullMove();
 				
 				int R = (ply > 6 ? 3 : 2);
-				eval = -alphaBeta(pos, ply - R - 1, ext, -beta, -beta + 1, -nodeType);
+				eval = -alphaBeta(pos, ply - R - 1, height + 1, -beta, -beta + 1, -nodeType);
 				
 				pos.unmakeNullMove();
 				
@@ -312,23 +308,17 @@ public class Engine implements Types {
 					}
 				}
 			}
-			
-			// Internal iterative deepening if we have no hash move
-			if (    ply >= 6 
-				&& (ttentry == null || ttentry.move == null)) {
-				eval = alphaBeta(pos, ply - 5, 0, alpha, beta, nodeType);
-				// Fail low
-				//if (eval <= alpha)
-					//eval = alphaBeta(pos, ply - 5, 0, -VALUE_INF, VALUE_INF, nodeType);
-				ttentry = ttable.get(pos.key);
-			}
 		}
 		
-		assert(-VALUE_INF <= alpha && alpha < beta && beta <= VALUE_INF);
+		// Use internal iterative deepening if we have no hash move
+		if (ply >= 6 && (ttentry == null || ttentry.move == null)) {
+			eval = alphaBeta(pos, ply - 5, height, alpha, beta, nodeType);
+			ttentry = ttable.get(pos.key);
+		}
 		
 		// Generate all moves and sort
 		ArrayList<Move> moveList = pos.generateMoves(false);
-		sortMoves(pos, moveList, ttentry);
+		sortMoves(pos, moveList, ttentry == null ? null : ttentry.move);
 
 		String bestMove = null;
 		int bestEval = -VALUE_INF;
@@ -359,6 +349,7 @@ public class Engine implements Types {
 			
 			// Futility pruning
 			if (   pruningOk
+				&& !rootNode
 				&& Math.abs(alpha) < VALUE_KNOWN_WIN 
 				&& Math.abs(beta) < VALUE_KNOWN_WIN) {
 				if (   (ply == 1 && standPat <= alpha - FUTILITY_MARGIN)
@@ -378,9 +369,9 @@ public class Engine implements Types {
 				int R = moveCount <= 7 ? 1 : ply / 3;
 				
 				// Increase reduction for cut nodes
-				if (nodeType == NODE_CUT) R++;
+				//if (nodeType == NODE_CUT) R++;
 			
-				eval = -alphaBeta(pos, ply - R - 1, ext, -alpha - 1, -alpha, NODE_CUT);
+				eval = -alphaBeta(pos, ply - R - 1, height + 1, -alpha - 1, -alpha, NODE_CUT);
 				
 				doFullDepthSearch = eval > alpha;
 			}
@@ -388,7 +379,7 @@ public class Engine implements Types {
 			
 			// Full depth search when LMR is skipped or fails high
 			if (doFullDepthSearch) {
-				eval = -alphaBeta(pos, ply - 1, ext, -alpha - 1, -alpha, 
+				eval = -alphaBeta(pos, ply - 1, height + 1, -alpha - 1, -alpha, 
 						nodeType == NODE_PV ? NODE_CUT : -nodeType);
 			}
 			
@@ -397,7 +388,7 @@ public class Engine implements Types {
 		    // parent node fail low with value <= alpha and try another move.
 			
 			if (nodeType == NODE_PV && (moveCount == 1 || eval > alpha && (rootNode || eval < beta))) {
-				eval = -alphaBeta(pos, ply - 1, ext, -beta, -alpha, NODE_PV);
+				eval = -alphaBeta(pos, ply - 1, height + 1, -beta, -alpha, NODE_PV);
 			}
 
 			pos.unmakeMove(move);
@@ -438,14 +429,17 @@ public class Engine implements Types {
 		}
 		
 		// No legal moves were found: return mate/stalemate score
-		if (moveCount == 0) return (inCheck ? matedScore(ply - ext) : VALUE_DRAW);
+		if (moveCount == 0) bestEval = inCheck ? matedScore(height) : VALUE_DRAW;
+		
+		// If we pruned all moves without searching return a fail-low score
+		if (bestEval == -VALUE_INF) bestEval = alpha;
 		
 		// Update the transposition table
 		ttable.add(pos.key, bestMove, ply, bestEval * pos.sideToMove,
 				   bestEval >= beta ? BOUND_LOWER : 
 					   nodeType == NODE_PV && bestMove != null ? BOUND_EXACT : BOUND_UPPER);
 		
-		assert(bestEval >= -VALUE_INF && bestEval <= VALUE_INF);
+		assert(bestEval > -VALUE_INF && bestEval < VALUE_INF);
 		
 		return bestEval;
 	}
@@ -480,9 +474,11 @@ public class Engine implements Types {
 		}
 		if (standPat > alpha) alpha = standPat;
 
+		String hashMove = ttentry == null ? null : ttentry.move;
+		
 		// Generate captures and promotions only
 		ArrayList<Move> moveList = pos.generateMoves(true);
-		sortMoves(pos, moveList, ttentry);
+		sortMoves(pos, moveList, hashMove);
 		
 		String bestMove = null;
 		
@@ -539,9 +535,8 @@ public class Engine implements Types {
 	 * Sorts the given move list in order of most promising move to least promising move,
 	 * in order to improve the efficiency of alpha-beta search.
 	 */
-	private static void sortMoves(Position pos, ArrayList<Move> moveList, HashtableEntry ttentry) {
-		String hashMove = ttentry != null ? ttentry.move : null;
-		
+	private static void sortMoves(Position pos, ArrayList<Move> moveList, String hashMove) {
+
 		// Go through the move list and assign priorities
 		for (Move move : moveList) {
 			if (hashMove != null && move.longNot().equals(hashMove))
@@ -579,14 +574,14 @@ public class Engine implements Types {
 	}
 	
 	/**
-	 * Returns the value of mate in ply.
+	 * Returns the value of mate in ply moves from the root.
 	 */
 	private static int mateScore(int ply) {
-		return VALUE_MATE - currentDepth + ply;
+		return VALUE_MATE - ply;
 	}
 	
 	/**
-	 * Returns the value of being mated in ply.
+	 * Returns the value of being mated in ply moves from the root.
 	 */
 	private static int matedScore(int ply) {
 		return -mateScore(ply);
