@@ -55,9 +55,10 @@ public class Savant implements Types {
 		//pos = new Position("7k/8/8/8/R2K3q/8/8/8 w - - 0 1");
 		//pos = new Position("2k5/8/8/8/p7/8/8/4K3 b - - 0 1");
 		
-		Engine.ttable = new TranspositionTable(HASH_SIZE_TT);
-		inOpening     = true;
-		movesString   = "";
+		Engine.ttable    = new TranspositionTable(HASH_SIZE_TT);
+		Engine.ttable_qs = new TranspositionTable(HASH_SIZE_TT);
+		inOpening        = true;
+		movesString      = "";
 	}
 	
 	/**
@@ -65,11 +66,11 @@ public class Savant implements Types {
 	 */
 	public static void consoleMode() throws FileNotFoundException {
 		initNewGame();
-		Stack<Move> moveHistory = new Stack<Move>();
-		String gameOverMsg      = "";
-		boolean engineWhite     = false;
-		boolean engineBlack     = false;
-		Scanner input           = new Scanner(System.in);	
+		Stack<Move> moveHist = new Stack<Move>();
+		String gameOverMsg   = "";
+		boolean engineWhite  = false;
+		boolean engineBlack  = false;
+		Scanner input        = new Scanner(System.in);	
 		
 		System.out.println("SAVANT, a UCI-compatible chess engine");
 		System.out.println("Written by Dalton He\n");
@@ -135,8 +136,8 @@ public class Savant implements Types {
 				
 			case "undo":
 				pos.deleteRep();
-				if (!moveHistory.isEmpty()) {
-					pos.unmakeMove(moveHistory.pop());
+				if (!moveHist.isEmpty()) {
+					pos.unmakeMove(moveHist.pop());
 					pos.print();
 				}
 				engineWhite = false;
@@ -184,7 +185,7 @@ public class Savant implements Types {
 
 			if (move != null) {
 				pos.makeMove(move);
-				moveHistory.push(move);
+				moveHist.push(move);
 				if (inOpening) movesString += move + " ";
 				
 				if (engineTurn) {
