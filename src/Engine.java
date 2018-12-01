@@ -14,7 +14,7 @@ import java.util.Scanner;
 public class Engine implements Types {
 	public static int maxDepth       = 100;      // max search depth
 	public static boolean uciMode    = false;    // true if we are in UCI mode
-	public static double timeLeft    = 1000; // total time remaining
+	public static double timeLeft    = TIME_INF; // total time remaining
 	public static double increment   = 0;        // increment per move
 	public static double timeForMove = 0;        // time for this move
 	public static boolean useBook    = true;     // true if using native opening book
@@ -290,12 +290,13 @@ public class Engine implements Types {
 				
 				pos.makeNullMove();
 				
-				int R = (ply > 6 ? 3 : 2);
+				int R = 3;
+				//int R = ply > 6 ? 3 : 2;
 				eval = -alphaBeta(pos, ply - R - 1, height + 1, -beta, -beta + 1, -nodeType);
 				
 				pos.unmakeNullMove();
 				
-				// Fail high
+				// Fail-high
 				if (eval >= beta) {
 					// Do not return unproven mate scores
 					if (eval >= VALUE_MATE_THRESHOLD) eval = beta;
@@ -361,35 +362,33 @@ public class Engine implements Types {
 			
 			// Late move reductions (LMR)
 			if (   pruningOk
-				&& nodeType != NODE_PV
 				&& ply >= 3
 			    && moveCount > 1) {
-
+				int R = (int) Math.round(Math.log(ply) * Math.log(Math.min(63, moveCount) / 2));
+				
 				// Increase reduction for later moves
-				int R = moveCount <= 7 ? 1 : ply / 3;
+				//int R = moveCount <= 7 ? 1 : ply / 3;
 				
 				// Increase reduction for cut nodes
-				//if (nodeType == NODE_CUT) R++;
+				if (nodeType == NODE_CUT) R += 2;
+				else if (nodeType == NODE_PV) R--;
+				R = Math.max(0, R);
 			
 				eval = -alphaBeta(pos, ply - R - 1, height + 1, -alpha - 1, -alpha, NODE_CUT);
 				
-				doFullDepthSearch = eval > alpha;
+				doFullDepthSearch = eval > alpha && R > 0;
 			}
 			else doFullDepthSearch = nodeType != NODE_PV || moveCount > 1;
 			
-			// Full depth search when LMR is skipped or fails high
-			if (doFullDepthSearch) {
+			// Full-depth PVS when LMR is skipped or fails high
+			if (doFullDepthSearch)
 				eval = -alphaBeta(pos, ply - 1, height + 1, -alpha - 1, -alpha, 
 						nodeType == NODE_PV ? NODE_CUT : -nodeType);
-			}
-			
-			// For PV nodes only, do a full PVS on the first move or after a fail high
-		    // (in the latter case search only if value < beta), otherwise let the
-		    // parent node fail low with value <= alpha and try another move.
-			
-			if (nodeType == NODE_PV && (moveCount == 1 || eval > alpha && (rootNode || eval < beta))) {
+
+			// For PV nodes only, do a full-width search on the first move or after a fail-high
+			if (   nodeType == NODE_PV
+				&& (moveCount == 1 || eval > alpha && (rootNode || eval < beta)))
 				eval = -alphaBeta(pos, ply - 1, height + 1, -beta, -alpha, NODE_PV);
-			}
 
 			pos.unmakeMove(move);
 			
@@ -401,14 +400,14 @@ public class Engine implements Types {
 					bestMove = move.longNot();
 					if (rootNode) Engine.bestMove = move;
 					
-					// Update PV hash table at PV nodes
+					// Update PV hash table at PV nodes even after fail-high
 					if (nodeType == NODE_PV)
 						pvtable.add(pos.key, move.longNot(), ply);
 					
 					if (nodeType == NODE_PV && eval < beta)
 						alpha = eval; // Update alpha. Always alpha < beta
 					else {
-						assert(eval >= beta); // Fail high
+						assert(eval >= beta); // Fail-high
 						
 						// Update history score
 						if (move.captured == PIECE_NONE) {
