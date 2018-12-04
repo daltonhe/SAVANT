@@ -18,7 +18,6 @@ Change log
 
 10-23 
   -Added Engine class
-
   -Added basic alpha-beta search
 
   -Added basic material evaluation function
@@ -29,7 +28,7 @@ Change log
   -Added quiescence search for captures/promotions
 
   -Added delta pruning to quiescence search
-  -Added MVV/LVA sorting scheme
+  -Added Most Valuable Victim/Least Valuable Attacker (MVV/LVA) sorting scheme
 
   -Removed underpromotions from move generation
 
@@ -44,7 +43,7 @@ Change log
 
   -Moves are now checked for legality during search instead of during move
    generation to save time
-  -Added mobility to evaluation
+  -Added mobility evaluation
 
   -Added tempo to evaluation
 
@@ -69,7 +68,7 @@ Change log
 
   -Fixed algebraic notation for ambiguous knight/rook moves (e.g. Nbd7, R1a2)
 
-  -Added crude king safety metrics to evaluation
+  -Added crude king safety evaluation
 
 
 10-28
@@ -292,7 +291,7 @@ s
 
 11-22
   -Fixed a bug where null moving allowed the wrong side to capture enpassant
-  -Added piece lists (using slow LinkedList implementation for now)
+  -Added piece lists (using slow List implementation for now)
   -Fixed a console UI bug where enpassant move inputs were not recognized
   -Added UCI class
   -Tweaks to queen PSQT (based on Stockfish)
@@ -321,3 +320,27 @@ s
   -Changed IID depth
   -Fixed root node detection
 
+11-25
+  -Added space evaluation (based on Stockfish)
+
+11-26
+  -Pawn moves to 7th rank are no longer generated during quiescence search
+
+11-28
+  -Added State class to store information needed to restore the position
+   after unmakeMove(). States are now stored as a stack within a Position
+   object and are no longer part of each Move object
+
+11-29
+  -Added separate TT for quiescence search
+  -Rook and bishop promotions are now pruned in regular search
+  -All underpromotions are now pruned in quiescence search
+  -Added insufficient material check to quiescence search
+  //-Changed formula for calculating aspiration windows (windows widen faster)
+  -Repetition hash table now handles key mismatches
+  -Added replace-by-depth scheme to PV hash table
+  -Changed TT replace-by-age scheme. Now has bias toward recent results
+   instead of always replacing old results
+  -Old TT entries are no longer purged prior to searching
+  -Static evaluation during regular search is no longer called when in check
+  -Replaced extension parameter with height parameter in alphaBeta()
