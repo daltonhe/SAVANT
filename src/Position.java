@@ -36,7 +36,6 @@ public class Position implements Types {
 	public int nullCount;               // number of null moves made before this position
 	public boolean nullAllowed;         // false if a null move was just made
 	
-	
 	/**
 	 * Initializes the starting position.
 	 */
@@ -557,27 +556,30 @@ public class Position implements Types {
 			if (isLegalIndex(index - 15) && board[index - 15] == B_PAWN) return true;
 		}
 
-		if (attackScan(index, KING_DELTA,   side == WHITE ? "K"  : "k",  false)) return true;
-		if (attackScan(index, KNIGHT_DELTA, side == WHITE ? "N"  : "n",  false)) return true;
-		if (attackScan(index, BISHOP_DELTA, side == WHITE ? "BQ" : "bq", true))  return true;
-		if (attackScan(index, ROOK_DELTA,   side == WHITE ? "RQ" : "rq", true))  return true;
+		if (scanAttack(index, KING_DELTA,   KING   * side, PIECE_NONE,   false)) return true;
+		if (scanAttack(index, KNIGHT_DELTA, KNIGHT * side, PIECE_NONE,   false)) return true;
+		if (scanAttack(index, BISHOP_DELTA, BISHOP * side, QUEEN * side, true))  return true;
+		if (scanAttack(index, ROOK_DELTA,   ROOK   * side, QUEEN * side, true))  return true;
 		
 		return false;
 	}
 	
 	/**
-	 * Scans the given piece delta for an attacker and returns whether one was found.
+	 * Returns {@code true} if the given delta contains the given attacker(s).
 	 */
-	public boolean attackScan(int start, int[] delta, String attackers, boolean slider) {	
+	public boolean scanAttack(int start,
+							  int[] delta, 
+							  int attacker1, int attacker2,
+							  boolean slider) {	
 		for (int i = 0; i < delta.length; i++) {
 			int target = start + delta[i];
 			while (isLegalIndex(target)) {
-				int captured = board[target];
-				if (captured != PIECE_NONE) {
-					char piece = PIECE_STR.charAt(captured + 6);
-					if (attackers.indexOf(piece) != -1) return true;
+				int piece = board[target];
+				if (piece != PIECE_NONE) {
+					if (piece == attacker1 || piece == attacker2) return true;
+					break;
 				}
-				if (!slider || captured != PIECE_NONE) break;
+				if (!slider) break;
 
 				target += delta[i];
 			}
@@ -655,7 +657,7 @@ public class Position implements Types {
 	/**
 	 * Returns whether the given side has any pieces left (NBRQ).
 	 */
-	public boolean isPawnEnding(int side) {
+	public boolean hasOnlyPawns(int side) {
 		if (pieceList.size() > 18) return false;
 		for (int index : pieceList) {
 			int piece = board[index] * side;
@@ -737,6 +739,45 @@ public class Position implements Types {
 		
 		// all other 2 minors vs 1 minor combinations
 		return true;
+	}
+	
+	/**
+	 * Flips the position with the black and white sides reversed. This is only useful for
+	 * debugging, e.g. for testing evaluation symmetry.
+	 */
+	public void flip() {
+		int[] board_f = new int[120];
+		for (int i = 0; i < 8; i++) {
+			board_f[SQ_a8 + i] = -board[SQ_a1 + i];
+			board_f[SQ_a7 + i] = -board[SQ_a2 + i];
+			board_f[SQ_a6 + i] = -board[SQ_a3 + i];
+			board_f[SQ_a5 + i] = -board[SQ_a4 + i];
+			board_f[SQ_a4 + i] = -board[SQ_a5 + i];
+			board_f[SQ_a3 + i] = -board[SQ_a6 + i];
+			board_f[SQ_a2 + i] = -board[SQ_a7 + i];
+			board_f[SQ_a1 + i] = -board[SQ_a8 + i];
+		}
+		board = board_f;
+		
+		int castling_f = 0;
+		if (canCastle(W_SHORT_CASTLE)) castling_f |= B_SHORT_CASTLE;
+		if (canCastle(W_LONG_CASTLE))  castling_f |= B_LONG_CASTLE;
+		if (canCastle(B_SHORT_CASTLE)) castling_f |= W_SHORT_CASTLE;
+		if (canCastle(B_LONG_CASTLE))  castling_f |= W_LONG_CASTLE;
+		castling = castling_f;
+		
+		if (enpassant != SQ_NONE) enpassant += 48 * sideToMove;
+		
+		sideToMove *= -1;
+		
+		pieceList.clear();
+		for (int index = 0; index < 120; index++) {
+			if (board[index] != PIECE_NONE) {
+				pieceList.add(index);
+				if (board[index] == W_KING) king_pos_w = index;
+				if (board[index] == B_KING) king_pos_b = index;
+			}
+		}
 	}
 	
 	/**

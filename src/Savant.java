@@ -10,27 +10,30 @@ import java.util.Stack;
  * 
  */
 public class Savant implements Types {
+	// TODO: download more UCI engines
 	// TODO: fix opening book after user undo
 	// TODO: blockage detection
 	// TODO: regex input validation
 	// TODO: null verification search
 	// TODO: checks in quiescence
-	// TODO: passed pawn pushes during quiescence
+	// TODO: passed pawn push extension
 	// TODO: time management
-	// TODO: download more UCI engines
-	// TODO: endgame
+	// TODO: special endgame evaluators
 	// TODO: SEE
 	// TODO: passed pawn eval
 	// TODO: king safety
 	// TODO: piece lists index board
 	// TODO: rook on pawn bonus
-	// TODO: contempt
-	// TODO: eval debug
+	// TODO: contempt factor
 	// TODO: in-check special move gen
+	// TODO: move ordering for captures
+	// TODO: move gen stages
+	// TODO: test eval symmetry
 
 	public static Position pos;
 	public static String movesString;
 	public static boolean inOpening;
+	public static boolean debug;
 	
 	/**
 	 * The main method, calls console mode or UCI mode.
@@ -99,9 +102,8 @@ public class Savant implements Types {
 				gameOverMsg = "Game drawn by 50 moves rule.";
 			
 			// Check for draw by three-fold repetition
-			if (pos.isThreefoldRep()) {
+			if (pos.isThreefoldRep())
 				gameOverMsg = "Game drawn by threefold repetition.";
-			}
 				
 			if (!gameOverMsg.isEmpty()) break;
 			
@@ -113,7 +115,7 @@ public class Savant implements Types {
 			String command = (engineTurn ? "go" : input.nextLine()).toLowerCase();
 			Move move = null;
 			
-			switch (command) {
+			switch (command) {				
 			case "quit":
 				System.exit(0);
 				break;

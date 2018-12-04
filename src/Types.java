@@ -94,8 +94,9 @@ public interface Types {
 
 	public static final int INITIAL_WINDOW      = 10;
 	public static final int DELTA_MARGIN        = 200;
+	public static final int REVERSE_FUT_MARGIN  = 200;
 	public static final int FUTILITY_MARGIN     = 400;
-	public static final int FUTILITY_EXT_MARGIN = 600;
+	public static final int EXT_FUTILITY_MARGIN = 600;
 	public static final int RAZOR_MARGIN        = 800;
 	
 	public static final int HISTORY_MAX = 50000;
@@ -155,6 +156,7 @@ public interface Types {
 	public static final int[] CONNECTED_PAWN    = { 0, 84, 48, 31,  9, 12, 6, 0 };
 	public static final int[] PAWN_PHALANX      = { 0, 37, 18,  8, 11, -1, 3, 0 };
 	public static final int SUPPORTED_PAWN      =  8;
+	public static final int KING_PAWN_DIST      = -8;
 	
 	// Piece-square tables
 	public static final int[][] PAWN_PSQT_MG = {
@@ -330,7 +332,7 @@ public interface Types {
 	};
 	
 	// Endgame
-	public static final int[][] EDGE_PROXIMITY = {
+	public static final int[][] CORNER_PROXIMITY = {
 		{ 50, 45, 40, 35, 35, 40, 45, 50 },
 		{ 45, 35, 30, 25, 25, 30, 35, 45 },
 		{ 40, 30, 20, 15, 15, 20, 30, 40 },

@@ -112,7 +112,7 @@ public class Engine implements Types {
 						beta = Math.min(eval + delta, VALUE_INF);
 					else break;
 					
-					// Increase window width
+					// Increase the window width
 					delta += delta / 4 + 5;			
 					assert(alpha >= -VALUE_INF && beta <= VALUE_INF);
 				}
@@ -153,7 +153,7 @@ public class Engine implements Types {
 								   + " (n=" + nodes + " t=" + decimalTime + "s)");
 			}
 			
-			// Stop searching if a forced mate was found or the time left is likely not 
+			// Stop searching if a forced mate was found or if the time left is probably not 
 			// enough to search the next depth
 			if (Math.abs(eval) > VALUE_MATE_THRESHOLD || timeElapsed >= timeForMove / 2) break;
 		}
@@ -267,31 +267,31 @@ public class Engine implements Types {
 			// Static evaluation of the position
 			standPat = Evaluate.staticEval(pos) * pos.sideToMove;
 			
-			if (!rootNode) {
-				// Reverse futility pruning
-				if (standPat < VALUE_KNOWN_WIN) { // Do not return unproven wins
-					if (   ply == 1 && standPat - FUTILITY_MARGIN     >= beta
-					    || ply == 2 && standPat - FUTILITY_EXT_MARGIN >= beta)
-					return standPat;
-				}
-				// Limited razoring
-				if (   ply == 3
-					&& standPat <= alpha - RAZOR_MARGIN
-					&& pos.pieceList.size() > 6)
-					ply--;
-			}
+			// Reverse futility pruning
+			if (   !rootNode
+			    && ply < 7
+			    && standPat < VALUE_KNOWN_WIN // Do not return unproven wins
+			    && (   (ply == 1 && standPat <= alpha - FUTILITY_MARGIN)
+					|| (ply == 2 && standPat <= alpha - EXT_FUTILITY_MARGIN)))
+				return standPat;
+
+			// Limited razoring
+			if (   !rootNode
+				&& ply == 3
+				&& standPat <= alpha - RAZOR_MARGIN
+				&& pos.pieceList.size() > 6)
+				ply--;
 			
 			// Null move pruning
 			if (   pos.nullAllowed
 				&& nodeType != NODE_PV
 				&& beta < VALUE_MATE_THRESHOLD
 				&& standPat >= beta
-				&& !pos.isPawnEnding(pos.sideToMove)) {
+				&& !pos.hasOnlyPawns(pos.sideToMove)) {
 				
 				pos.makeNullMove();
 				
-				int R = 3;
-				//int R = ply > 6 ? 3 : 2;
+				int R = ply > 6 ? 3 : 2;
 				eval = -alphaBeta(pos, ply - R - 1, height + 1, -beta, -beta + 1, -nodeType);
 				
 				pos.unmakeNullMove();
@@ -328,7 +328,7 @@ public class Engine implements Types {
 		// Move loop
 		for (Move move : moveList) {
 			
-			// Prune moves with low priority
+			// Prune rook and bishop underpromotions
 			if (move.priority == PRIORITY_PRUNE) continue;
 
 			pos.makeMove(move);
@@ -351,27 +351,25 @@ public class Engine implements Types {
 			// Futility pruning
 			if (   pruningOk
 				&& !rootNode
-				&& Math.abs(alpha) < VALUE_KNOWN_WIN 
-				&& Math.abs(beta) < VALUE_KNOWN_WIN) {
-				if (   (ply == 1 && standPat <= alpha - FUTILITY_MARGIN)
-					|| (ply == 2 && standPat <= alpha - FUTILITY_EXT_MARGIN)) {
-					pos.unmakeMove(move);
-					continue;
-				}
+				&& Math.abs(alpha) < VALUE_MATE_THRESHOLD 
+				&& Math.abs(beta)  < VALUE_MATE_THRESHOLD
+				&& (   (ply == 1 && standPat <= alpha - FUTILITY_MARGIN)
+					|| (ply == 2 && standPat <= alpha - EXT_FUTILITY_MARGIN))) {
+				pos.unmakeMove(move);
+				continue;
 			}
 			
 			// Late move reductions (LMR)
 			if (   pruningOk
 				&& ply >= 3
 			    && moveCount > 1) {
+				
+				// Dynamic reduction based on move count and ply
 				int R = (int) Math.round(Math.log(ply) * Math.log(Math.min(63, moveCount) / 2));
-				
-				// Increase reduction for later moves
-				//int R = moveCount <= 7 ? 1 : ply / 3;
-				
+					
 				// Increase reduction for cut nodes
-				if (nodeType == NODE_CUT) R += 2;
-				else if (nodeType == NODE_PV) R--;
+				if      (nodeType == NODE_CUT) R += 2;
+				else if (nodeType == NODE_PV)  R--;
 				R = Math.max(0, R);
 			
 				eval = -alphaBeta(pos, ply - R - 1, height + 1, -alpha - 1, -alpha, NODE_CUT);
@@ -430,7 +428,7 @@ public class Engine implements Types {
 		// No legal moves were found: return mate/stalemate score
 		if (moveCount == 0) bestEval = inCheck ? matedScore(height) : VALUE_DRAW;
 		
-		// If we pruned all moves without searching return a fail-low score
+		// If we pruned all moves without searching, return a fail-low score
 		if (bestEval == -VALUE_INF) bestEval = alpha;
 		
 		// Update the transposition table

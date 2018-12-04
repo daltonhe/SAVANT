@@ -26,6 +26,7 @@ public class Evaluate implements Types {
 		int pieces_mg = 0, pieces_eg = 0;
 		int mob_mg    = 0, mob_eg    = 0; // mobility
 		int space     = 0;
+		int king_mg   = 0, king_eg   = 0;
 		int tempo     = TEMPO * pos.sideToMove;
 		
 		// Initialize piece counts
@@ -54,6 +55,9 @@ public class Evaluate implements Types {
 		// number of blocked pawns on the 4 center files (C, D, E, and F)
 		int blocked_pawns_w = 0, blocked_pawns_b = 0;
 		
+		// minimal distance of king to friendly pawns
+		int kp_dist_w = 8, kp_dist_b = 8;
+		
 		// First pass:
 		//   - Count pieces, material, phase
 		//   - Get pawn structure information
@@ -77,6 +81,8 @@ public class Evaluate implements Types {
 				if (file != 7) excluded_area_b[index - 15] = true;
 				if (rank == 6 || rank == 5 || board[index - 16] != PIECE_NONE)
 					excluded_area_w[index] = true;
+				int dist = Position.dist(pos.king_pos_w, index);
+				if (dist < kp_dist_w) kp_dist_w = dist;
 				mat_mg  += PAWN_MG;
 				mat_eg  += PAWN_EG;
 				psqt_mg += PAWN_PSQT_MG[rank][file];
@@ -94,6 +100,8 @@ public class Evaluate implements Types {
 				if (file != 7) excluded_area_w[index + 17] = true;
 				if (rank == 1 || rank == 2 || board[index + 16] != PIECE_NONE)
 					excluded_area_b[index] = true;
+				dist = Position.dist(pos.king_pos_b, index);
+				if (dist < kp_dist_b) kp_dist_b = dist;
 				mat_mg  -= PAWN_MG;
 				mat_eg  -= PAWN_EG;
 				psqt_mg -= PAWN_PSQT_MG[7 - rank][file];
@@ -205,12 +213,12 @@ public class Evaluate implements Types {
 		// Mate with KX vs K: Give a bonus for driving the enemy king to the edge of board and
 		// for keeping distance between the two kings small.
 		if (pieces_b == 1) {
-			int cornerProximity = EDGE_PROXIMITY[pos.king_pos_b / 16][pos.king_pos_b % 16];
+			int cornerProximity = CORNER_PROXIMITY[pos.king_pos_b / 16][pos.king_pos_b % 16];
 			int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.king_pos_w, pos.king_pos_b)];
 			return mat_mg + (cornerProximity + kingProximity) * 10;
 		}
 		if (pieces_w == 1) {
-			int cornerProximity = EDGE_PROXIMITY[pos.king_pos_w / 16][pos.king_pos_w % 16];
+			int cornerProximity = CORNER_PROXIMITY[pos.king_pos_w / 16][pos.king_pos_w % 16];
 			int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.king_pos_w, pos.king_pos_b)];
 			return mat_mg - (cornerProximity + kingProximity) * 10;
 		}
@@ -266,7 +274,7 @@ public class Evaluate implements Types {
 			space += space_area_w * weight_w * weight_w / 33;
 			space -= space_area_b * weight_b * weight_b / 33;
 		}
-		
+			
 		// Second pass: 
 		//   -Calculate piece mobility
 		//   -Evaluate pieces and pawns
@@ -472,7 +480,7 @@ public class Evaluate implements Types {
 				pieces_eg -= kingDist * 3;
 				
 				// Knight mobility
-				squares = mobScan(board, excluded_area_w, index, KNIGHT_DELTA, false, "");
+				squares = scanMobility(board, excluded_area_w, index, KNIGHT_DELTA, false, "");
 				mob_mg += KNIGHT_MOB_MG[squares];
 				mob_eg += KNIGHT_MOB_EG[squares];
 				break;
@@ -482,7 +490,7 @@ public class Evaluate implements Types {
 				pieces_mg += kingDist * 3;
 				pieces_eg += kingDist * 3;
 				
-				squares = mobScan(board, excluded_area_b, index, KNIGHT_DELTA, false, "");
+				squares = scanMobility(board, excluded_area_b, index, KNIGHT_DELTA, false, "");
 				mob_mg -= KNIGHT_MOB_MG[squares];
 				mob_eg -= KNIGHT_MOB_EG[squares];
 				break;
@@ -508,7 +516,7 @@ public class Evaluate implements Types {
 				pieces_eg += bishopPawns * (blocked_pawns_w + 1) * BAD_BISHOP_PAWN[EG];
 				
 				// Bishop mobility
-				squares = mobScan(board, excluded_area_w, index, BISHOP_DELTA, true, "Qq");
+				squares = scanMobility(board, excluded_area_w, index, BISHOP_DELTA, true, "Qq");
 				mob_mg += BISHOP_MOB_MG[squares];
 				mob_eg += BISHOP_MOB_EG[squares];
 				break;
@@ -527,7 +535,7 @@ public class Evaluate implements Types {
 				pieces_mg -= bishopPawns * (blocked_pawns_b + 1) * BAD_BISHOP_PAWN[MG];
 				pieces_eg -= bishopPawns * (blocked_pawns_b + 1) * BAD_BISHOP_PAWN[EG];
 				
-				squares = mobScan(board, excluded_area_b, index, BISHOP_DELTA, true, "Qq");
+				squares = scanMobility(board, excluded_area_b, index, BISHOP_DELTA, true, "Qq");
 				mob_mg -= BISHOP_MOB_MG[squares];
 				mob_eg -= BISHOP_MOB_EG[squares];
 				break;
@@ -562,7 +570,7 @@ public class Evaluate implements Types {
 						pieces_mg += TRAPPED_ROOK;
 				
 				// Rook mobility
-				squares = mobScan(board, excluded_area_w, index, ROOK_DELTA, true, "QqR");
+				squares = scanMobility(board, excluded_area_w, index, ROOK_DELTA, true, "QqR");
 				mob_mg += ROOK_MOB_MG[squares];
 				mob_eg += ROOK_MOB_EG[squares];
 				break;
@@ -591,7 +599,7 @@ public class Evaluate implements Types {
 					&& (pos.king_pos_b == SQ_g8 || pos.king_pos_b == SQ_f8))
 						pieces_mg -= TRAPPED_ROOK;
 				
-				squares = mobScan(board, excluded_area_b, index, ROOK_DELTA, true, "Qqr");
+				squares = scanMobility(board, excluded_area_b, index, ROOK_DELTA, true, "Qqr");
 				mob_mg -= ROOK_MOB_MG[squares];
 				mob_eg -= ROOK_MOB_EG[squares];
 				
@@ -605,7 +613,7 @@ public class Evaluate implements Types {
 				}
 				
 				// Queen mobility
-				squares = mobScan(board, excluded_area_w, index, QUEEN_DELTA, true, "");
+				squares = scanMobility(board, excluded_area_w, index, QUEEN_DELTA, true, "");
 				mob_mg += QUEEN_MOB_MG[squares];
 				mob_eg += QUEEN_MOB_EG[squares];
 				break;
@@ -616,12 +624,18 @@ public class Evaluate implements Types {
 					pieces_eg -= QUEEN_ON_7TH[EG];
 				}
 				
-				squares = mobScan(board, excluded_area_b, index, QUEEN_DELTA, true, "");
+				squares = scanMobility(board, excluded_area_b, index, QUEEN_DELTA, true, "");
 				mob_mg -= QUEEN_MOB_MG[squares];
 				mob_eg -= QUEEN_MOB_EG[squares];
 				break;
 			}
 		}
+		
+		// Give a penalty for the king being far from its own pawns
+		if (kp_dist_w == 8) kp_dist_w = 0;
+		if (kp_dist_b == 8) kp_dist_b = 0;
+		king_eg += kp_dist_w * KING_PAWN_DIST;
+		king_eg -= kp_dist_b * KING_PAWN_DIST;
 		
 		// Imbalances
 		
@@ -662,8 +676,23 @@ public class Evaluate implements Types {
 		if (queens_b >= 1) imbal -= pawns_w * 3;
 		
 		// Sum all the individual component scores
-		double score_mg = mat_mg + psqt_mg + imbal + pawns_mg + pieces_mg + mob_mg + space + tempo;
-		double score_eg = mat_eg + psqt_eg + imbal + pawns_eg + pieces_eg + mob_eg;
+		double score_mg = mat_mg + psqt_mg + imbal + pawns_mg + pieces_mg + mob_mg + space + king_mg + tempo;
+		double score_eg = mat_eg + psqt_eg + imbal + pawns_eg + pieces_eg + mob_eg + king_eg;
+		
+		//debug
+		//System.out.println("MATERIAL_MG: " + mat_mg);
+		//System.out.println("MATERIAL_EG: " + mat_eg);
+		//System.out.println("PSQT_MG:     " + psqt_mg);
+		//System.out.println("PSQT_EG:     " + psqt_eg);
+		//System.out.println("IMBALANCE:   " + imbal);
+		//System.out.println("PAWNS_MG:    " + pawns_mg);
+		//System.out.println("PAWNS_EG:    " + pawns_eg);
+		//System.out.println("PIECES_MG:   " + pieces_mg);
+		//System.out.println("PIECES_EG:   " + pieces_eg);
+		//System.out.println("MOBILITY_MG: " + mob_mg);
+		//System.out.println("MOBILITY_EG: " + mob_eg);
+		//System.out.println("SPACE:       " + space);
+		//System.out.println("TEMPO:       " + tempo);
 
 		// Scale down endgame score for bishops of opposite colors depending on the pawn
 		// asymmetry (total number of unopposed pawns).
@@ -710,7 +739,7 @@ public class Evaluate implements Types {
 	 * Returns the number of attacked squares not occupied by friendly pieces. Generate attacks
 	 * through any "x-ray" pieces.
 	 */
-	private static int mobScan(int[] board, boolean[] excludedArea, int start, int[] delta,
+	private static int scanMobility(int[] board, boolean[] excludedArea, int start, int[] delta,
 			boolean slider, String xray) {
 		int count = 0;
 		for (int i = 0; i < delta.length; i++) {
