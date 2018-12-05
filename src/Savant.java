@@ -12,6 +12,7 @@ import java.util.Stack;
 public class Savant implements Types {
     // TODO: download more UCI engines
     // TODO: fix opening book after user undo
+    // TODO: console UI PV formatting
     // TODO: blockage detection
     // TODO: regex input validation
     // TODO: null verification search
@@ -28,7 +29,9 @@ public class Savant implements Types {
     // TODO: in-check special move gen
     // TODO: move ordering for captures
     // TODO: move gen stages
-    // TODO: test eval symmetry
+    // TODO: precomputed tables
+    // TODO: killer moves
+    // TODO: quiescence TT replacement
 
     public static Position pos;
     public static String movesString;
@@ -47,7 +50,7 @@ public class Savant implements Types {
      * Initialization every time a new game starts.
      */
     public static void initNewGame() {
-        pos               = new Position();
+        pos              = new Position();
         //pos = new Position("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
         //pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
         //pos = new Position("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
