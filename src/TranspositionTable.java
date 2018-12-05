@@ -33,7 +33,7 @@ public class TranspositionTable implements Types {
     }
 
     /**
-     * Returns the hash table entry for the given zobrist key, or null if not found.
+     * Returns the hash table entry for the given zobrist key, or {@code null} if not found.
      */
     public HashtableEntry get(long key) {
         int hashKey = (int) (key % size);
@@ -67,17 +67,15 @@ public class TranspositionTable implements Types {
     /**
      * Adds a PV table entry
      */
-    public void add(long key, String move, int depth) {
+    public void add(long key, int move) {
         int hashKey = (int) (key % size);
-        HashtableEntry entry = table[hashKey];
-        if (entry == null || depth > entry.depth)
-            table[hashKey] = new HashtableEntry(key, move, depth);
+        table[hashKey] = new HashtableEntry(key, move);
     }
 
     /**
      * Adds a TT entry
      */
-    public void add(long key, String move, int depth, int eval, int type) {
+    public void add(long key, int move, int depth, int eval, int type) {
         if (depth == DEPTH_QS) {
             // Always replace
             int hashKey = (int) (key % size);
@@ -86,24 +84,22 @@ public class TranspositionTable implements Types {
         else {
             assert(depth > 0);
 
-            // Do not store path-dependent draw evaluations arising from three-fold repetition or
-            // 50 moves rule, since these evaluations may not hold for other branches of the search.
+            // Do not store path-dependent draw evaluations
             if (Math.abs(eval) == VALUE_PATH_DRAW) return;
 
             int hashKey = (int) (key % size);
-            HashtableEntry entry = table[hashKey];	
+            HashtableEntry entry = table[hashKey];
 
             // If an entry for the same position exists, replace if the search depth was higher.
-            // If an entry exists but for a different position, replace if it was from an old search.
+            // If an entry exists for a different position, replace if it was from an old search.
             boolean replace;
             if (entry == null) replace = true;
             else {
                 if (key == entry.key) {
-                    replace = depth > entry.depth;
-                    if (entry.move == null && move != null)
-                        table[hashKey].move = move;
+                    replace = (depth > entry.depth);
+                    if (entry.move == 0 && move != 0) table[hashKey].move = (short) move;
                 }
-                else replace = depth > entry.depth - entry.age * 3;
+                else replace = (depth > entry.depth - 3 * entry.age);
             }
 
             if (replace) table[hashKey] = new HashtableEntry(key, move, depth, eval, type);

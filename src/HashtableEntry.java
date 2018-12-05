@@ -5,48 +5,47 @@
  * 
  */
 public class HashtableEntry {
-    public long key;    // zobrist key of the position
-    public String move; // best move
-    public int depth;   // depth to which the position was evaluated
-    public int eval;    // score of the position
-    public int type;    // bound type of the eval
-    public int count;   // number of times this position has been repeated
-    public int age;     // number of searches ago this entry was from
+    public long  key;   // zobrist key
+    public short move;  // best move
+    public byte  depth; // search depth
+    public short eval;  // position score (from white's perspective)
+    public byte  type;  // bound type of the eval
+    public byte  count; // number of times position has been repeated
+    public byte  age;   // incremented after every search
 
-    // memory usage: 68 bytes
-    //
-    // key    64 bit
-    // move   40 byte
-    // depth  32 bit
-    // eval   32 bit
-    // type   32 bit
-    // count  32 bit
-    // age    32 bit
+    // memory usage per entry: 16 bytes
+    //     key    64 bits
+    //     move   16 bits
+    //     depth   8 bits
+    //     eval   16 bits
+    //     type    8 bits
+    //     count   8 bits
+    //     age     8 bits
 
     /**
      * Repetition table entry
      */
     public HashtableEntry(long key) {
-        this(key, null, 0, 0, 0);
+        this.key   = key;
+        this.count = 1;
     }
 
     /**
      * PV table entry
      */
-    public HashtableEntry(long key, String move, int depth) {
-        this(key, move, 0, 0, 0);
+    public HashtableEntry(long key, int move) {
+        this.key  = key;
+        this.move = (short) move;
     }
 
     /**
      * Full transposition table entry
      */
-    public HashtableEntry(long key, String move, int depth, int eval, int type) {
+    public HashtableEntry(long key, int move, int depth, int eval, int type) {
         this.key   = key;
-        this.move  = move;
-        this.depth = depth;
-        this.eval  = eval;
-        this.type  = type;
-        this.count = 1;
-        this.age   = 0;
+        this.move  = (short) move;
+        this.depth = (byte)  depth;
+        this.eval  = (short) eval;
+        this.type  = (byte)  type;
     }
 }
