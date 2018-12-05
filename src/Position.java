@@ -25,10 +25,9 @@ public class Position implements Types {
     public int castling;   // castling rights for the position, stored as 4 bits (0bKQkq)
     public int enpassant;  // index of the enpassant square (-2 if none)
     public int fiftyMoves; // fifty moves rule half-move clock
-    public int moveNumber; // full-move count
 
     public long key;                    // zobrist key of the position
-    public Stack<State> stateHist;      // previous states
+    public Stack<State> stateHist;      // previous state history
     public List<Integer> pieceList;     // board indices of all pieces
     public int king_pos_w;              // index of the white king
     public int king_pos_b;              // index of the black king
@@ -84,7 +83,6 @@ public class Position implements Types {
 
         if (input.hasNext())    enpassant = algToIndex(input.next());
         if (input.hasNextInt()) fiftyMoves = input.nextInt();
-        if (input.hasNextInt()) moveNumber = input.nextInt();
 
         input.close();
         Zobrist.initialize();
@@ -100,7 +98,6 @@ public class Position implements Types {
         castling    = 0;
         enpassant   = SQ_NONE;
         fiftyMoves  = 0;
-        moveNumber  = 1;
         key         = 0;
         stateHist   = new Stack<State>();
         pieceList   = new LinkedList<Integer>();
@@ -179,8 +176,6 @@ public class Position implements Types {
         }
         else enpassant = SQ_NONE;
 
-        if (sideToMove == BLACK) moveNumber++;
-
         if (move.captured != PIECE_NONE || move.type == PROMOTION || Math.abs(move.piece) == PAWN)
             fiftyMoves = 0;
 
@@ -195,9 +190,7 @@ public class Position implements Types {
         revertState();
 
         sideToMove *= -1;
-
-        if (sideToMove == BLACK) moveNumber--;
-
+        
         if      (move.type == CASTLE_SHORT) uncastleShort();
         else if (move.type == CASTLE_LONG)  uncastleLong();
         else {
@@ -404,7 +397,7 @@ public class Position implements Types {
     /**
      * Returns a list of all pseudolegal moves (moves that follow the basic rules but may leave
      * the king in check) that can be made from this position.
-     * @param qs - {@code true} if generating moves for quiescence search, false otherwise
+     * @param qs - {@code true} if generating moves for quiescence search
      * @return     List of pseudolegal moves
      */
     public ArrayList<Move> generateMoves(boolean skipQuiets) {
@@ -445,7 +438,7 @@ public class Position implements Types {
     }
 
     /**
-     * Generates moves using piece deltas and adds them to the move list.
+     * Adds all pseudolegal piece moves to the given move list.
      * @param start    - Index of piece
      * @param delta    - Piece delta for calculating target indices
      * @param slider   - {@code true} if the piece is a bishop, rook, or queen
@@ -470,7 +463,7 @@ public class Position implements Types {
     }
 
     /**
-     * Adds all pseudolegal pawn moves to the move list.
+     * Adds all pseudolegal pawn moves to the given move list.
      */
     public void genPawnMoves(int start, boolean qs, ArrayList<Move> moveList) {
         for (int i = 0; i < 3; i++) {
@@ -478,35 +471,42 @@ public class Position implements Types {
             if (!isLegalIndex(target)) continue;
 
             if (   (i == 0 && board[target] == PIECE_NONE) 
-                    || (i != 0 && board[target] * sideToMove < 0)) {
+                || (i != 0 && board[target] * sideToMove < 0)) {
                 // promotion
                 if (target <= SQ_h8 || target >= SQ_a1) {
-                    moveList.add(new Move(start, target, QUEEN  * sideToMove, board[target], PROMOTION));
+                    moveList.add(new Move(start, target, QUEEN  * sideToMove, 
+                            board[target], PROMOTION));
                     if (!qs) {
-                        moveList.add(new Move(start, target, KNIGHT * sideToMove, board[target], PROMOTION));
-                        moveList.add(new Move(start, target, ROOK   * sideToMove, board[target], PROMOTION));
-                        moveList.add(new Move(start, target, BISHOP * sideToMove, board[target], PROMOTION));
+                        moveList.add(new Move(start, target, KNIGHT * sideToMove, 
+                                board[target], PROMOTION));
+                        moveList.add(new Move(start, target, ROOK   * sideToMove, 
+                                board[target], PROMOTION));
+                        moveList.add(new Move(start, target, BISHOP * sideToMove, 
+                                board[target], PROMOTION));
                     }
                 }
                 // push or capture
                 else if (!qs || board[target] != PIECE_NONE)
-                    moveList.add(new Move(start, target, PAWN * sideToMove, board[target], NORMAL));
+                    moveList.add(new Move(start, target, PAWN * sideToMove,
+                            board[target], NORMAL));
             } 
 
             // enpassant
             if (i != 0 && target == enpassant)
-                moveList.add(new Move(start, enpassant, PAWN * sideToMove, PAWN * -sideToMove, ENPASSANT));
+                moveList.add(new Move(start, enpassant, PAWN * sideToMove, PAWN * -sideToMove, 
+                        ENPASSANT));
 
             // push two squares
             if (   !qs && i == 0 && ((sideToMove == WHITE && start / 16 == 6)
                     || sideToMove == BLACK && start / 16 == 1))
                 if (board[target] == PIECE_NONE && board[target - 16 * sideToMove] == PIECE_NONE)
-                    moveList.add(new Move(start, target - 16 * sideToMove, PAWN * sideToMove, PIECE_NONE,  PAWN_TWO));
+                    moveList.add(new Move(start, target - 16 * sideToMove, PAWN * sideToMove, 
+                            PIECE_NONE,  PAWN_TWO));
         }
     }
 
     /**
-     * Adds all legal castling moves to the move list.
+     * Adds all pseudolegal castling moves to the given move list.
      */
     public void genCastling(int start, ArrayList<Move> moveList) {
         if (sideToMove == WHITE) {
@@ -640,14 +640,14 @@ public class Position implements Types {
     }
 
     /**
-     * Returns the castling right flag for castleType.
+     * Returns {@code true} if the given castleType is possible.
      */
     public boolean canCastle(int castleType) {
         return ((castling & castleType) != 0);
     }
 
     /**
-     * Returns whether the given side is in check.
+     * Returns {@code true} if the given side is in check.
      */
     public boolean inCheck(int side) {
         int kingPos = (side == WHITE ? king_pos_w : king_pos_b);
@@ -655,7 +655,7 @@ public class Position implements Types {
     }
 
     /**
-     * Returns whether the given side has any pieces left (NBRQ).
+     * Returns {@code true} if the given side has no pieces left except pawns.
      */
     public boolean hasOnlyPawns(int side) {
         if (pieceList.size() > 18) return false;
@@ -817,14 +817,14 @@ public class Position implements Types {
         }
         result += " " + indexToAlg(enpassant);
         result += " " + fiftyMoves;
-        result += " " + moveNumber;
+        result += " " + (stateHist.size() / 2 + 1); // move number
         return result;
     }
 
     /**
-     * Stores information needed to restore a Position object to its previous state after we
-     * unmake a move. Whenever a move is made on the board by calling makeMove() or makeNullMove(), 
-     * a State object must be pushed to the stateHist stack.
+     * Stores information needed to restore a Position object to its previous state after
+     * we unmake a move. Whenever a move is made on the board by calling makeMove() or 
+     * makeNullMove(), a State object must be pushed to the stateHist stack.
      */
     private class State {
         long key;
@@ -832,11 +832,11 @@ public class Position implements Types {
         int  enpassant;
         int  fiftyMoves;
 
-        public State(long key, int castling, int enpassant, int fiftyMoves) {
-            this.key        = key;
-            this.castling   = castling;
-            this.enpassant  = enpassant;
-            this.fiftyMoves = fiftyMoves;
+        public State(Position pos) {
+            this.key        = pos.key;
+            this.castling   = pos.castling;
+            this.enpassant  = pos.enpassant;
+            this.fiftyMoves = pos.fiftyMoves;
         }
     }
 
@@ -844,7 +844,7 @@ public class Position implements Types {
      * Pushes a State object for the current position to the stateHist stack.
      */
     private void saveState() {
-        stateHist.push(new State(key, castling, enpassant, fiftyMoves));
+        stateHist.push(new State(this));
     }
 
     /**
@@ -856,7 +856,6 @@ public class Position implements Types {
         castling   = prev.castling;
         enpassant  = prev.enpassant;
         fiftyMoves = prev.fiftyMoves;
-
     }
 
     /* STATIC HELPERS */

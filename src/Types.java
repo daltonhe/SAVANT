@@ -102,10 +102,10 @@ public interface Types {
     public static final int HISTORY_MAX = 50000;
 
     // Move ordering
-    public static final int PRIORITY_HASH_MOVE   = 1000;
-    public static final int PRIORITY_PROMOTION_Q = 120;
-    public static final int PRIORITY_PROMOTION_N = 3;
-    public static final int PRIORITY_CASTLING    = 2;
+    public static final int PRIORITY_HASH_MOVE   =  1000;
+    public static final int PRIORITY_PROMOTION_Q =  120;
+    public static final int PRIORITY_PROMOTION_N =  3;
+    public static final int PRIORITY_CASTLING    =  2;
     public static final int PRIORITY_BAD_CAPTURE = -1;
     public static final int PRIORITY_PRUNE       = -2;
 
@@ -116,6 +116,8 @@ public interface Types {
     public static final int HASH_SIZE_REP = 8192;
     public static final int HASH_SIZE_PV  = 16384;
 
+    public static final int MOVE_NONE = 0;
+    
     public static final int DEPTH_QS = -1;
 
     public static final int BOUND_EXACT = 0;
