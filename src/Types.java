@@ -80,12 +80,6 @@ public interface Types {
     public static final int VALUE_MATE_THRESHOLD = 9900;
     public static final int VALUE_KNOWN_WIN      = 1000;
     public static final int VALUE_DRAW           = 0;
-    // This is a special value to distinguish path-dependent draws (i.e. draws by three-fold
-    // repetition or by the 50-move rule). These draws are linked to move order rather than
-    // being solely position-dependent (i.e. draw by stalemate or insufficient material).
-    // We want to be able to distinguish path-dependent draw evaluations, specifically to
-    // exclude them from being used as TT cutoffs.
-    public static final int VALUE_PATH_DRAW      = -1;
     public static final int VALUE_CONTEMPT       = 20;
 
     public static final int NODE_PV  =  0;

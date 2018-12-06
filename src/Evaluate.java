@@ -417,7 +417,6 @@ public class Evaluate implements Types {
                             passed_bonus_eg += rankBonus * 5;
                         }
                     }
-
                     if (board[index + 16] == B_PAWN) {
                         passed_bonus_mg /= 2;
                         passed_bonus_eg /= 2;
@@ -430,22 +429,18 @@ public class Evaluate implements Types {
                     pawns_mg -= DOUBLED_PAWN[MG];
                     pawns_eg -= DOUBLED_PAWN[EG];
                 }
-
                 if (isolated) {
                     pawns_mg -= ISOLATED_PAWN[MG];
                     pawns_eg -= ISOLATED_PAWN[EG];
                 }
-
                 if (backward) {
                     pawns_mg -= BACKWARD_PAWN[MG];
                     pawns_eg -= BACKWARD_PAWN[EG];
                 }
-
                 if (!opposed && (isolated || backward) && (rooks_w != 0 || queens_w != 0)) {
                     pawns_mg -= WEAK_PAWN[MG];
                     pawns_eg -= WEAK_PAWN[EG];
                 }
-
                 if (supporters > 0 || phalanx) {
                     int connected_bonus = CONNECTED_PAWN[7-rank];
                     if (phalanx) connected_bonus += PAWN_PHALANX[7-rank];
@@ -681,11 +676,7 @@ public class Evaluate implements Types {
         // middle and endgame scores, weighted by the phase, in order to transition smoothly
         // between middle and endgame.
         int score_tapered = (int) (score_mg * weight_mg + score_eg * weight_eg);
-
-        // If the evaluation is 1 (or -1), change to 2 (or -2) since -1 is reserved specially
-        // for path-dependent draw evaluations (see Types.java).
-        if (Math.abs(score_tapered) == 1) score_tapered = (score_tapered == 1 ? 2 : -2);
-
+        
         return score_tapered;
         
         // Debugging

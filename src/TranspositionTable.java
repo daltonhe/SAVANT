@@ -83,10 +83,7 @@ public class TranspositionTable implements Types {
         }
         else {
             assert(depth > 0);
-
-            // Do not store path-dependent draw evaluations
-            if (Math.abs(eval) == VALUE_PATH_DRAW) return;
-
+            
             int hashKey = (int) (key % size);
             HashtableEntry entry = table[hashKey];
 

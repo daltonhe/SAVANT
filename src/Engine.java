@@ -14,7 +14,7 @@ import java.util.Scanner;
 public class Engine implements Types {
     public static int maxDepth       = 100;     // max search depth
     public static boolean uciMode    = false;   // true if we are in UCI mode
-    public static double timeLeft    = 10000;   // total time remaining
+    public static double timeLeft    = TIME_INF;   // total time remaining
     public static double increment   = 0;       // increment per move
     public static double timeForMove = 0;       // time for this move
     public static boolean useBook    = true;    // true if using native opening book
@@ -23,7 +23,8 @@ public class Engine implements Types {
     public static long startTime;               // time the search was started
     public static boolean abortedSearch;        // true if the search was ended early
 
-    public static int[][] historyScore;         // history heuristic move scores
+    public static int[][] quietHistory;         // history heuristic move scores
+    public static int[][][] captureHistory;
     public static TranspositionTable ttable;    // transposition table for main search
     public static TranspositionTable ttable_qs; // transposition table for quiescence search
     public static TranspositionTable pvtable;   // hash table for PV moves
@@ -38,15 +39,16 @@ public class Engine implements Types {
      * Resets engine fields in preparation for a new search.
      */
     public static void initSearch() {
-        currentDepth  = 0;
-        abortedSearch = false;
-        historyScore  = new int[13][120];
-        pvtable       = new TranspositionTable(HASH_SIZE_PV);
-        pv            = new ArrayList<Move>();
-        bestMove      = null;
-        prevBestMove  = null;
-        eval          = 0;
-        nodes         = 0;
+        currentDepth   = 0;
+        abortedSearch  = false;
+        quietHistory   = new int[13][120];
+        captureHistory = new int[13][120][13];
+        pvtable        = new TranspositionTable(HASH_SIZE_PV);
+        pv             = new ArrayList<Move>();
+        bestMove       = null;
+        prevBestMove   = null;
+        eval           = 0;
+        nodes          = 0;
         ttable.update();
     }
 
@@ -75,9 +77,6 @@ public class Engine implements Types {
 
         // The iterative deepening loop
         for (currentDepth = 1; currentDepth <= maxDepth; currentDepth++) {
-
-            // Clear the PV hash table
-            pvtable.clear();
 
             // For the first few depths, start with an infinite search window.
             if (currentDepth < 5)
@@ -128,7 +127,7 @@ public class Engine implements Types {
 
             // Update the pv and previous best move
             pv = extractPV(pos);
-            if (!pv.isEmpty()) assert(bestMove.equals(pv.get(0)));
+            assert(bestMove.equals(pv.get(0)));
             prevBestMove = bestMove;
 
             // Update the GUI
@@ -226,16 +225,13 @@ public class Engine implements Types {
 
         if (!rootNode) {
             // Check for draw by 50 moves rule
-            if (pos.fiftyMoves >= 100)
-                return VALUE_PATH_DRAW;
+            if (pos.fiftyMoves >= 100) return VALUE_DRAW;
 
             // Check for repetition
-            if (pos.nullCount == 0 && pos.isRepeat())
-                return VALUE_PATH_DRAW;
+            if (pos.nullCount == 0 && pos.isRepeat()) return VALUE_DRAW;
 
             // Check for draw due to insufficient material
-            if (pos.insufficientMat())
-                return VALUE_DRAW;
+            if (pos.insufficientMat()) return VALUE_DRAW;
 
             // Mate distance pruning. If a shorter mate was found upward in the tree then there is
             // no need to search further because we can impossibly improve alpha. Same logic but
@@ -272,7 +268,7 @@ public class Engine implements Types {
                 && ply < 7
                 && standPat < VALUE_KNOWN_WIN // Do not return unproven wins
                 && (   (ply == 1 && standPat <= alpha - FUTILITY_MARGIN)
-                            || (ply == 2 && standPat <= alpha - EXT_FUTILITY_MARGIN)))
+                    || (ply == 2 && standPat <= alpha - EXT_FUTILITY_MARGIN)))
                 return standPat;
 
             // Limited razoring
@@ -321,9 +317,9 @@ public class Engine implements Types {
         ArrayList<Move> moveList = pos.generateMoves(false);
         sortMoves(pos, moveList, (ttentry == null ? MOVE_NONE : ttentry.move));
 
-        int bestMove  = MOVE_NONE;
-        int bestEval  = -VALUE_INF;
-        int moveCount = 0;
+        Move bestMove  = null;
+        int  bestEval  = -VALUE_INF;
+        int  moveCount = 0;
 
         // Move loop
         for (Move move : moveList) {
@@ -395,11 +391,11 @@ public class Engine implements Types {
                 bestEval = eval;
 
                 if (eval > alpha) {
-                    bestMove = move.toInteger();
+                    bestMove = move;
                     if (rootNode) Engine.bestMove = move;
 
                     // Update PV hash table at PV nodes even after fail-high
-                    if (nodeType == NODE_PV) pvtable.add(pos.key, bestMove);
+                    if (nodeType == NODE_PV) pvtable.add(pos.key, bestMove.toInteger());
 
                     if (nodeType == NODE_PV && eval < beta)
                         // Update alpha. Always alpha < beta
@@ -407,16 +403,16 @@ public class Engine implements Types {
                     else {
                         assert(eval >= beta); // Fail-high
 
-                        // Update history score
+                        // Update quiet move sorting heuristics
                         if (move.captured == PIECE_NONE) {
-                            historyScore[move.piece + 6][move.target] += ply * ply;
+                            quietHistory[move.piece + 6][move.target] += ply * ply;
 
                             // Prevent history overflow; also has the effect of weighing recently
                             // searched moves more heavily during move ordering
-                            if (historyScore[move.piece + 6][move.target] >= HISTORY_MAX) {
+                            if (quietHistory[move.piece + 6][move.target] >= HISTORY_MAX) {
                                 for (int i = 0; i < 13; i++)
                                     for (int j = 0; j < 120; j++)
-                                        historyScore[i][j] /= 2;
+                                        quietHistory[i][j] /= 2;
                             }
                         }
                         break; // cutoff
@@ -430,14 +426,25 @@ public class Engine implements Types {
 
         // If we pruned all moves without searching, return a fail-low score
         if (bestEval == -VALUE_INF) bestEval = alpha;
+        
+        // Update capture move sorting heuristics
+        if (bestMove != null && bestMove.captured != PIECE_NONE) {
+            captureHistory[bestMove.piece + 6][bestMove.target][bestMove.captured + 6] += ply * ply;
+            if (captureHistory[bestMove.piece + 6][bestMove.target][bestMove.captured + 6] >= HISTORY_MAX) {
+                for (int i = 0; i < 13; i++)
+                    for (int j = 0; j < 120; j++)
+                        for (int k = 0; k < 13; k++)
+                            captureHistory[i][j][k] /= 2;
+            }
+        }
 
         // Update the transposition table
         ttable.add(pos.key, 
-                   bestMove, 
+                   (bestMove == null ? MOVE_NONE : bestMove.toInteger()), 
                    ply, 
                    bestEval * pos.sideToMove, 
                    (bestEval >= beta ? BOUND_LOWER : 
-                       (nodeType == NODE_PV && bestMove != MOVE_NONE) ? BOUND_EXACT : BOUND_UPPER));
+                       (nodeType == NODE_PV && bestMove != null) ? BOUND_EXACT : BOUND_UPPER));
 
         assert(bestEval > -VALUE_INF && bestEval < VALUE_INF);
 
@@ -454,8 +461,7 @@ public class Engine implements Types {
         nodes++;
 
         // Check for draw due to insufficient material
-        if (pos.insufficientMat())
-            return VALUE_DRAW;
+        if (pos.insufficientMat()) return VALUE_DRAW;
 
         // Transposition table lookup
         HashtableEntry ttentry = ttable_qs.get(pos.key);
@@ -559,10 +565,11 @@ public class Engine implements Types {
                     if (victim == 3) victim = 2;
                     int attacker = Math.abs(move.piece);
                     move.score = victim * 10 - attacker;
+                    //move.hscore = captureHistory[move.piece + 6][move.target][move.captured + 6];
                 }
 
                 // History heuristic
-                move.hscore = historyScore[move.piece + 6][move.target];
+                else move.hscore = quietHistory[move.piece + 6][move.target];
             }
         }
         Collections.sort(moveList);
