@@ -618,11 +618,7 @@ public class Position implements Types {
      * Returns the parity-corrected zobrist key for use in repetition detection.
      */
     public long repKey() {
-        long rkey = key;
-        if (sideToMove == BLACK)  rkey ^= Zobrist.side;
-        if (enpassant != SQ_NONE) rkey ^= Zobrist.enpassant[enpassant % 16];
-        rkey ^= Zobrist.castling[castling];
-        return rkey;
+        return (sideToMove == WHITE ? key : key ^ Zobrist.side);
     }
 
     /**
