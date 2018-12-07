@@ -104,8 +104,8 @@ public class Evaluate implements Types {
         //   - Mobility area
         for (int index : pos.pieceList) {
             int piece = board[index];
-            int rank  = index / 16;
-            int file  = index % 16;
+            int rank  = (index >> 4);
+            int file  = (index & 7);
 
             switch (piece) {
             case W_PAWN:
@@ -251,12 +251,12 @@ public class Evaluate implements Types {
         // Mate with KX vs K: Bonus for driving the enemy king to the edge of board and
         // for keeping distance between the two kings small.
         if (pieces_b == 1) {
-            int cornerProximity = CORNER_PROXIMITY[pos.king_pos_b / 16][pos.king_pos_b % 16];
+            int cornerProximity = CORNER_PROXIMITY[pos.king_pos_b >> 4][pos.king_pos_b & 7];
             int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.king_pos_w, pos.king_pos_b)];
             return mat_mg + (cornerProximity + kingProximity) * 10;
         }
         if (pieces_w == 1) {
-            int cornerProximity = CORNER_PROXIMITY[pos.king_pos_w / 16][pos.king_pos_w % 16];
+            int cornerProximity = CORNER_PROXIMITY[pos.king_pos_w >> 4][pos.king_pos_w & 7];
             int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.king_pos_w, pos.king_pos_b)];
             return mat_mg - (cornerProximity + kingProximity) * 10;
         }
@@ -273,8 +273,8 @@ public class Evaluate implements Types {
         //   - Pawns
         for (int index : pos.pieceList) {
             int piece = board[index];
-            int rank  = index / 16;
-            int file  = index % 16;
+            int rank  = (index >> 4);
+            int file  = (index & 7);
             int squares = 0; // number of attacked squares in the mobility area
 
             switch (piece) {
@@ -535,7 +535,7 @@ public class Evaluate implements Types {
                 }
 
                 // Bonus for a rook on the 7th rank with the enemy king on the 8th rank
-                if (rank == 1 && pos.king_pos_b / 16 == 0) {
+                if (rank == 1 && (pos.king_pos_b >> 4) == 0) {
                     pieces_mg += ROOK_ON_7TH[MG];
                     pieces_eg += ROOK_ON_7TH[EG];
                 }
@@ -566,7 +566,7 @@ public class Evaluate implements Types {
                     }
                 }
 
-                if (rank == 6 && pos.king_pos_w / 16 == 7) {
+                if (rank == 6 && (pos.king_pos_w >> 4) == 7) {
                     pieces_mg -= ROOK_ON_7TH[MG];
                     pieces_eg -= ROOK_ON_7TH[EG];
                 }
@@ -585,7 +585,7 @@ public class Evaluate implements Types {
 
             case W_QUEEN:
                 // Bonus for a queen on the 7th rank with the enemy king on the 8th rank
-                if (rank == 1 && pos.king_pos_b / 16 == 0) {
+                if (rank == 1 && (pos.king_pos_b >> 4) == 0) {
                     pieces_mg += QUEEN_ON_7TH[MG];
                     pieces_eg += QUEEN_ON_7TH[EG];
                 }
@@ -596,7 +596,7 @@ public class Evaluate implements Types {
                 break;
 
             case B_QUEEN:
-                if (rank == 6 && pos.king_pos_w / 16 == 7) {
+                if (rank == 6 && (pos.king_pos_w >> 4) == 7) {
                     pieces_mg -= QUEEN_ON_7TH[MG];
                     pieces_eg -= QUEEN_ON_7TH[EG];
                 }
