@@ -21,6 +21,7 @@ public class Position implements Types {
     // 3   80  81  82  83  84  85  86  87
     // 2   96  97  98  99  100 101 102 103
     // 1   112 113 114 115 116 117 118 119
+    
     public int sideToMove; // the side to move
     public int castling;   // castling rights for the position, stored as 4 bits (0bKQkq)
     public int enpassant;  // index of the enpassant square (-2 if none)
@@ -497,8 +498,8 @@ public class Position implements Types {
                         ENPASSANT));
 
             // push two squares
-            if (   !qs && i == 0 && ((sideToMove == WHITE && start / 16 == 6)
-                    || sideToMove == BLACK && start / 16 == 1))
+            if (   !qs && i == 0 && ((sideToMove == WHITE && (start >> 4) == 6)
+                    || sideToMove == BLACK && (start >> 4) == 1))
                 if (board[target] == PIECE_NONE && board[target - 16 * sideToMove] == PIECE_NONE)
                     moveList.add(new Move(start, target - 16 * sideToMove, PAWN * sideToMove, 
                             PIECE_NONE,  PAWN_TWO));
@@ -564,13 +565,45 @@ public class Position implements Types {
         return false;
     }
 
+    public boolean isAtk(int index, int side) {
+        boolean[] checked = new boolean[35];
+        
+        for (int attackerIndex : pieceList) {
+            int piece = board[attackerIndex];
+            if (piece * side < 0) continue;
+            
+            int diff = attackerIndex - index + 0x77;
+            int type = ATTACK_LOOKUP[diff];
+            if (ATTACK_KEY[type][piece + 6]) {
+                if (type < 5) return true;
+                int delta = DELTA_LOOKUP[diff];
+                if (checked[delta + 17]) continue;
+                
+                if (scanAtk(index, delta, (type == 5 ? BISHOP * side : ROOK * side), QUEEN * side)) return true;
+                
+                checked[delta + 17] = true;
+            }
+        }
+        
+        return false;
+    }
+    
+
+    public boolean scanAtk(int start, int delta, int attacker1, int attacker2) {
+        int target = start + delta;
+        while (board[target] == PIECE_NONE) target += delta;
+        if (board[target] == attacker1 || board[target] == attacker2) return true;
+        return false;
+    }
+    
+    
     /**
      * Returns {@code true} if the given delta contains the given attacker(s).
      */
     public boolean scanAttack(int start,
-            int[] delta, 
-            int attacker1, int attacker2,
-            boolean slider) {	
+                              int[] delta, 
+                              int attacker1, int attacker2,
+                              boolean slider) {   
         for (int i = 0; i < delta.length; i++) {
             int target = start + delta[i];
             while (isLegalIndex(target)) {
@@ -593,46 +626,15 @@ public class Position implements Types {
      */
     public boolean isDefended(int index) {
         if (board[index] == PIECE_NONE) return false;
-        return isAttacked(index, board[index] > 0 ? WHITE : BLACK);
+        return isAtk(index, board[index] > 0 ? WHITE : BLACK);
     }
 
     /**
-     * Returns {@code true} if the piece at the given index is defended by a pawn.
-     * Returns (@code false} if there is no piece at the given index.
+     * Returns {@code true} if the given side is in check.
      */
-    public boolean isDefendedByPawn(int index) {
-        if (board[index] == PIECE_NONE) return false;
-        if (board[index] > 0) {
-            if (isLegalIndex(index + 15) && board[index + 15] == W_PAWN) return true;
-            if (isLegalIndex(index + 17) && board[index + 17] == W_PAWN) return true;
-            return false;
-        }
-        else {
-            if (isLegalIndex(index - 17) && board[index - 17] == B_PAWN) return true;
-            if (isLegalIndex(index - 15) && board[index - 15] == B_PAWN) return true;
-            return false;
-        }
-    }
-
-    /**
-     * Returns the parity-corrected zobrist key for use in repetition detection.
-     */
-    public long repKey() {
-        return (sideToMove == WHITE ? key : key ^ Zobrist.side);
-    }
-
-    /**
-     * Adds an entry for the current position to the repetition hash table.
-     */
-    public void saveRep() {
-        reptable.add(repKey());
-    }
-
-    /**
-     * Deletes an entry for the current position from the repetition hash table.
-     */
-    public void deleteRep() {
-        reptable.delete(repKey());
+    public boolean inCheck(int side) {
+        int kingPos = (side == WHITE ? king_pos_w : king_pos_b);
+        return isAtk(kingPos, -side);
     }
 
     /**
@@ -641,15 +643,7 @@ public class Position implements Types {
     public boolean canCastle(int castleType) {
         return ((castling & castleType) != 0);
     }
-
-    /**
-     * Returns {@code true} if the given side is in check.
-     */
-    public boolean inCheck(int side) {
-        int kingPos = (side == WHITE ? king_pos_w : king_pos_b);
-        return isAttacked(kingPos, -side);
-    }
-
+    
     /**
      * Returns {@code true} if the given side has no pieces left except pawns.
      */
@@ -675,7 +669,7 @@ public class Position implements Types {
      */
     public boolean isThreefoldRep() {
         HashtableEntry rentry = reptable.get(repKey());
-        return rentry != null && rentry.count >= 3;
+        return rentry != null && rentry.count >= 2;
     }
 
     /**
@@ -775,6 +769,27 @@ public class Position implements Types {
             }
         }
     }
+    
+    /**
+     * Returns the parity-corrected zobrist key for use in repetition detection.
+     */
+    public long repKey() {
+        return (sideToMove == WHITE ? key : key ^ Zobrist.side);
+    }
+
+    /**
+     * Adds an entry for the current position to the repetition hash table.
+     */
+    public void saveRep() {
+        reptable.add(repKey());
+    }
+
+    /**
+     * Deletes an entry for the current position from the repetition hash table.
+     */
+    public void deleteRep() {
+        reptable.delete(repKey());
+    }
 
     /**
      * Returns the FEN string of the position.
@@ -860,7 +875,7 @@ public class Position implements Types {
      * Returns {@code true} if index corresponds to a square on the board.
      */
     public static boolean isLegalIndex(int index) {
-        return (index & 0x88) == 0;
+        return ((index & 0x88) == 0);
     }
 
     /**
@@ -868,7 +883,7 @@ public class Position implements Types {
      */
     public static String indexToAlg(int index) {
         if (!isLegalIndex(index)) return "-";
-        return "" + "abcdefgh".charAt(index % 16) + (8 - index / 16);
+        return "" + "abcdefgh".charAt(index % 16) + (8 - (index >> 4));
     }
 
     /**
@@ -888,6 +903,6 @@ public class Position implements Types {
      * Returns the Chebyshev (chessboard) distance between two given indices.
      */
     public static int dist(int index1, int index2) {
-        return Math.max(Math.abs(index1 / 16 - index2 / 16), Math.abs(index1 % 16 - index2 % 16));
+        return DISTANCE_LOOKUP[index1 - index2 + 0x77];
     }
 }
