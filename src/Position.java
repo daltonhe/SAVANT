@@ -21,7 +21,6 @@ public class Position implements Types {
     // 3   80  81  82  83  84  85  86  87
     // 2   96  97  98  99  100 101 102 103
     // 1   112 113 114 115 116 117 118 119
-    
     public int sideToMove; // the side to move
     public int castling;   // castling rights for the position, stored as 4 bits (0bKQkq)
     public int enpassant;  // index of the enpassant square (-2 if none)
@@ -71,9 +70,8 @@ public class Position implements Types {
             }
         } catch (ArrayIndexOutOfBoundsException ex) {};
 
-        if (input.hasNext() && input.next().toLowerCase().equals("b"))
+        if (input.hasNext() && input.next().equalsIgnoreCase("b"))
             sideToMove = BLACK;
-
         if (input.hasNext()) {
             String c = input.next();
             if (c.contains("K")) castling |= W_SHORT_CASTLE;
@@ -81,8 +79,7 @@ public class Position implements Types {
             if (c.contains("k")) castling |= B_SHORT_CASTLE;
             if (c.contains("q")) castling |= B_LONG_CASTLE;
         }
-
-        if (input.hasNext())    enpassant = algToIndex(input.next());
+        if (input.hasNext())    enpassant  = algToIndex(input.next());
         if (input.hasNextInt()) fiftyMoves = input.nextInt();
 
         input.close();
@@ -117,7 +114,6 @@ public class Position implements Types {
             System.out.print(" " + (8 - i) + "| ");
             for (int j = 0; j < 8; j++)
                 System.out.print(PIECE_STR.charAt(board[16 * i + j] + 6) + " ");
-
             System.out.println();
         }
         System.out.println("    ---------------\n    a b c d e f g h");
@@ -129,7 +125,7 @@ public class Position implements Types {
     public void makeMove(Move move) {
         saveState();
 
-        if (nullCount == 0) saveRep();
+        if (nullCount == 0) reptable.add(key);
 
         key ^= Zobrist.castling[castling];
 
@@ -169,11 +165,11 @@ public class Position implements Types {
         key ^= Zobrist.castling[castling];
 
         if (enpassant != SQ_NONE)
-            key ^= Zobrist.enpassant[enpassant % 16];
+            key ^= Zobrist.enpassant[enpassant & 7];
 
         if (move.type == PAWN_TWO) {
             enpassant = move.target + 16 * sideToMove;
-            key ^= Zobrist.enpassant[enpassant % 16];
+            key ^= Zobrist.enpassant[enpassant & 7];
         }
         else enpassant = SQ_NONE;
 
@@ -213,7 +209,7 @@ public class Position implements Types {
             else if (move.piece == B_KING) king_pos_b = move.start;
         }
 
-        if (nullCount == 0) deleteRep();
+        if (nullCount == 0) reptable.delete(key);
     }
 
     /**
@@ -224,7 +220,7 @@ public class Position implements Types {
         sideToMove *= -1;
         key ^= Zobrist.side;
         if (enpassant != SQ_NONE) {
-            key ^= Zobrist.enpassant[enpassant % 16];
+            key ^= Zobrist.enpassant[enpassant & 7];
             enpassant = SQ_NONE;
         }
         nullCount++;
@@ -367,13 +363,11 @@ public class Position implements Types {
      */
     public void updateCastlingRights() {
         if (castling == 0) return;
-
         if (board[SQ_e1] != W_KING) castling &= ~W_ALL_CASTLING;
         else {
             if (board[SQ_h1] != W_ROOK) castling &= ~W_SHORT_CASTLE;
             if (board[SQ_a1] != W_ROOK) castling &= ~W_LONG_CASTLE;
         }
-
         if (board[SQ_e8] != B_KING) castling &= ~B_ALL_CASTLING;
         else {
             if (board[SQ_h8] != B_ROOK) castling &= ~B_SHORT_CASTLE;
@@ -386,7 +380,7 @@ public class Position implements Types {
      */
     public ArrayList<Move> generateLegalMoves() {
         ArrayList<Move> legalMoves = new ArrayList<Move>();
-        ArrayList<Move> moveList = generateMoves(false);
+        ArrayList<Move> moveList = generateMoves(GEN_ALL);
         for (Move move : moveList) {
             makeMove(move);
             if (!inCheck(-sideToMove)) legalMoves.add(move);
@@ -398,10 +392,8 @@ public class Position implements Types {
     /**
      * Returns a list of all pseudolegal moves (moves that follow the basic rules but may leave
      * the king in check) that can be made from this position.
-     * @param qs - {@code true} if generating moves for quiescence search
-     * @return     List of pseudolegal moves
      */
-    public ArrayList<Move> generateMoves(boolean skipQuiets) {
+    public ArrayList<Move> generateMoves(int gen) {
         ArrayList<Move> moveList = new ArrayList<Move>();
 
         for (int index : pieceList) {
@@ -410,55 +402,62 @@ public class Position implements Types {
 
             switch (piece) {
             case PAWN:
-                genPawnMoves(index, skipQuiets, moveList);
+                genPawn(index, gen, moveList);
                 break;
 
             case KNIGHT:
-                genPieceMoves(index, KNIGHT_DELTA, false, skipQuiets, moveList);
+                genNonslider(index, KNIGHT_DELTA, gen, moveList);
                 break;
 
             case BISHOP:
-                genPieceMoves(index, BISHOP_DELTA, true, skipQuiets, moveList);
+                genSlider(index, BISHOP_DELTA, gen, moveList);
                 break;
 
             case ROOK:
-                genPieceMoves(index, ROOK_DELTA, true, skipQuiets, moveList);
+                genSlider(index, ROOK_DELTA, gen, moveList);
                 break;
 
             case QUEEN:
-                genPieceMoves(index, QUEEN_DELTA, true, skipQuiets, moveList);
+                genSlider(index, QUEEN_DELTA, gen, moveList);
                 break;
 
             case KING:
-                if (!skipQuiets && castling != 0) genCastling(index, moveList);
-                genPieceMoves(index, KING_DELTA, false, skipQuiets, moveList);
+                if (gen != GEN_QSEARCH && castling != 0) genCastling(index, moveList);
+                genNonslider(index, KING_DELTA, gen, moveList);
                 break;
             }
         }
         return moveList;
     }
+    
+    /**
+     * Adds all pseudolegal non-sliding moves to the given move list.
+     */
+    public void genNonslider(int start, int[] delta, int gen, ArrayList<Move> moveList) {
+        for (int d : delta) {
+            int target = start + d;
+            if (isLegalIndex(target)) {
+                int captured = board[target];
+                if (   captured * sideToMove <= 0
+                    && (gen != GEN_QSEARCH || captured != PIECE_NONE))
+                    moveList.add(new Move(start, target, board[start], captured, NORMAL));
+            }
+        }
+    }
 
     /**
-     * Adds all pseudolegal piece moves to the given move list.
-     * @param start    - Index of piece
-     * @param delta    - Piece delta for calculating target indices
-     * @param slider   - {@code true} if the piece is a bishop, rook, or queen
-     * @param qs       - {@code true} if only captures should be generated
-     * @param moveList - The list of moves
+     * Adds all pseudolegal sliding moves to the given move list.
      */
-    public void genPieceMoves(int start, int[] delta, boolean slider, boolean qs, 
-            ArrayList<Move> moveList) {
-        for (int i = 0; i < delta.length; i++) {
-            int target = start + delta[i];
+    public void genSlider(int start, int[] delta, int gen, ArrayList<Move> moveList) {
+        for (int d : delta) {
+            int target = start + d;
             while (isLegalIndex(target)) {
                 int captured = board[target];
                 if (captured * sideToMove > 0) break;
-                if (!qs || captured != PIECE_NONE)
+                if (gen != GEN_QSEARCH || captured != PIECE_NONE)
                     moveList.add(new Move(start, target, board[start], captured, NORMAL));
-
-                if (!slider || captured != PIECE_NONE) break;
-
-                target += delta[i];
+                if (captured != PIECE_NONE) break;
+                target += d;
             }
         }
     }
@@ -466,7 +465,7 @@ public class Position implements Types {
     /**
      * Adds all pseudolegal pawn moves to the given move list.
      */
-    public void genPawnMoves(int start, boolean qs, ArrayList<Move> moveList) {
+    public void genPawn(int start, int gen, ArrayList<Move> moveList) {
         for (int i = 0; i < 3; i++) {
             int target = start + PAWN_DELTA[i] * sideToMove;
             if (!isLegalIndex(target)) continue;
@@ -477,7 +476,7 @@ public class Position implements Types {
                 if (target <= SQ_h8 || target >= SQ_a1) {
                     moveList.add(new Move(start, target, QUEEN  * sideToMove, 
                             board[target], PROMOTION));
-                    if (!qs) {
+                    if (gen == GEN_ALL) {
                         moveList.add(new Move(start, target, KNIGHT * sideToMove, 
                                 board[target], PROMOTION));
                         moveList.add(new Move(start, target, ROOK   * sideToMove, 
@@ -487,7 +486,7 @@ public class Position implements Types {
                     }
                 }
                 // push or capture
-                else if (!qs || board[target] != PIECE_NONE)
+                else if (gen != GEN_QSEARCH || board[target] != PIECE_NONE)
                     moveList.add(new Move(start, target, PAWN * sideToMove,
                             board[target], NORMAL));
             } 
@@ -498,8 +497,8 @@ public class Position implements Types {
                         ENPASSANT));
 
             // push two squares
-            if (   !qs && i == 0 && ((sideToMove == WHITE && (start >> 4) == 6)
-                    || sideToMove == BLACK && (start >> 4) == 1))
+            if (i == 0 && gen != GEN_QSEARCH && ((   sideToMove == WHITE && (start >> 4) == 6)
+                                                  || sideToMove == BLACK && (start >> 4) == 1))
                 if (board[target] == PIECE_NONE && board[target - 16 * sideToMove] == PIECE_NONE)
                     moveList.add(new Move(start, target - 16 * sideToMove, PAWN * sideToMove, 
                             PIECE_NONE,  PAWN_TWO));
@@ -512,34 +511,33 @@ public class Position implements Types {
     public void genCastling(int start, ArrayList<Move> moveList) {
         if (sideToMove == WHITE) {
             if (   canCastle(W_SHORT_CASTLE)
-                    && board[SQ_f1] == PIECE_NONE 
-                    && board[SQ_g1] == PIECE_NONE
-                    && !isAttacked(SQ_e1, BLACK) 
-                    && !isAttacked(SQ_f1, BLACK))
+                && board[SQ_f1] == PIECE_NONE 
+                && board[SQ_g1] == PIECE_NONE
+                && !isAttacked(SQ_e1, BLACK) 
+                && !isAttacked(SQ_f1, BLACK))
                 moveList.add(new Move(SQ_e1, SQ_g1, W_KING, PIECE_NONE, CASTLE_SHORT));
 
             if (   canCastle(W_LONG_CASTLE)
-                    && board[SQ_d1] == PIECE_NONE 
-                    && board[SQ_c1] == PIECE_NONE
-                    && board[SQ_b1] == PIECE_NONE
-                    && !isAttacked(SQ_e1, BLACK) 
-                    && !isAttacked(SQ_d1, BLACK))
+                && board[SQ_d1] == PIECE_NONE 
+                && board[SQ_c1] == PIECE_NONE
+                && board[SQ_b1] == PIECE_NONE
+                && !isAttacked(SQ_e1, BLACK) 
+                && !isAttacked(SQ_d1, BLACK))
                 moveList.add(new Move(SQ_e1, SQ_c1, W_KING, PIECE_NONE, CASTLE_LONG));
         }
         else {
             if (   canCastle(B_SHORT_CASTLE)
-                    && board[SQ_f8] == PIECE_NONE 
-                    && board[SQ_g8] == PIECE_NONE
-                    && !isAttacked(SQ_e8, WHITE) 
-                    && !isAttacked(SQ_f8, WHITE))
+                && board[SQ_f8] == PIECE_NONE 
+                && board[SQ_g8] == PIECE_NONE
+                && !isAttacked(SQ_e8, WHITE) 
+                && !isAttacked(SQ_f8, WHITE))
                 moveList.add(new Move(SQ_e8, SQ_g8, B_KING, PIECE_NONE, CASTLE_SHORT));
-
             if (   canCastle(B_LONG_CASTLE)
-                    && board[SQ_d8] == PIECE_NONE 
-                    && board[SQ_c8] == PIECE_NONE 
-                    && board[SQ_b8] == PIECE_NONE 
-                    && !isAttacked(SQ_e8, WHITE) 
-                    && !isAttacked(SQ_d8, WHITE))
+                && board[SQ_d8] == PIECE_NONE 
+                && board[SQ_c8] == PIECE_NONE 
+                && board[SQ_b8] == PIECE_NONE 
+                && !isAttacked(SQ_e8, WHITE) 
+                && !isAttacked(SQ_d8, WHITE))
                 moveList.add(new Move(SQ_e8, SQ_c8, B_KING, PIECE_NONE, CASTLE_LONG));
         }
     }
@@ -556,85 +554,40 @@ public class Position implements Types {
             if (isLegalIndex(index - 17) && board[index - 17] == B_PAWN) return true;
             if (isLegalIndex(index - 15) && board[index - 15] == B_PAWN) return true;
         }
-
-        if (scanAttack(index, KING_DELTA,   KING   * side, PIECE_NONE,   false)) return true;
-        if (scanAttack(index, KNIGHT_DELTA, KNIGHT * side, PIECE_NONE,   false)) return true;
-        if (scanAttack(index, BISHOP_DELTA, BISHOP * side, QUEEN * side, true))  return true;
-        if (scanAttack(index, ROOK_DELTA,   ROOK   * side, QUEEN * side, true))  return true;
-
+        if (nonsliderAttack(index, KNIGHT_DELTA, KNIGHT * side))            return true;
+        if (sliderAttack(index, BISHOP_DELTA, BISHOP * side, QUEEN * side)) return true;
+        if (sliderAttack(index, ROOK_DELTA, ROOK * side, QUEEN * side))     return true;
+        if (nonsliderAttack(index, KING_DELTA, KING * side))                return true;
         return false;
     }
-
-    public boolean isAtk(int index, int side) {
-        boolean[] checked = new boolean[35];
-        
-        for (int attackerIndex : pieceList) {
-            int piece = board[attackerIndex];
-            if (piece * side < 0) continue;
-            
-            int diff = attackerIndex - index + 0x77;
-            int type = ATTACK_LOOKUP[diff];
-            if (ATTACK_KEY[type][piece + 6]) {
-                if (type < 5) return true;
-                int delta = DELTA_LOOKUP[diff];
-                if (checked[delta + 17]) continue;
-                
-                if (scanAtk(index, delta, (type == 5 ? BISHOP * side : ROOK * side), QUEEN * side)) return true;
-                
-                checked[delta + 17] = true;
-            }
-        }
-        
-        return false;
-    }
-    
-
-    public boolean scanAtk(int start, int delta, int attacker1, int attacker2) {
-        int target = start + delta;
-        while (board[target] == PIECE_NONE) target += delta;
-        if (board[target] == attacker1 || board[target] == attacker2) return true;
-        return false;
-    }
-    
     
     /**
-     * Returns {@code true} if the given delta contains the given attacker(s).
+     * Returns {@code true} if the given delta contains the given attacker.
      */
-    public boolean scanAttack(int start,
-                              int[] delta, 
-                              int attacker1, int attacker2,
-                              boolean slider) {   
-        for (int i = 0; i < delta.length; i++) {
-            int target = start + delta[i];
+    public boolean nonsliderAttack(int start, int[] delta, int attacker) { 
+        for (int d : delta) {
+            int target = start + d;
+            if (isLegalIndex(target) && board[target] == attacker) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns {@code true} if the given delta contains the given attackers.
+     */
+    public boolean sliderAttack(int start, int[] delta, int attacker1, int attacker2) {	
+        for (int d : delta) {
+            int target = start + d;
             while (isLegalIndex(target)) {
                 int piece = board[target];
                 if (piece != PIECE_NONE) {
                     if (piece == attacker1 || piece == attacker2) return true;
                     break;
                 }
-                if (!slider) break;
-
-                target += delta[i];
+                target += d;
             }
         }
         return false;
-    }
-
-    /**
-     * Returns {@code true} if the piece at the given index is defended.
-     * Returns {@code false} if there is no piece at the given index.
-     */
-    public boolean isDefended(int index) {
-        if (board[index] == PIECE_NONE) return false;
-        return isAtk(index, board[index] > 0 ? WHITE : BLACK);
-    }
-
-    /**
-     * Returns {@code true} if the given side is in check.
-     */
-    public boolean inCheck(int side) {
-        int kingPos = (side == WHITE ? king_pos_w : king_pos_b);
-        return isAtk(kingPos, -side);
     }
 
     /**
@@ -643,7 +596,15 @@ public class Position implements Types {
     public boolean canCastle(int castleType) {
         return ((castling & castleType) != 0);
     }
-    
+
+    /**
+     * Returns {@code true} if the given side is in check.
+     */
+    public boolean inCheck(int side) {
+        int kingPos = (side == WHITE ? king_pos_w : king_pos_b);
+        return isAttacked(kingPos, -side);
+    }
+
     /**
      * Returns {@code true} if the given side has no pieces left except pawns.
      */
@@ -660,7 +621,7 @@ public class Position implements Types {
      * Returns whether the position has been repeated.
      */
     public boolean isRepeat() {
-        HashtableEntry rentry = reptable.get(repKey());
+        HashtableEntry rentry = reptable.get(key);
         return rentry != null && rentry.count >= 1;
     }
 
@@ -668,7 +629,7 @@ public class Position implements Types {
      * Returns whether the position is a three-fold repetition.
      */
     public boolean isThreefoldRep() {
-        HashtableEntry rentry = reptable.get(repKey());
+        HashtableEntry rentry = reptable.get(key);
         return rentry != null && rentry.count >= 2;
     }
 
@@ -691,8 +652,8 @@ public class Position implements Types {
 
             // Non-minor piece left
             if (   Math.abs(piece) == PAWN 
-                    || Math.abs(piece) == ROOK 
-                    || Math.abs(piece) == QUEEN) return false;
+                || Math.abs(piece) == ROOK 
+                || Math.abs(piece) == QUEEN) return false;
 
             if (piece > 0) {
                 pieces_w[piece]++;
@@ -725,7 +686,7 @@ public class Position implements Types {
 
         // KBB vs KN
         if (   pieces_w[BISHOP] == 2 && pieces_b[BISHOP] == 0
-                || pieces_b[BISHOP] == 2 && pieces_w[BISHOP] == 0) return false;
+            || pieces_b[BISHOP] == 2 && pieces_w[BISHOP] == 0) return false;
 
         // all other 2 minors vs 1 minor combinations
         return true;
@@ -768,27 +729,6 @@ public class Position implements Types {
                 if (board[index] == B_KING) king_pos_b = index;
             }
         }
-    }
-    
-    /**
-     * Returns the parity-corrected zobrist key for use in repetition detection.
-     */
-    public long repKey() {
-        return (sideToMove == WHITE ? key : key ^ Zobrist.side);
-    }
-
-    /**
-     * Adds an entry for the current position to the repetition hash table.
-     */
-    public void saveRep() {
-        reptable.add(repKey());
-    }
-
-    /**
-     * Deletes an entry for the current position from the repetition hash table.
-     */
-    public void deleteRep() {
-        reptable.delete(repKey());
     }
 
     /**
@@ -875,7 +815,7 @@ public class Position implements Types {
      * Returns {@code true} if index corresponds to a square on the board.
      */
     public static boolean isLegalIndex(int index) {
-        return ((index & 0x88) == 0);
+        return (index & 0x88) == 0;
     }
 
     /**
@@ -883,7 +823,7 @@ public class Position implements Types {
      */
     public static String indexToAlg(int index) {
         if (!isLegalIndex(index)) return "-";
-        return "" + "abcdefgh".charAt(index % 16) + (8 - (index >> 4));
+        return "" + "abcdefgh".charAt(index & 7) + (8 - (index >> 4));
     }
 
     /**
@@ -891,11 +831,9 @@ public class Position implements Types {
      */
     public static int algToIndex(String coord) {
         if (coord.length() != 2) return SQ_NONE;
-
         coord = coord.toLowerCase();
         int index = 16 * (8 - coord.charAt(1)) + "abcdefgh".indexOf(coord.charAt(0));
         if (!isLegalIndex(index)) return SQ_NONE;
-
         return index;
     }
 
@@ -903,6 +841,6 @@ public class Position implements Types {
      * Returns the Chebyshev (chessboard) distance between two given indices.
      */
     public static int dist(int index1, int index2) {
-        return DISTANCE_LOOKUP[index1 - index2 + 0x77];
+        return DIST_LOOKUP[index1 - index2 + 0x77];
     }
 }
