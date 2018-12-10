@@ -37,25 +37,26 @@ public class Zobrist implements Types {
             enpassant[i] = Math.abs(r.nextLong());
 
         w_short_castle = pieces[W_KING + 6][SQ_e1] ^ 
-                pieces[W_KING + 6][SQ_g1] ^
-                pieces[W_ROOK + 6][SQ_f1] ^
-                pieces[W_ROOK + 6][SQ_h1];
+                         pieces[W_KING + 6][SQ_g1] ^
+                         pieces[W_ROOK + 6][SQ_f1] ^
+                         pieces[W_ROOK + 6][SQ_h1];
         w_long_castle  = pieces[W_KING + 6][SQ_e1] ^
-                pieces[W_KING + 6][SQ_c1] ^
-                pieces[W_ROOK + 6][SQ_a1] ^
-                pieces[W_ROOK + 6][SQ_d1];
+                         pieces[W_KING + 6][SQ_c1] ^
+                         pieces[W_ROOK + 6][SQ_a1] ^
+                         pieces[W_ROOK + 6][SQ_d1];
         b_short_castle = pieces[B_KING + 6][SQ_e8] ^
-                pieces[B_KING + 6][SQ_g8] ^
-                pieces[B_ROOK + 6][SQ_f8] ^
-                pieces[B_ROOK + 6][SQ_h8];
+                         pieces[B_KING + 6][SQ_g8] ^
+                         pieces[B_ROOK + 6][SQ_f8] ^
+                         pieces[B_ROOK + 6][SQ_h8];
         b_long_castle  = pieces[B_KING + 6][SQ_e8] ^
-                pieces[B_KING + 6][SQ_c8] ^
-                pieces[B_ROOK + 6][SQ_a8] ^
-                pieces[B_ROOK + 6][SQ_d8];
+                         pieces[B_KING + 6][SQ_c8] ^
+                         pieces[B_ROOK + 6][SQ_a8] ^
+                         pieces[B_ROOK + 6][SQ_d8];
     }
 
     /**
-     * Returns the zobrist key of the position.
+     * Returns the zobrist key of the position. Used only for initialization, since zobrist keys
+     * are incrementally updated in make and unmakeMove().
      */
     public static long getKey(Position pos) {
         long key = 0;
