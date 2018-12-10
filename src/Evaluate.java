@@ -89,8 +89,6 @@ public class Evaluate implements Types {
 
     /**
      * Returns the score of the position in centipawns. Scores are from white's perspective.
-     * @param board - The board state to be evaluated
-     * @return        Score of the position
      */
     public static int staticEval(Position pos) {
         initEval();
@@ -250,12 +248,12 @@ public class Evaluate implements Types {
 
         // Mate with KX vs K: Bonus for driving the enemy king to the edge of board and
         // for keeping distance between the two kings small.
-        if (pieces_b == 1) {
+        if (pieces_b == 1 && pawns_w == 0) {
             int cornerProximity = CORNER_PROXIMITY[pos.king_pos_b >> 4][pos.king_pos_b & 7];
             int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.king_pos_w, pos.king_pos_b)];
             return mat_mg + (cornerProximity + kingProximity) * 10;
         }
-        if (pieces_w == 1) {
+        if (pieces_w == 1 && pawns_b == 0) {
             int cornerProximity = CORNER_PROXIMITY[pos.king_pos_w >> 4][pos.king_pos_w & 7];
             int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.king_pos_w, pos.king_pos_b)];
             return mat_mg - (cornerProximity + kingProximity) * 10;
@@ -265,7 +263,31 @@ public class Evaluate implements Types {
         int score_lazy = (mat_mg + psqt_mg + mat_eg + psqt_eg) / 2;
         if (Math.abs(score_lazy) > LAZY_THRESHOLD) return score_lazy;
 
+        // Space evaluation
         spaceEval(pos);
+        
+        // Pawn shelter
+        int king_rank_w = (pos.king_pos_w >> 4);
+        int king_file_w = Math.max(1, Math.min(6, pos.king_pos_w & 7));
+        int shelter_w = 0;
+        for (int f = king_file_w - 1; f <= king_file_w + 1; f++) {
+            if (pawn_file_w[f][0] > 0 && king_rank_w > pawn_file_w[f][1])
+                shelter_w += PAWN_SHELTER[pawn_file_w[f][1]][f];
+            else
+                shelter_w += PAWN_SHELTER[0][f];
+        }
+        king_mg += shelter_w;
+        
+        int king_rank_b = (pos.king_pos_b >> 4);
+        int king_file_b = Math.max(1, Math.min(6, pos.king_pos_b & 7));
+        int shelter_b = 0;
+        for (int f = king_file_b - 1; f <= king_file_b + 1; f++) {
+            if (pawn_file_b[f][0] > 0 && king_rank_b < pawn_file_b[f][1])
+                shelter_b += PAWN_SHELTER[7-pawn_file_b[f][1]][f];
+            else
+                shelter_b += PAWN_SHELTER[0][f];
+        }
+        king_mg -= shelter_b;
 
         // Second pass: 
         //   - Mobility
@@ -459,7 +481,7 @@ public class Evaluate implements Types {
                 pieces_eg -= kingDist * 3;
 
                 // Knight mobility
-                squares = scanMobility(board, excluded_area_w, index, KNIGHT_DELTA, false, "");
+                squares = mobilityAttack(board, excluded_area_w, index, KNIGHT_DELTA, false, "");
                 mob_mg += KNIGHT_MOB_MG[squares];
                 mob_eg += KNIGHT_MOB_EG[squares];
                 break;
@@ -469,7 +491,7 @@ public class Evaluate implements Types {
                 pieces_mg += kingDist * 3;
                 pieces_eg += kingDist * 3;
 
-                squares = scanMobility(board, excluded_area_b, index, KNIGHT_DELTA, false, "");
+                squares = mobilityAttack(board, excluded_area_b, index, KNIGHT_DELTA, false, "");
                 mob_mg -= KNIGHT_MOB_MG[squares];
                 mob_eg -= KNIGHT_MOB_EG[squares];
                 break;
@@ -495,7 +517,7 @@ public class Evaluate implements Types {
                 pieces_eg += bishopPawns * (blocked_pawns_w + 1) * BAD_BISHOP_PAWN[EG];
 
                 // Bishop mobility
-                squares = scanMobility(board, excluded_area_w, index, BISHOP_DELTA, true, "Qq");
+                squares = mobilityAttack(board, excluded_area_w, index, BISHOP_DELTA, true, "Qq");
                 mob_mg += BISHOP_MOB_MG[squares];
                 mob_eg += BISHOP_MOB_EG[squares];
                 break;
@@ -514,7 +536,7 @@ public class Evaluate implements Types {
                 pieces_mg -= bishopPawns * (blocked_pawns_b + 1) * BAD_BISHOP_PAWN[MG];
                 pieces_eg -= bishopPawns * (blocked_pawns_b + 1) * BAD_BISHOP_PAWN[EG];
 
-                squares = scanMobility(board, excluded_area_b, index, BISHOP_DELTA, true, "Qq");
+                squares = mobilityAttack(board, excluded_area_b, index, BISHOP_DELTA, true, "Qq");
                 mob_mg -= BISHOP_MOB_MG[squares];
                 mob_eg -= BISHOP_MOB_EG[squares];
                 break;
@@ -549,7 +571,7 @@ public class Evaluate implements Types {
                     pieces_mg += TRAPPED_ROOK;
 
                 // Rook mobility
-                squares = scanMobility(board, excluded_area_w, index, ROOK_DELTA, true, "QqR");
+                squares = mobilityAttack(board, excluded_area_w, index, ROOK_DELTA, true, "QqR");
                 mob_mg += ROOK_MOB_MG[squares];
                 mob_eg += ROOK_MOB_EG[squares];
                 break;
@@ -578,7 +600,7 @@ public class Evaluate implements Types {
                          && (pos.king_pos_b == SQ_g8 || pos.king_pos_b == SQ_f8))
                     pieces_mg -= TRAPPED_ROOK;
 
-                squares = scanMobility(board, excluded_area_b, index, ROOK_DELTA, true, "Qqr");
+                squares = mobilityAttack(board, excluded_area_b, index, ROOK_DELTA, true, "Qqr");
                 mob_mg -= ROOK_MOB_MG[squares];
                 mob_eg -= ROOK_MOB_EG[squares];
                 break;
@@ -590,7 +612,7 @@ public class Evaluate implements Types {
                     pieces_eg += QUEEN_ON_7TH[EG];
                 }
                 // Queen mobility
-                squares = scanMobility(board, excluded_area_w, index, QUEEN_DELTA, true, "");
+                squares = mobilityAttack(board, excluded_area_w, index, QUEEN_DELTA, true, "");
                 mob_mg += QUEEN_MOB_MG[squares];
                 mob_eg += QUEEN_MOB_EG[squares];
                 break;
@@ -601,7 +623,7 @@ public class Evaluate implements Types {
                     pieces_eg -= QUEEN_ON_7TH[EG];
                 }
                 
-                squares = scanMobility(board, excluded_area_b, index, QUEEN_DELTA, true, "");
+                squares = mobilityAttack(board, excluded_area_b, index, QUEEN_DELTA, true, "");
                 mob_mg -= QUEEN_MOB_MG[squares];
                 mob_eg -= QUEEN_MOB_EG[squares];
                 break;
@@ -614,6 +636,7 @@ public class Evaluate implements Types {
         king_eg += kp_dist_w * KING_PAWN_DIST;
         king_eg -= kp_dist_b * KING_PAWN_DIST;
         
+        // Imbalance evaluation
         imbalanceEval();
 
         // Sum the component scores
@@ -670,11 +693,10 @@ public class Evaluate implements Types {
         // Calculate the middlegame and endgame weights (range 0 to 1)
         phase = Math.max(PHASE_EG, Math.min(phase, PHASE_MG));
         double weight_mg = (phase - PHASE_EG) / (double) (PHASE_MG - PHASE_EG);
-        double weight_eg = 1 - weight_mg;
+        double weight_eg = 1.0 - weight_mg;
 
-        // Calculate the tapered evaluation. This is the score interpolated between separate
-        // middle and endgame scores, weighted by the phase, in order to transition smoothly
-        // between middle and endgame.
+        // Calculate the tapered evaluation. This is the interpolated score between separately
+        // kept middlegame and endgame scores, weighted by the phase.
         int score_tapered = (int) (score_mg * weight_mg + score_eg * weight_eg);
         
         return score_tapered;
@@ -794,7 +816,7 @@ public class Evaluate implements Types {
      * Returns the number of attacked squares not in the excludedArea. Allow attacks through 
      * given 'x-ray' pieces.
      */
-    private static int scanMobility(int[] board, boolean[] excludedArea, int start, int[] delta,
+    private static int mobilityAttack(int[] board, boolean[] excludedArea, int start, int[] delta,
             boolean slider, String xray) {
         int count = 0;
         for (int i = 0; i < delta.length; i++) {
