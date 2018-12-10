@@ -67,17 +67,21 @@ public interface Types {
     public static final int[] QUEEN_DELTA  = { -17, -16, -15,  -1,  1, 15, 16, 17 };
     public static final int[] KING_DELTA   = { -17, -16, -15,  -1,  1, 15, 16, 17 };
 
-    // Piece values
-    public static final int PAWN_MG   = 65,   PAWN_EG   = 100;
-    public static final int KNIGHT_MG = 376,  KNIGHT_EG = 416;
-    public static final int BISHOP_MG = 399,  BISHOP_EG = 441;
-    public static final int ROOK_MG   = 620,  ROOK_EG   = 663;
-    public static final int QUEEN_MG  = 1216, QUEEN_EG  = 1292;
+    // Game stages
+    public static final int MG = 0;
+    public static final int EG = 1;
+    
+    // Piece values {middlegame | endgame}
+    public static final int[] VALUE_PAWN   = {   65,  100 };
+    public static final int[] VALUE_KNIGHT = {  376,  416 };
+    public static final int[] VALUE_BISHOP = {  399,  441 };
+    public static final int[] VALUE_ROOK   = {  620,  663 };
+    public static final int[] VALUE_QUEEN  = { 1216, 1292 };
 
     public static final int[] PIECE_VALUE_MG = 
-        {0, PAWN_MG, KNIGHT_MG, BISHOP_MG, ROOK_MG, QUEEN_MG, 0};
+        {0, VALUE_PAWN[MG], VALUE_KNIGHT[MG], VALUE_BISHOP[MG], VALUE_ROOK[MG], VALUE_QUEEN[MG]};
     public static final int[] PIECE_VALUE_EG = 
-        {0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
+        {0, VALUE_PAWN[EG], VALUE_KNIGHT[EG], VALUE_BISHOP[EG], VALUE_ROOK[EG], VALUE_QUEEN[EG]};
 
     // Search values
     public static final int VALUE_INF            = 10001;
@@ -107,8 +111,8 @@ public interface Types {
     // Move ordering
     public static final int PRIORITY_HASH_MOVE   =  1000;
     public static final int PRIORITY_PROMOTION   =  100;
-    public static final int PRIORITY_BAD_CAPTURE = -1;
-    public static final int PRIORITY_PRUNE       = -2;
+    //public static final int PRIORITY_BAD_CAPTURE = -1;
+    //public static final int PRIORITY_PRUNE       = -2;
 
     // Transposition table
     public static final int HASH_SIZE_TT  = 65536;
@@ -129,13 +133,10 @@ public interface Types {
     public static final int PHASE_INITIAL   = 40;
     public static final int PHASE_MG        = 37;
     public static final int PHASE_EG        = 9;
-    public static final int LAZY_THRESHOLD  = 720;
+    //public static final int LAZY_THRESHOLD  = 720;
     public static final int SPACE_THRESHOLD = 5875;
 
     // Assorted bonuses/penalties {middlegame | endgame}
-    public static final int MG = 0;
-    public static final int EG = 1;
-
     public static final int TEMPO               =  10;
     public static final int BISHOP_PAIR         =  43;
     public static final int REDUNDANT_KNIGHT    = -4;
@@ -143,7 +144,7 @@ public interface Types {
     public static final int REDUNDANT_QUEEN     = -4;
     public static final int KNIGHT_PAWN_SYNERGY	=  7;
     public static final int TRAPPED_BISHOP      = -100;
-    public static final int TRAPPED_ROOK        = -50;
+    public static final int TRAPPED_ROOK        = -47;
     public static final int[] ROOK_OPEN_FILE    = { 21,  10 };
     public static final int[] ROOK_SEMI_FILE    = {  9,   4 };
     public static final int[] ROOK_ON_7TH       = { 20,  40 };
@@ -157,6 +158,7 @@ public interface Types {
     public static final int[] PAWN_PHALANX      = { 0, 37, 18,  8, 11, -1, 3, 0 };
     public static final int SUPPORTED_PAWN      =  8;
     public static final int KING_PAWN_DIST      = -8;
+    public static final int KING_PROTECTOR      =  3;
 
     // Piece-square tables
     public static final int[][] PAWN_PSQT_MG = {
@@ -372,6 +374,18 @@ public interface Types {
         7, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 7, 0,
         7, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 0,
         7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0
+    };
+    
+    // Square color lookup (0 = light square, 1 = dark square): Use COLOR_LOOKUP[index]
+    public static final int[] COLOR_LOOKUP = {
+        0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+        1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+        1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+        1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+        1, 0, 1, 0, 1, 0, 1, 0
     };
 
     // Board coordinates
