@@ -46,12 +46,18 @@ public interface Types {
     public static final int B_SHORT_CASTLE = 0b0010;
     public static final int B_LONG_CASTLE  = 0b0001;
 
+    // Move types
     public static final int NORMAL       = 0;
     public static final int CASTLE_SHORT = 1;
     public static final int CASTLE_LONG  = 2;
     public static final int PAWN_TWO     = 3;
     public static final int ENPASSANT    = 4;
     public static final int PROMOTION    = 5;
+    
+    // Move generation types
+    public static final int GEN_ALL     = 0;
+    public static final int GEN_SEARCH  = 1;
+    public static final int GEN_QSEARCH = 2;
 
     // Move generation deltas
     public static final int[] PAWN_DELTA   = { -16, -17, -15                      };
@@ -73,36 +79,36 @@ public interface Types {
     public static final int[] PIECE_VALUE_EG = 
         {0, PAWN_EG, KNIGHT_EG, BISHOP_EG, ROOK_EG, QUEEN_EG, 0};
 
-    // Search
+    // Search values
     public static final int VALUE_INF            = 10001;
     public static final int VALUE_MATE           = 10000;
     public static final int VALUE_MATE_THRESHOLD = 9900;
     public static final int VALUE_KNOWN_WIN      = 1000;
     public static final int VALUE_DRAW           = 0;
     public static final int VALUE_CONTEMPT       = 20;
+    
+    // Search depths
+    public static final int DEPTH_QS = -1;
 
+    // Node types
     public static final int NODE_PV  =  0;
     public static final int NODE_CUT =  1;
     public static final int NODE_ALL = -1;
 
+    // Pruning parameters
     public static final int INITIAL_WINDOW      = 10;
     public static final int DELTA_MARGIN        = 200;
     public static final int REVERSE_FUT_MARGIN  = 200;
     public static final int FUTILITY_MARGIN     = 400;
     public static final int EXT_FUTILITY_MARGIN = 600;
     public static final int RAZOR_MARGIN        = 800;
-
-    public static final int HISTORY_MAX = 50000;
+    public static final int HISTORY_MAX         = 50000;
 
     // Move ordering
     public static final int PRIORITY_HASH_MOVE   =  1000;
-    public static final int PRIORITY_PROMOTION_Q =  120;
-    public static final int PRIORITY_PROMOTION_N =  3;
-    public static final int PRIORITY_CASTLING    =  2;
+    public static final int PRIORITY_PROMOTION   =  100;
     public static final int PRIORITY_BAD_CAPTURE = -1;
     public static final int PRIORITY_PRUNE       = -2;
-
-    public static final int TIME_INF = 9999000;
 
     // Transposition table
     public static final int HASH_SIZE_TT  = 65536;
@@ -110,9 +116,8 @@ public interface Types {
     public static final int HASH_SIZE_PV  = 16384;
 
     public static final int MOVE_NONE = 0;
-    
-    public static final int DEPTH_QS = -1;
 
+    // Bound types
     public static final int BOUND_EXACT = 0;
     public static final int BOUND_LOWER = 1;
     public static final int BOUND_UPPER = 2;
@@ -153,70 +158,26 @@ public interface Types {
     public static final int SUPPORTED_PAWN      =  8;
     public static final int KING_PAWN_DIST      = -8;
 
-    // Mobility
-    public static final int[] KNIGHT_MOB_MG = 
-        { -30, -25, -6, -2,  1,  6, 11, 13, 16 };
-    public static final int[] KNIGHT_MOB_EG = 
-        { -39, -27,-14, -7,  4,  7, 11, 13, 16 };
-    public static final int[] BISHOP_MOB_MG = 
-        { -23, -10,  8, 13, 18, 25, 26, 30, 30, 33, 39, 39, 44, 47 };
-    public static final int[] BISHOP_MOB_EG = 
-        { -28, -11, -1,  6, 12, 20, 26, 27, 31, 35, 38, 41, 42, 47 };
-    public static final int[] ROOK_MOB_MG   = 
-        { -28, -13, -7, -5, -2, -1,  4,  8, 14, 14, 15, 18, 22, 23, 28 };
-    public static final int[] ROOK_MOB_EG   = 
-        { -37, -9,  13, 26, 33, 39, 54, 57, 63, 68, 75, 79, 80, 81, 82 };
-    public static final int[] QUEEN_MOB_MG  = 
-        { -19, -10,  1,  1,  7, 11, 13, 20, 21, 23, 27, 29, 29, 32, 
-           32,  34, 34, 35, 38, 42, 42, 47, 49, 49, 51, 52, 54, 56 };
-    public static final int[] QUEEN_MOB_EG  = 
-        { -17, -7,  4,  9, 16, 26, 29, 35, 38, 44, 45, 50, 54, 58,
-           59, 61, 64, 65, 67, 69, 71, 80, 82, 84, 88, 92, 99, 102 };
-    
-    // Passed pawns
-    public static final int[] PASSED_DANGER = { 0, 10, 6, 4, 2, 0, 0, 0 };
-
-    public static final int PASSED_PAWN_MG[][] = {
-        {   0,   0,   0,   0,   0,   0,   0,   0 },
-        { 130, 131, 126, 116, 116, 126, 131, 130 },
-        {  78,  78,  74,  64,  64,  74,  78,  78 },
-        {  27,  27,  23,  13,  13,  23,  27,  27 },
-        {   4,   5,   0,   0,   0,   0,   5,   4 },
-        {   5,   6,   1,   0,   0,   1,   6,   5 },
-        {   2,   2,   0,   0,   0,   0,   2,   2 },
-        {   0,   0,   0,   0,   0,   0,   0,   0 }
-    };
-    public static final int PASSED_PAWN_EG[][] = {
-        {   0,   0,   0,   0,   0,   0,   0,   0 },
-        { 124, 125, 116, 113, 113, 116, 125, 124 },
-        {  84,  85,  76,  74,  74,  76,  85,  84 },
-        {  33,  34,  26,  23,  23,  26,  34,  33 },
-        {  18,  19,  11,   8,   8,  11,  19,  18 },
-        {  14,  15,   7,   4,   4,   7,  15,  14 },
-        {  12,  13,   5,   2,   2,   5,  13,  12 },
-        {   0,   0,   0,   0,   0,   0,   0,   0 }
-    };
-
     // Piece-square tables
     public static final int[][] PAWN_PSQT_MG = {
-        {   0,   0,   0,   0,   0,   0,   0,   0 },
+        {                                        },
         {  -1,  10,  -5,  -1,  -1,  -5,  10,  -1 },
         {  -5,  -6,  -1,   2,   2,  -1,  -6,  -5 },
         {  -2,  -1,   0,   6,   6,   0,  -1,  -2 },
         {  -7,  -3,  10,  12,  12,  10,  -3,  -7 },    	
         {  -8,  -1,  11,  11,  11,  11,  -1,  -8 },	
         {  -5,   3,   3,   8,   8,   3,   3,  -5 },
-        {   0,   0,   0,   0,   0,   0,   0,   0 }
+        {                                        }
     };
     public static final int[][] PAWN_PSQT_EG = {
-        {   0,   0,   0,   0,   0,   0,   0,   0 },
+        {                                        },
         {   0,  -6,   3,  12,  12,   3,  -6,   0 },
         {   8,   3,   0,   8,   8,   0,   3,   8 },
         {   6,   5,   0,  -4,  -4,   0,   5,   6 },
         {   3,  -2,  -4,   1,   1,  -4,  -2,   3 },
         {  -1,   1,   3,   0,   0,   3,   1,  -1 },
         {  -1,   0,   3,   1,   1,   3,   0,  -1 },
-        {   0,   0,   0,   0,   0,   0,   0,   0 }
+        {                                        }
     };
     public static final int[][] KNIGHT_PSQT_MG = {
         { -96, -38, -25, -15, -15, -25, -38, -96 },
@@ -319,6 +280,68 @@ public interface Types {
         {   0,  20,  38,  45,  45,  38,  20,   0 }	
     };
 
+    // Mobility
+    public static final int[] KNIGHT_MOB_MG = 
+        { -30, -25, -6, -2,  1,  6, 11, 13, 16 };
+
+    public static final int[] KNIGHT_MOB_EG = 
+        { -39, -27,-14, -7,  4,  7, 11, 13, 16 };
+
+    public static final int[] BISHOP_MOB_MG = 
+        { -23, -10,  8, 13, 18, 25, 26, 30, 30, 33, 39, 39, 44, 47 };
+
+    public static final int[] BISHOP_MOB_EG = 
+        { -28, -11, -1,  6, 12, 20, 26, 27, 31, 35, 38, 41, 42, 47 };
+
+    public static final int[] ROOK_MOB_MG = 
+        { -28, -13, -7, -5, -2, -1,  4,  8, 14, 14, 15, 18, 22, 23, 28 };
+
+    public static final int[] ROOK_MOB_EG = 
+        { -37, -9,  13, 26, 33, 39, 54, 57, 63, 68, 75, 79, 80, 81, 82 };
+
+    public static final int[] QUEEN_MOB_MG = 
+        { -19, -10,  1,  1,  7, 11, 13, 20, 21, 23, 27, 29, 29, 32, 
+           32,  34, 34, 35, 38, 42, 42, 47, 49, 49, 51, 52, 54, 56 };
+
+    public static final int[] QUEEN_MOB_EG = 
+        { -17, -7,  4,  9, 16, 26, 29, 35, 38, 44, 45, 50, 54, 58,
+           59, 61, 64, 65, 67, 69, 71, 80, 82, 84, 88, 92, 99, 102 };
+
+    // Passed pawns
+    public static final int[] PASSED_DANGER  = { 0, 10, 6, 4, 2, 0, 0, 0 };
+    public static final int PASSED_PAWN_MG[][] = {
+        {                                        },
+        { 130, 131, 126, 116, 116, 126, 131, 130 },
+        {  78,  78,  74,  64,  64,  74,  78,  78 },
+        {  27,  27,  23,  13,  13,  23,  27,  27 },
+        {   4,   5,   0,   0,   0,   0,   5,   4 },
+        {   5,   6,   1,   0,   0,   1,   6,   5 },
+        {   2,   2,   0,   0,   0,   0,   2,   2 },
+        {                                        }
+    };
+    public static final int PASSED_PAWN_EG[][] = {
+        {                                        },
+        { 124, 125, 116, 113, 113, 116, 125, 124 },
+        {  84,  85,  76,  74,  74,  76,  85,  84 },
+        {  33,  34,  26,  23,  23,  26,  34,  33 },
+        {  18,  19,  11,   8,   8,  11,  19,  18 },
+        {  14,  15,   7,   4,   4,   7,  15,  14 },
+        {  12,  13,   5,   2,   2,   5,  13,  12 },
+        {                                        }
+    };
+    
+    // King safety
+    public static final int PAWN_SHELTER[][] = {
+        {  -3, -21,  -5, -19, -19,  -5, -21,  -3 },
+        {  12, -30, -22, -80, -80, -22, -30,  12 },
+        {   9,  -5,   1, -32, -32,   1,  -5,   9 },
+        {  19, -14,  15, -23, -23,  15, -14,  19 },
+        {  28, -24,  -1, -25, -25,  -1, -24,  29 },
+        {  45,  17,  11, -14, -14,  11,  17,  45 },
+        {  39,  29,  36,  -6,  -6,  36,  29,  39 },  
+        {                                        }
+    };
+
     // Endgame
     public static final int[][] CORNER_PROXIMITY = {
         { 50, 45, 40, 35, 35, 40, 45, 50 },
@@ -331,10 +354,9 @@ public interface Types {
         { 50, 45, 40, 35, 35, 40, 45, 50 }
     };
     public static final int[] KINGS_PROXIMITY = { 0, 0, 50, 40, 30, 20, 10, 5 };
-
-    // Chebyshev distance (max of rank and file difference) between two indices:
-    // Use DIST_LOOKUP[index1 - index2 + 0x77]
-    public static final int[] DISTANCE_LOOKUP = {
+    
+    // Chebyshev distance lookup: Use DIST_LOOKUP[index1 - index2 + 0x77]
+    public static final int[] DIST_LOOKUP = {
         7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0,
         7, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 0,
         7, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 7, 0,
@@ -351,56 +373,7 @@ public interface Types {
         7, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 0,
         7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0
     };
-    
-    // Possible attackers: Use ATTACK_LOOKUP[attackerIndex - squareIndex + 0x77]
-    public static final int[] ATTACK_LOOKUP = {
-        5, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 5, 0,
-        0, 5, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 5, 0, 0,
-        0, 0, 5, 0, 0, 0, 0, 6, 0, 0, 0, 0, 5, 0, 0, 0,
-        0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 5, 0, 0, 0, 0,
-        0, 0, 0, 0, 5, 0, 0, 6, 0, 0, 5, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 5, 1, 6, 1, 5, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 1, 3, 4, 3, 1, 0, 0, 0, 0, 0, 0,
-        6, 6, 6, 6, 6, 6, 4, 0, 4, 6, 6, 6, 6, 6, 6, 0,
-        0, 0, 0, 0, 0, 1, 2, 4, 2, 1, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 5, 1, 6, 1, 5, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 5, 0, 0, 6, 0, 0, 5, 0, 0, 0, 0, 0,
-        0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 5, 0, 0, 0, 0,
-        0, 0, 5, 0, 0, 0, 0, 6, 0, 0, 0, 0, 5, 0, 0, 0,
-        0, 5, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 5, 0, 0,
-        5, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 5, 0
-    };
-    // Attack lookup key (0b kqrbnp-PNBRQK)
-    public static final boolean[] ATTACK_NONE = { false, false, false, false, false, false, false, false, false, false, false, false, false };
-    public static final boolean[] ATTACK_N    = { false, false, false, false, true,  false, false, false, true,  false, false, false, false };
-    public static final boolean[] ATTACK_KQBP = { true,  true,  false, true,  false, false, false, true , false, true , false, true , true  };
-    public static final boolean[] ATTACK_KQBp = { true , true , false, true , false, true , false, false, false, true , false, true , true  };
-    public static final boolean[] ATTACK_KQR  = { true , true , true , false, false, false, false, false, false, false, true , true , true  };
-    public static final boolean[] ATTACK_QB   = { false, true , false, true , false, false, false, false, false, true , false, true , false };
-    public static final boolean[] ATTACK_QR   = { false, true , true , false, false, false, false, false, false, false, true , true , false };
-    
-    public static final boolean[][] ATTACK_KEY =
-        { ATTACK_NONE, ATTACK_N, ATTACK_KQBP, ATTACK_KQBp, ATTACK_KQR, ATTACK_QB, ATTACK_QR };
-    
-    // Attack delta for sliding pieces
-    public static final int[] DELTA_LOOKUP = {
-      -17,  0,  0,  0,  0,  0, 0,-16, 0,  0,  0,  0,  0,  0,-15, 0,
-        0,-17,  0,  0,  0,  0, 0,-16, 0,  0,  0,  0,  0,-15,  0, 0,
-        0,  0,-17,  0,  0,  0, 0,-16, 0,  0,  0,  0,-15,  0,  0, 0,
-        0,  0,  0,-17,  0,  0, 0,-16, 0,  0,  0,-15,  0,  0,  0, 0,
-        0,  0,  0,  0,-17,  0, 0,-16, 0,  0,-15,  0,  0,  0,  0, 0,
-        0,  0,  0,  0,  0,-17, 0,-16, 0,-15,  0,  0,  0,  0,  0, 0,
-        0,  0,  0,  0,  0,  0, 0,  0, 0,  0,  0,  0,  0,  0,  0, 0,
-       -1, -1, -1, -1, -1, -1, 0,  0, 0,  1,  1,  1,  1,  1,  1, 0,
-        0,  0,  0,  0,  0,  0, 0,  0, 0,  0,  0,  0,  0,  0,  0, 0,
-        0,  0,  0,  0,  0, 15, 0, 16, 0, 17,  0,  0,  0,  0,  0, 0,
-        0,  0,  0,  0, 15,  0, 0, 16, 0,  0, 17,  0,  0,  0,  0, 0,
-        0,  0,  0, 15,  0,  0, 0, 16, 0,  0,  0, 17,  0,  0,  0, 0,
-        0,  0, 15,  0,  0,  0, 0, 16, 0,  0,  0,  0, 17,  0,  0, 0,
-        0, 15,  0,  0,  0,  0, 0, 16, 0,  0,  0,  0,  0, 17,  0, 0,
-       15,  0,  0,  0,  0,  0, 0, 16, 0,  0,  0,  0,  0,  0, 17, 0
-    };
-    
+
     // Board coordinates
     public static final int SQ_NONE = -2;
     public static final int SQ_a8 = 0;
