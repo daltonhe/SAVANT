@@ -32,6 +32,8 @@ public class Savant implements Types {
     // TODO: precomputed tables
     // TODO: killer moves
     // TODO: quiescence TT replacement
+    // TODO: use stack for rep detection
+    // TODO: pawn hash table
 
     public static Position pos;
     public static String movesString;
@@ -60,7 +62,7 @@ public class Savant implements Types {
         //pos = new Position("8/8/8/8/8/8/R7/R3K2k w Q - 0 1");
         //pos = new Position("7k/8/8/8/R2K3q/8/8/8 w - - 0 1");
         //pos = new Position("2k5/8/8/8/p7/8/8/4K3 b - - 0 1");
-
+        
         Engine.ttable    = new TranspositionTable(HASH_SIZE_TT);
         Engine.ttable_qs = new TranspositionTable(HASH_SIZE_TT);
         inOpening        = true;
@@ -140,7 +142,7 @@ public class Savant implements Types {
                 break;
 
             case "undo":
-                pos.deleteRep();
+                pos.reptable.delete(pos.key);
                 if (!moveHist.isEmpty()) {
                     pos.unmakeMove(moveHist.pop());
                     pos.print();
@@ -199,7 +201,6 @@ public class Savant implements Types {
                 }
                 pos.print();
             }
-
             System.out.println();
         }
 
