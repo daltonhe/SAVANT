@@ -7,13 +7,13 @@ import java.util.ArrayList;
  * 
  */
 public class Move implements Types, Comparable<Move> {
-    public int start;    // starting index of the moving piece
-    public int target;   // target index of the moving piece
-    public int piece;    // piece type of the moving piece
-    public int captured; // piece type of the captured piece (0 if none)
-    public int type;     // type of the move (see Definitions interface)
-    public int score;    // weight of the move during move ordering
-    public int hscore;   // history weight, also for move ordering
+    public int start;    // moving piece starting index
+    public int target;   // moving piece target index
+    public int piece;    // moving piece type
+    public int captured; // captured piece type
+    public int type;     // move type
+    public int score;    // move weight, for move ordering
+    public int hscore;   // history weight, for move ordering
 
     /**
      * Creates a move with the given parameters.
@@ -45,8 +45,8 @@ public class Move implements Types, Comparable<Move> {
 
     /**
      * Returns the move in a compact integer form. The rightmost 8 bits store the target index,
-     * the next 8 bits store the start index. Note: all promotion types on the same square will
-     * return the same integer value.
+     * the next 8 bits store the start index. Note: promotions to all piece types on the same 
+     * square have the same integer value.
      */
     public int toInteger() {
         return ((start << 8) | target);
@@ -92,13 +92,10 @@ public class Move implements Types, Comparable<Move> {
         int piece = Math.abs(move.piece);
         if (piece == PAWN || piece == BISHOP || piece == KING) return "";
         for (Move m : moveList) {
-            if (   m.piece  == move.piece 
-                && m.target == move.target 
-                && m.start  != move.start) {
-                if (m.start % 16 != move.start % 16)
-                    return "" + "abcdefgh".charAt(move.start % 16);
-                else
-                    return "" + (8 - move.start / 16);
+            if (m.equals(move)) {
+                if ((m.start & 7) != (move.start >> 4))
+                    return "" + "abcdefgh".charAt(move.start >> 4);
+                return "" + (8 - (move.start >> 4));
             }
         }
         return "";
