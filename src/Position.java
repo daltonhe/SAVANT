@@ -51,7 +51,6 @@ public class Position implements Types {
         initDefaults();
         Scanner input = new Scanner(fen);
         String p = input.next();
-
         try {
             int index = 0;
             for (int i = 0; i < p.length(); i++) {
@@ -70,8 +69,7 @@ public class Position implements Types {
             }
         } catch (ArrayIndexOutOfBoundsException ex) {};
 
-        if (input.hasNext() && input.next().equalsIgnoreCase("b"))
-            sideToMove = BLACK;
+        if (input.hasNext() && input.next().equalsIgnoreCase("b")) sideToMove = BLACK;
         if (input.hasNext()) {
             String c = input.next();
             if (c.contains("K")) castling |= W_SHORT_CASTLE;
@@ -747,7 +745,6 @@ public class Position implements Types {
                 }
                 result += PIECE_STR.charAt(board[index] + 6);
             }
-
             if (index % 8 == 7) {
                 if (emptySquares > 0) {
                     result += "" + emptySquares;
