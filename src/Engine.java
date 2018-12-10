@@ -14,7 +14,7 @@ import java.util.Scanner;
 public class Engine implements Types {
     public static int maxDepth       = 100;     // max search depth
     public static boolean uciMode    = false;   // true if we are in UCI mode
-    public static double timeLeft    = TIME_INF;   // total time remaining
+    public static double timeLeft    = 10000;   // total time remaining
     public static double increment   = 0;       // increment per move
     public static double timeForMove = 0;       // time for this move
     public static boolean useBook    = true;    // true if using native opening book
@@ -24,7 +24,6 @@ public class Engine implements Types {
     public static boolean abortedSearch;        // true if the search was ended early
 
     public static int[][] quietHistory;         // history heuristic move scores
-    public static int[][][] captureHistory;
     public static TranspositionTable ttable;    // transposition table for main search
     public static TranspositionTable ttable_qs; // transposition table for quiescence search
     public static TranspositionTable pvtable;   // hash table for PV moves
@@ -42,7 +41,6 @@ public class Engine implements Types {
         currentDepth   = 0;
         abortedSearch  = false;
         quietHistory   = new int[13][120];
-        captureHistory = new int[13][120][13];
         pvtable        = new TranspositionTable(HASH_SIZE_PV);
         pv             = new ArrayList<Move>();
         bestMove       = null;
@@ -173,7 +171,7 @@ public class Engine implements Types {
             pos.makeMove(move);
 
             // Check for a repetition cycle
-            HashtableEntry rentry = pos.reptable.get(pos.repKey());
+            HashtableEntry rentry = pos.reptable.get(pos.key);
             if (rentry != null && rentry.count >= 2) break;
 
             entry = pvtable.get(pos.key);
@@ -314,7 +312,7 @@ public class Engine implements Types {
         }
 
         // Generate all moves and sort
-        ArrayList<Move> moveList = pos.generateMoves(false);
+        ArrayList<Move> moveList = pos.generateMoves(GEN_SEARCH);
         sortMoves(pos, moveList, (ttentry == null ? MOVE_NONE : ttentry.move));
 
         Move bestMove  = null;
@@ -323,10 +321,6 @@ public class Engine implements Types {
 
         // Move loop
         for (Move move : moveList) {
-
-            // Prune underpromotions
-            if (move.score == PRIORITY_PRUNE) continue;
-
             pos.makeMove(move);
 
             // Check for legality
@@ -370,9 +364,9 @@ public class Engine implements Types {
 
                 eval = -alphaBeta(pos, ply-R-1, height+1, -alpha-1, -alpha, NODE_CUT);
 
-                doFullDepthSearch = eval > alpha && R > 0;
+                doFullDepthSearch = (eval > alpha && R > 0);
             }
-            else doFullDepthSearch = nodeType != NODE_PV || moveCount > 1;
+            else doFullDepthSearch =(nodeType != NODE_PV || moveCount > 1);
 
             // Full-depth PVS when LMR is skipped or fails high
             if (doFullDepthSearch)
@@ -426,17 +420,6 @@ public class Engine implements Types {
 
         // If we pruned all moves without searching, return a fail-low score
         if (bestEval == -VALUE_INF) bestEval = alpha;
-        
-        // Update capture move sorting heuristics
-        if (bestMove != null && bestMove.captured != PIECE_NONE) {
-            captureHistory[bestMove.piece + 6][bestMove.target][bestMove.captured + 6] += ply * ply;
-            if (captureHistory[bestMove.piece + 6][bestMove.target][bestMove.captured + 6] >= HISTORY_MAX) {
-                for (int i = 0; i < 13; i++)
-                    for (int j = 0; j < 120; j++)
-                        for (int k = 0; k < 13; k++)
-                            captureHistory[i][j][k] /= 2;
-            }
-        }
 
         // Update the transposition table
         ttable.add(pos.key, 
@@ -483,7 +466,7 @@ public class Engine implements Types {
         int hashMove = (ttentry == null ? MOVE_NONE : ttentry.move);
 
         // Generate captures and promotions only
-        ArrayList<Move> moveList = pos.generateMoves(true);
+        ArrayList<Move> moveList = pos.generateMoves(GEN_QSEARCH);
         sortMoves(pos, moveList, hashMove);
 
         int bestMove = MOVE_NONE;
@@ -493,14 +476,10 @@ public class Engine implements Types {
 
             assert(move.captured != PIECE_NONE || move.type == PROMOTION);
 
-            // Prune bad captures and moves with low priority
-            if (move.score == PRIORITY_PRUNE) continue;
-
             // Delta pruning
             if (pos.pieceList.size() > 6) {
                 int materialGain = PIECE_VALUE_EG[Math.abs(move.captured)];
-                if (move.type == PROMOTION)
-                    materialGain += (PIECE_VALUE_EG[Math.abs(move.piece)] - PAWN_EG);
+                if (move.type == PROMOTION) materialGain += VALUE_QUEEN[EG] - VALUE_PAWN[EG];
                 if (standPat + materialGain <= alpha - DELTA_MARGIN) continue;
             }
 
@@ -549,15 +528,8 @@ public class Engine implements Types {
             if (hashMove != MOVE_NONE && move.toInteger() == hashMove)
                 move.score = PRIORITY_HASH_MOVE;
             else {
-                if (move.type == PROMOTION) {
-                    if (Math.abs(move.piece) == QUEEN)
-                        move.score = PRIORITY_PROMOTION_Q + Math.abs(move.captured);
-                    else
-                        move.score = PRIORITY_PRUNE;
-                }
-                else if (move.type == CASTLE_SHORT || move.type == CASTLE_LONG)
-                    move.score = PRIORITY_CASTLING;
-
+                if (move.type == PROMOTION)
+                    move.score = PRIORITY_PROMOTION + Math.abs(move.captured);
                 // MVV/LVA
                 else if (move.captured != PIECE_NONE) {
                     // range: 4 (KxP) to 49 (PxQ)
@@ -565,9 +537,7 @@ public class Engine implements Types {
                     if (victim == 3) victim = 2;
                     int attacker = Math.abs(move.piece);
                     move.score = victim * 10 - attacker;
-                    //move.hscore = captureHistory[move.piece + 6][move.target][move.captured + 6];
                 }
-
                 // History heuristic
                 else move.hscore = quietHistory[move.piece + 6][move.target];
             }
