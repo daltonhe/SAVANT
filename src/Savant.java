@@ -34,11 +34,12 @@ public class Savant implements Types {
     // TODO: quiescence TT replacement
     // TODO: use stack for rep detection
     // TODO: pawn hash table
+    // TODO: TT buckets
+    // TODO: rank and file constants
 
     public static Position pos;
     public static String movesString;
     public static boolean inOpening;
-    public static boolean debug;
 
     /**
      * The main method, calls console mode or UCI mode.
@@ -63,10 +64,9 @@ public class Savant implements Types {
         //pos = new Position("7k/8/8/8/R2K3q/8/8/8 w - - 0 1");
         //pos = new Position("2k5/8/8/8/p7/8/8/4K3 b - - 0 1");
         
-        Engine.ttable    = new TranspositionTable(HASH_SIZE_TT);
-        Engine.ttable_qs = new TranspositionTable(HASH_SIZE_TT);
-        inOpening        = true;
-        movesString      = "";
+        Engine.initialize();
+        inOpening   = true;
+        movesString = "";
     }
 
     /**
@@ -87,33 +87,27 @@ public class Savant implements Types {
         System.out.println();
 
         // Game loop
-        while (true) {
-
+        while (true) {            
             // Check for mate/stalemate
             if (pos.generateLegalMoves().isEmpty()) {
-                if (pos.inCheck(pos.sideToMove))
-                    gameOverMsg = (pos.sideToMove == WHITE ? "Black" : "White") + 
-                    " wins by checkmate.";
-                else
-                    gameOverMsg = "Game drawn by stalemate.";
+                if (pos.inCheck(pos.sideToMove)) gameOverMsg = (pos.sideToMove == WHITE ? 
+                        "Black" : "White") + " wins by checkmate.";
+                else gameOverMsg = "Game drawn by stalemate.";
             }
-
+            
             // Check for draw by insufficient material
-            if (pos.insufficientMat())
-                gameOverMsg = "Game drawn by insufficient material.";
+            if (pos.insufficientMat()) gameOverMsg = "Game drawn by insufficient material.";
 
             // Check for draw by 50 moves rule
-            if (pos.fiftyMoves >= 100)
-                gameOverMsg = "Game drawn by 50 moves rule.";
+            if (pos.fiftyMoves >= 100) gameOverMsg = "Game drawn by 50 moves rule.";
 
             // Check for draw by three-fold repetition
-            if (pos.isThreefoldRep())
-                gameOverMsg = "Game drawn by threefold repetition.";
+            if (pos.isThreefold()) gameOverMsg = "Game drawn by threefold repetition.";
 
             if (!gameOverMsg.isEmpty()) break;
 
             boolean engineTurn =    (pos.sideToMove == WHITE && engineWhite)
-                    || (pos.sideToMove == BLACK && engineBlack);
+                                 || (pos.sideToMove == BLACK && engineBlack);
 
             if (!engineTurn) System.out.print(">");
 
@@ -142,7 +136,6 @@ public class Savant implements Types {
                 break;
 
             case "undo":
-                pos.reptable.delete(pos.key);
                 if (!moveHist.isEmpty()) {
                     pos.unmakeMove(moveHist.pop());
                     pos.print();

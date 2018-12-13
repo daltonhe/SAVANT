@@ -47,9 +47,6 @@ public class UCI implements Types{
                 if (moveList != null) {
                     for (int i = 0; i < moveList.length; i++) {
                         Move move = Engine.getMoveObject(pos, moveList[i]);
-                        if (move.captured != 0 || Math.abs(move.piece) == PAWN)
-                            pos.reptable.clear();
-
                         pos.makeMove(move);
                         movesString += move + " ";
                     }

@@ -1,4 +1,4 @@
-import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 
@@ -48,7 +48,7 @@ public class Move implements Types, Comparable<Move> {
      * the next 8 bits store the start index. Note: promotions to all piece types on the same 
      * square have the same integer value.
      */
-    public int toInteger() {
+    public int toInt() {
         return ((start << 8) | target);
     }
     
@@ -88,7 +88,7 @@ public class Move implements Types, Comparable<Move> {
      * Returns the modifier to the algebraic notation of the given move (e.g. Nbd7, R1a2).
      * Returns an empty string if no modifier is needed.
      */
-    public static String algebraicModifier(Move move, ArrayList<Move> moveList) {
+    public static String algebraicModifier(Move move, List<Move> moveList) {
         int piece = Math.abs(move.piece);
         if (piece == PAWN || piece == BISHOP || piece == KING) return "";
         for (Move m : moveList) {

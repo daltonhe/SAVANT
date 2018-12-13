@@ -2,7 +2,6 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Scanner;
-import java.util.Stack;
 
 /**
  * 
@@ -26,14 +25,12 @@ public class Position implements Types {
     public int enpassant;  // index of the enpassant square (-2 if none)
     public int fiftyMoves; // fifty moves rule half-move clock
 
-    public long key;                    // zobrist key of the position
-    public Stack<State> stateHist;      // previous state history
-    public List<Integer> pieceList;     // board indices of all pieces
-    public int king_pos_w;              // index of the white king
-    public int king_pos_b;              // index of the black king
-    public TranspositionTable reptable; // hash table for detecting repetitions
-    public int nullCount;               // number of null moves made before this position
-    public boolean nullAllowed;         // false if a null move was just made
+    public long key;                // zobrist hash key of the position
+    public List<State> stateHist;   // previous state history
+    public List<Integer> pieceList; // board indices of all pieces
+    public int king_pos_w;          // index of the white king
+    public int king_pos_b;          // index of the black king
+    public boolean nullAllowed;     // false if a null move was just made
 
     /**
      * Initializes the starting position.
@@ -91,17 +88,15 @@ public class Position implements Types {
     public void initDefaults() {
         board       = new int[120];
         sideToMove  = WHITE;
-        castling    = 0;
+        castling    = CASTLING_NONE;
         enpassant   = SQ_NONE;
         fiftyMoves  = 0;
         key         = 0;
-        stateHist   = new Stack<State>();
+        stateHist   = new ArrayList<State>();
         pieceList   = new LinkedList<Integer>();
         king_pos_w  = SQ_NONE;
         king_pos_b  = SQ_NONE;
-        nullCount   = 0;
         nullAllowed = true;
-        reptable    = new TranspositionTable(HASH_SIZE_REP);
     }
 
     /**
@@ -122,8 +117,6 @@ public class Position implements Types {
      */
     public void makeMove(Move move) {
         saveState();
-
-        if (nullCount == 0) reptable.add(key);
 
         key ^= Zobrist.castling[castling];
 
@@ -206,8 +199,6 @@ public class Position implements Types {
             if      (move.piece == W_KING) king_pos_w = move.start;
             else if (move.piece == B_KING) king_pos_b = move.start;
         }
-
-        if (nullCount == 0) reptable.delete(key);
     }
 
     /**
@@ -221,7 +212,7 @@ public class Position implements Types {
             key ^= Zobrist.enpassant[enpassant & 7];
             enpassant = SQ_NONE;
         }
-        nullCount++;
+        fiftyMoves = 0;
         nullAllowed = false;
     }
 
@@ -231,7 +222,6 @@ public class Position implements Types {
     public void unmakeNullMove() {
         revertState();
         sideToMove *= -1;
-        nullCount--;
         nullAllowed = true;
     }
 
@@ -360,7 +350,7 @@ public class Position implements Types {
      * accordingly.
      */
     public void updateCastlingRights() {
-        if (castling == 0) return;
+        if (castling == CASTLING_NONE) return;
         if (board[SQ_e1] != W_KING) castling &= ~W_ALL_CASTLING;
         else {
             if (board[SQ_h1] != W_ROOK) castling &= ~W_SHORT_CASTLE;
@@ -376,9 +366,9 @@ public class Position implements Types {
     /**
      * Returns a list of all legal moves that can be made from this position.
      */
-    public ArrayList<Move> generateLegalMoves() {
-        ArrayList<Move> legalMoves = new ArrayList<Move>();
-        ArrayList<Move> moveList = generateMoves(GEN_ALL);
+    public List<Move> generateLegalMoves() {
+        List<Move> legalMoves = new ArrayList<Move>();
+        List<Move> moveList = generateMoves(GEN_ALL);
         for (Move move : moveList) {
             makeMove(move);
             if (!inCheck(-sideToMove)) legalMoves.add(move);
@@ -391,8 +381,8 @@ public class Position implements Types {
      * Returns a list of all pseudolegal moves (moves that follow the basic rules but may leave
      * the king in check) that can be made from this position.
      */
-    public ArrayList<Move> generateMoves(int gen) {
-        ArrayList<Move> moveList = new ArrayList<Move>();
+    public List<Move> generateMoves(int gen) {
+        List<Move> moveList = new ArrayList<Move>();
 
         for (int index : pieceList) {
             int piece = board[index] * sideToMove;
@@ -420,7 +410,7 @@ public class Position implements Types {
                 break;
 
             case KING:
-                if (gen != GEN_QSEARCH && castling != 0) genCastling(index, moveList);
+                if (gen != GEN_QSEARCH && castling != CASTLING_NONE) genCastling(index, moveList);
                 genNonslider(index, KING_DELTA, gen, moveList);
                 break;
             }
@@ -431,7 +421,7 @@ public class Position implements Types {
     /**
      * Adds all pseudolegal non-sliding moves to the given move list.
      */
-    public void genNonslider(int start, int[] delta, int gen, ArrayList<Move> moveList) {
+    public void genNonslider(int start, int[] delta, int gen, List<Move> moveList) {
         for (int d : delta) {
             int target = start + d;
             if (isLegalIndex(target)) {
@@ -446,7 +436,7 @@ public class Position implements Types {
     /**
      * Adds all pseudolegal sliding moves to the given move list.
      */
-    public void genSlider(int start, int[] delta, int gen, ArrayList<Move> moveList) {
+    public void genSlider(int start, int[] delta, int gen, List<Move> moveList) {
         for (int d : delta) {
             int target = start + d;
             while (isLegalIndex(target)) {
@@ -463,7 +453,7 @@ public class Position implements Types {
     /**
      * Adds all pseudolegal pawn moves to the given move list.
      */
-    public void genPawn(int start, int gen, ArrayList<Move> moveList) {
+    public void genPawn(int start, int gen, List<Move> moveList) {
         for (int i = 0; i < 3; i++) {
             int target = start + PAWN_DELTA[i] * sideToMove;
             if (!isLegalIndex(target)) continue;
@@ -495,8 +485,9 @@ public class Position implements Types {
                         ENPASSANT));
 
             // push two squares
-            if (i == 0 && gen != GEN_QSEARCH && ((   sideToMove == WHITE && (start >> 4) == 6)
-                                                  || sideToMove == BLACK && (start >> 4) == 1))
+            if (   i == 0 && gen != GEN_QSEARCH 
+                && ((   sideToMove == WHITE && (start >> 4) == RANK_2)
+                     || sideToMove == BLACK && (start >> 4) == RANK_7))
                 if (board[target] == PIECE_NONE && board[target - 16 * sideToMove] == PIECE_NONE)
                     moveList.add(new Move(start, target - 16 * sideToMove, PAWN * sideToMove, 
                             PIECE_NONE,  PAWN_TWO));
@@ -506,7 +497,7 @@ public class Position implements Types {
     /**
      * Adds all pseudolegal castling moves to the given move list.
      */
-    public void genCastling(int start, ArrayList<Move> moveList) {
+    public void genCastling(int start, List<Move> moveList) {
         if (sideToMove == WHITE) {
             if (   canCastle(W_SHORT_CASTLE)
                 && board[SQ_f1] == PIECE_NONE 
@@ -592,7 +583,7 @@ public class Position implements Types {
      * Returns {@code true} if the given castleType is possible.
      */
     public boolean canCastle(int castleType) {
-        return ((castling & castleType) != 0);
+        return ((castling & castleType) != CASTLING_NONE);
     }
 
     /**
@@ -616,78 +607,44 @@ public class Position implements Types {
     }
 
     /**
-     * Returns whether the position has been repeated.
+     * Returns {@code true} if the current position is a repetition.
      */
     public boolean isRepeat() {
-        HashtableEntry rentry = reptable.get(key);
-        return rentry != null && rentry.count >= 1;
+        if (fiftyMoves < 4) return false;
+        for (int i = 4; i <= fiftyMoves; i += 2)
+            if (key == stateHist.get(stateHist.size() - i).key) return true;
+        return false;
     }
 
     /**
-     * Returns whether the position is a three-fold repetition.
+     * Returns {@code true} if the current position is a three-fold repetition.
      */
-    public boolean isThreefoldRep() {
-        HashtableEntry rentry = reptable.get(key);
-        return rentry != null && rentry.count >= 2;
+    public boolean isThreefold() {
+        if (fiftyMoves < 4) return false;
+        int count = 0;
+        for (int i = 4; i <= fiftyMoves; i += 2)
+            if (key == stateHist.get(stateHist.size() - i).key) count++;
+        return (count >= 2);
     }
 
     /**
      * Returns whether there is insufficient mating material left.
      */
     public boolean insufficientMat() {
-        int pieceCount = pieceList.size();
-        // Too many pieces left
-        if (pieceCount > 5) return false;
+        if (pieceList.size() > 5)  return false; // Too many pieces left
+        if (pieceList.size() == 2) return true;  // K vs K
 
-        // K vs K
-        if (pieceCount == 2) return true;
-
-        // Count pieces
-        int[] pieces_w = new int[7], pieces_b = new int[7];
-        int count_w = 0, count_b = 0;
+        int npm = 0;
         for (int index : pieceList) {
             int piece = board[index];
-
             // Non-minor piece left
             if (   Math.abs(piece) == PAWN 
                 || Math.abs(piece) == ROOK 
                 || Math.abs(piece) == QUEEN) return false;
-
-            if (piece > 0) {
-                pieces_w[piece]++;
-                count_w++;
-            }
-            else {
-                pieces_b[-piece]++;
-                count_b++;
-            }
+            npm += VALUE_NPM[piece + 6];
         }
 
-        // Km vs K
-        if (pieceCount == 3) return true;
-
-        if (pieceCount == 4) {
-            // Km vs Km
-            if (count_w == 2) return true;
-
-            // KNN vs K
-            if (pieces_w[KNIGHT] == 2 || pieces_b[KNIGHT] == 2) return true;
-
-            // KBB vs K || KBN vs K
-            return false;
-        }
-
-        assert(pieceCount == 5);
-
-        // 3 minors vs 1
-        if (count_w == 4 || count_b == 4) return false;
-
-        // KBB vs KN
-        if (   pieces_w[BISHOP] == 2 && pieces_b[BISHOP] == 0
-            || pieces_b[BISHOP] == 2 && pieces_w[BISHOP] == 0) return false;
-
-        // all other 2 minors vs 1 minor combinations
-        return true;
+        return (Math.abs(npm) <= VALUE_BISHOP[MG]);
     }
 
     /**
@@ -695,25 +652,25 @@ public class Position implements Types {
      * debugging, e.g. for testing evaluation symmetry.
      */
     public void flip() {
-        int[] board_f = new int[120];
-        for (int i = 0; i < 8; i++) {
-            board_f[SQ_a8 + i] = -board[SQ_a1 + i];
-            board_f[SQ_a7 + i] = -board[SQ_a2 + i];
-            board_f[SQ_a6 + i] = -board[SQ_a3 + i];
-            board_f[SQ_a5 + i] = -board[SQ_a4 + i];
-            board_f[SQ_a4 + i] = -board[SQ_a5 + i];
-            board_f[SQ_a3 + i] = -board[SQ_a6 + i];
-            board_f[SQ_a2 + i] = -board[SQ_a7 + i];
-            board_f[SQ_a1 + i] = -board[SQ_a8 + i];
+        int[] fboard = new int[120];
+        for (int f = 0; f < 8; f++) {
+            fboard[SQ_a8 + f] = -board[SQ_a1 + f];
+            fboard[SQ_a7 + f] = -board[SQ_a2 + f];
+            fboard[SQ_a6 + f] = -board[SQ_a3 + f];
+            fboard[SQ_a5 + f] = -board[SQ_a4 + f];
+            fboard[SQ_a4 + f] = -board[SQ_a5 + f];
+            fboard[SQ_a3 + f] = -board[SQ_a6 + f];
+            fboard[SQ_a2 + f] = -board[SQ_a7 + f];
+            fboard[SQ_a1 + f] = -board[SQ_a8 + f];
         }
-        board = board_f;
+        board = fboard;
 
-        int castling_f = 0;
-        if (canCastle(W_SHORT_CASTLE)) castling_f |= B_SHORT_CASTLE;
-        if (canCastle(W_LONG_CASTLE))  castling_f |= B_LONG_CASTLE;
-        if (canCastle(B_SHORT_CASTLE)) castling_f |= W_SHORT_CASTLE;
-        if (canCastle(B_LONG_CASTLE))  castling_f |= W_LONG_CASTLE;
-        castling = castling_f;
+        int fcastling = CASTLING_NONE;
+        if (canCastle(W_SHORT_CASTLE)) fcastling |= B_SHORT_CASTLE;
+        if (canCastle(W_LONG_CASTLE))  fcastling |= B_LONG_CASTLE;
+        if (canCastle(B_SHORT_CASTLE)) fcastling |= W_SHORT_CASTLE;
+        if (canCastle(B_LONG_CASTLE))  fcastling |= W_LONG_CASTLE;
+        castling = fcastling;
 
         if (enpassant != SQ_NONE) enpassant += 48 * sideToMove;
 
@@ -756,7 +713,7 @@ public class Position implements Types {
             index++;
         }
         result += (sideToMove == WHITE ? " w " : " b ");
-        if (castling == 0) result += "-";
+        if (castling == CASTLING_NONE) result += "-";
         else {
             result += (canCastle(W_SHORT_CASTLE) ? "K" : "");
             result += (canCastle(W_LONG_CASTLE)  ? "Q" : "");
@@ -792,14 +749,14 @@ public class Position implements Types {
      * Pushes a State object for the current position to the stateHist stack.
      */
     private void saveState() {
-        stateHist.push(new State(this));
+        stateHist.add(new State(this));
     }
 
     /**
      * Pop the last State off the stateHist stack and use to revert the position.
      */
     private void revertState() {
-        State prev = stateHist.pop();
+        State prev = stateHist.remove(stateHist.size() - 1);
         key        = prev.key;
         castling   = prev.castling;
         enpassant  = prev.enpassant;

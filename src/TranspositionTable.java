@@ -43,28 +43,6 @@ public class TranspositionTable implements Types {
     }
 
     /**
-     * Deletes a repetition
-     */
-    public void delete(long key) {
-        int hashKey = (int) (key % size);
-        HashtableEntry entry = table[hashKey];
-        if (entry == null || key != entry.key) return;
-        if (entry.count > 1) table[hashKey].count--;
-        else table[hashKey] = null;
-    }
-
-    /**
-     * Adds a repetition table entry
-     */
-    public void add(long key) {
-        int hashKey = (int) (key % size);
-        HashtableEntry entry = table[hashKey];
-        if (entry == null || key != entry.key)
-            table[hashKey] = new HashtableEntry(key);
-        else table[hashKey].count++;
-    }
-
-    /**
      * Adds a PV table entry
      */
     public void add(long key, int move) {
