@@ -10,7 +10,6 @@ public class HashtableEntry {
     public byte  depth; // search depth
     public short eval;  // position score (from white's perspective)
     public byte  type;  // bound type of the eval
-    public byte  count; // number of times position has been repeated
     public byte  age;   // incremented after every search
 
     // memory usage per entry: 16 bytes
@@ -21,15 +20,7 @@ public class HashtableEntry {
     //     type    8 bits
     //     count   8 bits
     //     age     8 bits
-
-    /**
-     * Repetition table entry
-     */
-    public HashtableEntry(long key) {
-        this.key   = key;
-        this.count = 1;
-    }
-
+    
     /**
      * PV table entry
      */

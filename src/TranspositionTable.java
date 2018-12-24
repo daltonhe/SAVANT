@@ -38,8 +38,7 @@ public class TranspositionTable implements Types {
     public HashtableEntry get(long key) {
         int hashKey = (int) (key % size);
         HashtableEntry entry = table[hashKey];
-        if (entry != null && key == entry.key) return entry;
-        return null;
+        return ((entry != null && key == entry.key) ? entry : null);
     }
 
     /**
@@ -54,29 +53,19 @@ public class TranspositionTable implements Types {
      * Adds a TT entry
      */
     public void add(long key, int move, int depth, int eval, int type) {
-        if (depth == DEPTH_QS) {
-            // Always replace
-            int hashKey = (int) (key % size);
+        int hashKey = (int) (key % size);
+                
+        if (depth == DEPTH_QS) // quiescence search entry
             table[hashKey] = new HashtableEntry(key, move, DEPTH_QS, eval, type);
-        }
-        else {
-            assert(depth > 0);
-            
-            int hashKey = (int) (key % size);
+        else { // regular search entry
             HashtableEntry entry = table[hashKey];
-
             // If an entry for the same position exists, replace if the search depth was higher.
             // If an entry exists for a different position, replace if it was from an old search.
-            boolean replace;
-            if (entry == null) replace = true;
-            else {
-                if (key == entry.key) {
-                    replace = (depth > entry.depth);
-                    if (entry.move == 0 && move != 0) table[hashKey].move = (short) move;
-                }
-                else replace = (depth > entry.depth - 3 * entry.age);
-            }
-
+            boolean replace;        
+            if      (entry == null)    replace = true;
+            else if (key == entry.key) replace = (depth > entry.depth);
+            else                       replace = (depth > entry.depth - 3 * entry.age);
+            
             if (replace) table[hashKey] = new HashtableEntry(key, move, depth, eval, type);
         }
     }

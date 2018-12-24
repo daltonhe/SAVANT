@@ -74,6 +74,23 @@ public class Move implements Types, Comparable<Move> {
 
         return result;
     }
+    
+    /**
+     * Returns the short form algebraic notation of the move with modifier added for ambiguous
+     * moves (e.g. Nbd7, R1a2). The list of legal moves is needed as input.
+     */
+    public String shortNot(List<Move> moveList) {
+        String modifier = "";
+        if (Math.abs(piece) == PAWN || Math.abs(piece) == KING) return toString();
+        for (Move move : moveList) {
+            if (move.piece == piece && move.start != start && move.target == target) {
+                if ((move.start & 7) != (start & 7)) modifier = "" + "abcdefgh".charAt(start & 7);
+                else                                 modifier = "" + (8 - (start >> 4));
+                break;
+            }
+        }
+        return toString().charAt(0) + modifier + toString().substring(1); 
+    }
 
     /**
      * Returns the long form algebraic notation of the move (e.g. e2e4, a7a8q).
@@ -82,22 +99,5 @@ public class Move implements Types, Comparable<Move> {
         String result = Position.indexToAlg(start) + Position.indexToAlg(target);   
         if (type == PROMOTION) result += "nbrq".charAt(Math.abs(piece) - 2);    
         return result;
-    }
-    
-    /**
-     * Returns the modifier to the algebraic notation of the given move (e.g. Nbd7, R1a2).
-     * Returns an empty string if no modifier is needed.
-     */
-    public static String algebraicModifier(Move move, List<Move> moveList) {
-        int piece = Math.abs(move.piece);
-        if (piece == PAWN || piece == BISHOP || piece == KING) return "";
-        for (Move m : moveList) {
-            if (m.equals(move)) {
-                if ((m.start & 7) != (move.start >> 4))
-                    return "" + "abcdefgh".charAt(move.start >> 4);
-                return "" + (8 - (move.start >> 4));
-            }
-        }
-        return "";
     }
 }

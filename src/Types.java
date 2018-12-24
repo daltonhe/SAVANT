@@ -5,10 +5,98 @@
  * 
  */
 public interface Types {
+    /* POSITION */
+    
     public static final String INITIAL_FEN = 
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    public static final String PIECE_STR = "kqrbnp.PNBRQK";
+    
+    // Board coordinates
+    public static final int FILE_A = 0;
+    public static final int FILE_B = 1;
+    public static final int FILE_C = 2;
+    public static final int FILE_D = 3;
+    public static final int FILE_E = 4;
+    public static final int FILE_F = 5;
+    public static final int FILE_G = 6;
+    public static final int FILE_H = 7;
+    
+    public static final int RANK_1 = 7;
+    public static final int RANK_2 = 6;
+    public static final int RANK_3 = 5;
+    public static final int RANK_4 = 4;
+    public static final int RANK_5 = 3;
+    public static final int RANK_6 = 2;
+    public static final int RANK_7 = 1;
+    public static final int RANK_8 = 0;
+    
+    public static final int SQ_NONE = -2;
+    public static final int SQ_a8 = 0;
+    public static final int SQ_b8 = 1;
+    public static final int SQ_c8 = 2;
+    public static final int SQ_d8 = 3;
+    public static final int SQ_e8 = 4;
+    public static final int SQ_f8 = 5;
+    public static final int SQ_g8 = 6;
+    public static final int SQ_h8 = 7;
+    public static final int SQ_a7 = 16;
+    public static final int SQ_b7 = 17;
+    public static final int SQ_c7 = 18;
+    public static final int SQ_d7 = 19;
+    public static final int SQ_e7 = 20;
+    public static final int SQ_f7 = 21;
+    public static final int SQ_g7 = 22;
+    public static final int SQ_h7 = 23;
+    public static final int SQ_a6 = 32;
+    public static final int SQ_b6 = 33;
+    public static final int SQ_c6 = 34;
+    public static final int SQ_d6 = 35;
+    public static final int SQ_e6 = 36;
+    public static final int SQ_f6 = 37;
+    public static final int SQ_g6 = 38;
+    public static final int SQ_h6 = 39;
+    public static final int SQ_a5 = 48;
+    public static final int SQ_b5 = 49;
+    public static final int SQ_c5 = 50;
+    public static final int SQ_d5 = 51;
+    public static final int SQ_e5 = 52;
+    public static final int SQ_f5 = 53;
+    public static final int SQ_g5 = 54;
+    public static final int SQ_h5 = 55;
+    public static final int SQ_a4 = 64;
+    public static final int SQ_b4 = 65;
+    public static final int SQ_c4 = 66;
+    public static final int SQ_d4 = 67;
+    public static final int SQ_e4 = 68;
+    public static final int SQ_f4 = 69;
+    public static final int SQ_g4 = 70;
+    public static final int SQ_h4 = 71;
+    public static final int SQ_a3 = 80;
+    public static final int SQ_b3 = 81;
+    public static final int SQ_c3 = 82;
+    public static final int SQ_d3 = 83;
+    public static final int SQ_e3 = 84;
+    public static final int SQ_f3 = 85;
+    public static final int SQ_g3 = 86;
+    public static final int SQ_h3 = 87;
+    public static final int SQ_a2 = 96;
+    public static final int SQ_b2 = 97;
+    public static final int SQ_c2 = 98;
+    public static final int SQ_d2 = 99;
+    public static final int SQ_e2 = 100;
+    public static final int SQ_f2 = 101;
+    public static final int SQ_g2 = 102;
+    public static final int SQ_h2 = 103;
+    public static final int SQ_a1 = 112;
+    public static final int SQ_b1 = 113;
+    public static final int SQ_c1 = 114;
+    public static final int SQ_d1 = 115;
+    public static final int SQ_e1 = 116;
+    public static final int SQ_f1 = 117;
+    public static final int SQ_g1 = 118;
+    public static final int SQ_h1 = 119;
 
-    // Sides
+    // Side
     public static final int WHITE =  1;
     public static final int BLACK = -1;
 
@@ -20,7 +108,6 @@ public interface Types {
     public static final int ROOK       = 4;
     public static final int QUEEN      = 5;
     public static final int KING       = 6;
-    public static final String PIECE_STR = "kqrbnp.PNBRQK";
 
     // White pieces
     public static final int W_PAWN   = 1;
@@ -46,6 +133,8 @@ public interface Types {
     public static final int W_LONG_CASTLE  = 0b0100;
     public static final int B_SHORT_CASTLE = 0b0010;
     public static final int B_LONG_CASTLE  = 0b0001;
+    
+    /* MOVE GENERATION */
 
     // Move types
     public static final int NORMAL       = 0;
@@ -55,46 +144,31 @@ public interface Types {
     public static final int ENPASSANT    = 4;
     public static final int PROMOTION    = 5;
     
-    // Move generation types
+    // Generation stages
     public static final int GEN_ALL     = 0;
     public static final int GEN_SEARCH  = 1;
     public static final int GEN_QSEARCH = 2;
 
-    // Move generation deltas
-    public static final int[] PAWN_DELTA   = { -16, -17, -15                      };
+    // Piece deltas
+    public static final int[] PAWN_DELTA   = {  16,  15,  17                      };
     public static final int[] KNIGHT_DELTA = { -33, -31, -18, -14, 14, 18, 31, 33 };
     public static final int[] BISHOP_DELTA = { -17, -15,  15,  17                 };
     public static final int[] ROOK_DELTA   = { -16,  -1,   1,  16                 };
     public static final int[] QUEEN_DELTA  = { -17, -16, -15,  -1,  1, 15, 16, 17 };
     public static final int[] KING_DELTA   = { -17, -16, -15,  -1,  1, 15, 16, 17 };
 
-    // Game stages
-    public static final int MG = 0;
-    public static final int EG = 1;
+    /* SEARCH */
     
-    // Piece values {middlegame | endgame}
-    public static final int[] VALUE_PAWN   = {   65,  100 };
-    public static final int[] VALUE_KNIGHT = {  376,  416 };
-    public static final int[] VALUE_BISHOP = {  399,  441 };
-    public static final int[] VALUE_ROOK   = {  620,  663 };
-    public static final int[] VALUE_QUEEN  = { 1216, 1292 };
-
-    public static final int VALUE_PROMOTION = 1192; // VALUE_QUEEN - VALUE_PAWN
-    public static final int[] VALUE_PIECE = {0, 100, 416, 441, 663, 1292};
-    public static final int[] VALUE_NPM = 
-        {0, -1216, -620, -399, -376, 0, 0, 0, 376, 399, 620, 1216, 0};
-
-    // Search values
+    // Values
     public static final int VALUE_INF         = 10001;
     public static final int VALUE_MATE        = 10000;
     public static final int VALUE_MATE_THRESH = 9900;
-    public static final int VALUE_KNOWN_WIN   = 1000;
     public static final int VALUE_DRAW        = 0;
     public static final int VALUE_CONTEMPT    = 20;
     
     // Search depths
     public static final int DEPTH_MAX = 99;
-    public static final int DEPTH_QS = -1;
+    public static final int DEPTH_QS  = -1;
 
     // Node types
     public static final int NODE_PV  =  0;
@@ -103,10 +177,9 @@ public interface Types {
 
     // Pruning parameters
     public static final int INITIAL_WINDOW      = 10;
-    public static final int DELTA_MARGIN        = 200;
-    public static final int REVERSE_FUT_MARGIN  = 200;
-    public static final int FUTILITY_MARGIN     = 400;
-    public static final int EXT_FUTILITY_MARGIN = 600;
+    public static final int DELTA_MARGIN        = 100;
+    public static final int FUTILITY_MARGIN     = 200;
+    public static final int EXT_FUTILITY_MARGIN = 450;
     public static final int RAZOR_MARGIN        = 800;
     public static final int HISTORY_MAX         = 50000;
 
@@ -117,35 +190,43 @@ public interface Types {
     public static final int PRIORITY_KILLER    = 40;
 
     // Transposition table
-    public static final int HASH_SIZE_TT  = 65536;
-    public static final int HASH_SIZE_REP = 8192;
-    public static final int HASH_SIZE_PV  = 16384;
-
+    public static final int HASH_SIZE_TT = 65536;
+    public static final int HASH_SIZE_PV = 16384;
     public static final int MOVE_NONE = 0;
-
-    // Bound types
     public static final int BOUND_EXACT = 0;
     public static final int BOUND_LOWER = 1;
     public static final int BOUND_UPPER = 2;
 
-    // Evaluation
-    public static final int PHASE_WT_MINOR = 2;
-    public static final int PHASE_WT_ROOK  = 3;
-    public static final int PHASE_WT_QUEEN = 6;
-    public static final int PHASE_INITIAL  = 40;
-    public static final int PHASE_MG       = 37;
-    public static final int PHASE_EG       = 9;
+    /* EVALUATION */
+    
+    // Game stage
+    public static final int MG = 0;
+    public static final int EG = 1;
+    
+    // Threshold values
+    public static final int MIDGAME_THRESH = 7336;
+    public static final int ENDGAME_THRESH = 1882;
     public static final int SPACE_THRESH   = 5875;
     public static final int INSUFF_THRESH  = 798;
+    
+    // Piece values {middlegame | endgame}
+    public static final int[] VALUE_PIECE  = { 0, 100, 416, 441, 663, 1292 };
+    public static final int[] VALUE_PAWN   = {   65,  100 };
+    public static final int[] VALUE_KNIGHT = {  376,  416 };
+    public static final int[] VALUE_BISHOP = {  399,  441 };
+    public static final int[] VALUE_ROOK   = {  620,  663 };
+    public static final int[] VALUE_QUEEN  = { 1216, 1292 };
+    public static final int   VALUE_PROMOTION = 1192; // VALUE_QUEEN - VALUE_PAWN
 
-    // Assorted bonuses/penalties {middlegame | endgame}
+    // Bonuses/penalties {middlegame | endgame}
     public static final int   TEMPO            =  10;
     public static final int   BISHOP_PAIR      =  43;
     public static final int   REDUNDANT_KNIGHT = -4;
     public static final int   REDUNDANT_ROOK   = -12;
     public static final int   REDUNDANT_QUEEN  = -4;
     public static final int   KNIGHT_PAWN      =  7;
-    public static final int   TRAPPED_BISHOP   = -100;
+    public static final int   TRAPPED_KNIGHT   = -100;
+    public static final int   TRAPPED_BISHOP   = -150;
     public static final int   TRAPPED_ROOK     = -47;
     public static final int[] ROOK_OPEN_FILE   = { 21,  10 };
     public static final int[] ROOK_SEMI_FILE   = {  9,   4 };
@@ -305,7 +386,7 @@ public interface Types {
           59, 61, 64, 65, 67, 69, 71, 80, 82, 84, 88, 92, 99, 102};
 
     // Passed pawns
-    public static final int[] PASSED_DANGER  = {0, 10, 6, 4, 2, 0, 0, 0};
+    public static final int[] PASSED_DANGER  = {0, 10, 5, 3, 1, 0, 0, 0};
     public static final int PASSED_PAWN_MG[][] = {
             {                                        },
             { 130, 131, 126, 116, 116, 126, 131, 130 },
@@ -370,7 +451,6 @@ public interface Types {
             7, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 0,
             7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0
     };
-    
     // Square color lookup (0 = light square, 1 = dark square): Use COLOR_LOOKUP[index]
     public static final int[] COLOR_LOOKUP = {
             0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -382,89 +462,4 @@ public interface Types {
             0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
             1, 0, 1, 0, 1, 0, 1, 0
     };
-
-    // Board coordinates
-    public static final int FILE_A = 0;
-    public static final int FILE_B = 1;
-    public static final int FILE_C = 2;
-    public static final int FILE_D = 3;
-    public static final int FILE_E = 4;
-    public static final int FILE_F = 5;
-    public static final int FILE_G = 6;
-    public static final int FILE_H = 7;
-    
-    public static final int RANK_1 = 7;
-    public static final int RANK_2 = 6;
-    public static final int RANK_3 = 5;
-    public static final int RANK_4 = 4;
-    public static final int RANK_5 = 3;
-    public static final int RANK_6 = 2;
-    public static final int RANK_7 = 1;
-    public static final int RANK_8 = 0;
-    
-    public static final int SQ_NONE = -2;
-    public static final int SQ_a8 = 0;
-    public static final int SQ_b8 = 1;
-    public static final int SQ_c8 = 2;
-    public static final int SQ_d8 = 3;
-    public static final int SQ_e8 = 4;
-    public static final int SQ_f8 = 5;
-    public static final int SQ_g8 = 6;
-    public static final int SQ_h8 = 7;
-    public static final int SQ_a7 = 16;
-    public static final int SQ_b7 = 17;
-    public static final int SQ_c7 = 18;
-    public static final int SQ_d7 = 19;
-    public static final int SQ_e7 = 20;
-    public static final int SQ_f7 = 21;
-    public static final int SQ_g7 = 22;
-    public static final int SQ_h7 = 23;
-    public static final int SQ_a6 = 32;
-    public static final int SQ_b6 = 33;
-    public static final int SQ_c6 = 34;
-    public static final int SQ_d6 = 35;
-    public static final int SQ_e6 = 36;
-    public static final int SQ_f6 = 37;
-    public static final int SQ_g6 = 38;
-    public static final int SQ_h6 = 39;
-    public static final int SQ_a5 = 48;
-    public static final int SQ_b5 = 49;
-    public static final int SQ_c5 = 50;
-    public static final int SQ_d5 = 51;
-    public static final int SQ_e5 = 52;
-    public static final int SQ_f5 = 53;
-    public static final int SQ_g5 = 54;
-    public static final int SQ_h5 = 55;
-    public static final int SQ_a4 = 64;
-    public static final int SQ_b4 = 65;
-    public static final int SQ_c4 = 66;
-    public static final int SQ_d4 = 67;
-    public static final int SQ_e4 = 68;
-    public static final int SQ_f4 = 69;
-    public static final int SQ_g4 = 70;
-    public static final int SQ_h4 = 71;
-    public static final int SQ_a3 = 80;
-    public static final int SQ_b3 = 81;
-    public static final int SQ_c3 = 82;
-    public static final int SQ_d3 = 83;
-    public static final int SQ_e3 = 84;
-    public static final int SQ_f3 = 85;
-    public static final int SQ_g3 = 86;
-    public static final int SQ_h3 = 87;
-    public static final int SQ_a2 = 96;
-    public static final int SQ_b2 = 97;
-    public static final int SQ_c2 = 98;
-    public static final int SQ_d2 = 99;
-    public static final int SQ_e2 = 100;
-    public static final int SQ_f2 = 101;
-    public static final int SQ_g2 = 102;
-    public static final int SQ_h2 = 103;
-    public static final int SQ_a1 = 112;
-    public static final int SQ_b1 = 113;
-    public static final int SQ_c1 = 114;
-    public static final int SQ_d1 = 115;
-    public static final int SQ_e1 = 116;
-    public static final int SQ_f1 = 117;
-    public static final int SQ_g1 = 118;
-    public static final int SQ_h1 = 119;
 }

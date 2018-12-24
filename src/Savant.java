@@ -12,30 +12,27 @@ import java.util.Stack;
 public class Savant implements Types {
     // TODO: download more UCI engines
     // TODO: fix opening book after user undo
-    // TODO: console UI PV formatting
+    // TODO: console PV formatting
     // TODO: blockage detection
     // TODO: regex input validation
     // TODO: null verification search
     // TODO: checks in quiescence
     // TODO: passed pawn push extension
     // TODO: time management
-    // TODO: special endgame evaluators
+    // TODO: endgame evaluators
     // TODO: SEE
     // TODO: passed pawn eval
-    // TODO: king safety
+    // TODO: pawn storm
+    // TODO: king tropism
     // TODO: piece lists index board
     // TODO: rook on pawn bonus
     // TODO: contempt factor
     // TODO: in-check special move gen
     // TODO: move ordering for captures
     // TODO: move gen stages
-    // TODO: precomputed tables
     // TODO: killer moves
-    // TODO: quiescence TT replacement
-    // TODO: use stack for rep detection
     // TODO: pawn hash table
     // TODO: TT buckets
-    // TODO: rank and file constants
 
     public static Position pos;
     public static String movesString;
@@ -53,7 +50,7 @@ public class Savant implements Types {
      * Initialization every time a new game starts.
      */
     public static void initNewGame() {
-        pos              = new Position();
+        pos         = new Position();
         //pos = new Position("1r2r3/p1p3k1/2qb1pN1/3p1p1Q/3P4/2pBP1P1/PK3PPR/7R");
         //pos = new Position("3r4/2P3p1/p4pk1/Nb2p1p1/1P1r4/P1R2P2/6PP/2R3K1 b - - 0 1");
         //pos = new Position("r1b4r/2nq1k1p/2n1p1p1/2B1Pp2/p1PP4/5N2/3QBPPP/R4RK1 w - -");
@@ -74,11 +71,12 @@ public class Savant implements Types {
      */
     public static void consoleMode() throws FileNotFoundException {
         initNewGame();
+        Engine.useBook       = true;
         Stack<Move> moveHist = new Stack<Move>();
         String gameOverMsg   = "";
         boolean engineWhite  = false;
         boolean engineBlack  = false;
-        Scanner input        = new Scanner(System.in);	
+        Scanner input        = new Scanner(System.in);
 
         System.out.println("SAVANT, a UCI-compatible chess engine");
         System.out.println("Written by Dalton He\n");
@@ -87,9 +85,10 @@ public class Savant implements Types {
         System.out.println();
 
         // Game loop
-        while (true) {            
+        while (true) {
+            
             // Check for mate/stalemate
-            if (pos.generateLegalMoves().isEmpty()) {
+            if (pos.genLegalMoves().isEmpty()) {
                 if (pos.inCheck(pos.sideToMove)) gameOverMsg = (pos.sideToMove == WHITE ? 
                         "Black" : "White") + " wins by checkmate.";
                 else gameOverMsg = "Game drawn by stalemate.";
@@ -106,8 +105,8 @@ public class Savant implements Types {
 
             if (!gameOverMsg.isEmpty()) break;
 
-            boolean engineTurn =    (pos.sideToMove == WHITE && engineWhite)
-                                 || (pos.sideToMove == BLACK && engineBlack);
+            boolean engineTurn = (   (pos.sideToMove == WHITE && engineWhite)
+                                  || (pos.sideToMove == BLACK && engineBlack));
 
             if (!engineTurn) System.out.print(">");
 
@@ -158,7 +157,7 @@ public class Savant implements Types {
                 break;
 
             case "fen":
-                System.out.println(pos.getFEN());
+                System.out.println(pos.fen());
                 break;
 
             case "print":
@@ -186,7 +185,7 @@ public class Savant implements Types {
             if (move != null) {
                 pos.makeMove(move);
                 moveHist.push(move);
-                if (inOpening) movesString += move + " ";
+                movesString += move + " ";
 
                 if (engineTurn) {
                     if (!inOpening) System.out.println();
@@ -194,6 +193,7 @@ public class Savant implements Types {
                 }
                 pos.print();
             }
+            
             System.out.println();
         }
 

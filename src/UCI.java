@@ -10,8 +10,6 @@ import java.io.InputStreamReader;
  */
 public class UCI implements Types{
     public static Position pos;
-    public static String movesString;
-    public static boolean inOpening;
 
     /**
      * Run the program in UCI mode.
@@ -41,51 +39,27 @@ public class UCI implements Types{
             if (command.startsWith("position")) {
                 if (command.contains("startpos")) pos = new Position();
                 else                              pos = new Position(extractFEN(command));
-
                 String[] moveList = extractMoves(command);
-                movesString = "";
                 if (moveList != null) {
-                    for (int i = 0; i < moveList.length; i++) {
-                        Move move = Engine.getMoveObject(pos, moveList[i]);
-                        pos.makeMove(move);
-                        movesString += move + " ";
-                    }
+                    for (String move : moveList)
+                        pos.makeMove(Engine.getMoveObject(pos, move));
                 }
             }
 
             if (command.startsWith("go")) {
-                String[] splitString = command.split(" ");
-
+                String[] split = command.split(" ");
                 int wtime = 0, btime = 0, winc = 0, binc = 0;
-                for (int i = 0; i < splitString.length; i++) {
-                    try {
-                        if (splitString[i].equals("wtime"))
-                            wtime = Integer.parseInt(splitString[i + 1]);
-                        else if (splitString[i].equals("btime"))
-                            btime = Integer.parseInt(splitString[i + 1]);
-                        else if (splitString[i].equals("winc"))
-                            winc  = Integer.parseInt(splitString[i + 1]);
-                        else if (splitString[i].equals("binc"))
-                            binc  = Integer.parseInt(splitString[i + 1]);	
-                    }
-                    catch (ArrayIndexOutOfBoundsException ex) {}
-                    catch (NumberFormatException ex) {}
+                for (int i = 0; i < split.length; i++) {
+                    if      (split[i].equals("wtime")) wtime = Integer.parseInt(split[i+1]);
+                    else if (split[i].equals("btime")) btime = Integer.parseInt(split[i+1]);
+                    else if (split[i].equals("winc"))  winc  = Integer.parseInt(split[i+1]);
+                    else if (split[i].equals("binc"))  binc  = Integer.parseInt(split[i+1]);
                 }
-
                 Engine.timeLeft  = (pos.sideToMove == WHITE ? wtime : btime);
                 Engine.increment = (pos.sideToMove == WHITE ? winc  : binc);
-
-                Move move = null;
-                if (Engine.useBook && inOpening)
-                    move = Engine.getMoveObject(pos, Engine.getBookMove(movesString));
-
-                if (move == null) {
-                    inOpening = false;
-                    Engine.search(pos);
-                    move = Engine.bestMove;
-                }
-
-                System.out.println("bestmove " + move.longNot());
+                Engine.search(pos);
+                
+                System.out.println("bestmove " + Engine.bestMove.longNot());
             }
         }
     }
@@ -94,16 +68,14 @@ public class UCI implements Types{
      * Extracts the FEN string from the given UCI position command.
      */
     private static String extractFEN(String command) {
-        String[] splitString = command.split(" ");
+        String[] split = command.split(" ");
         String fen = "";
-
-        fen += splitString[2] + " "; // Pieces
-        fen += splitString[3] + " "; // Side to move
-        fen += splitString[4] + " "; // Castling rights
-        fen += splitString[5] + " "; // Enpassant square
-        fen += splitString[6] + " "; // Half moves
-        fen += splitString[7];       // Full moves
-
+        fen += split[2] + " "; // Pieces
+        fen += split[3] + " "; // Side to move
+        fen += split[4] + " "; // Castling rights
+        fen += split[5] + " "; // Enpassant square
+        fen += split[6] + " "; // Half moves
+        fen += split[7];       // Full moves
         return fen;
     }
 
