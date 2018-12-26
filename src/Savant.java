@@ -24,7 +24,6 @@ public class Savant implements Types {
     // TODO: passed pawn eval
     // TODO: pawn storm
     // TODO: king tropism
-    // TODO: piece lists index board
     // TODO: rook on pawn bonus
     // TODO: contempt factor
     // TODO: in-check special move gen
@@ -105,12 +104,12 @@ public class Savant implements Types {
 
             if (!gameOverMsg.isEmpty()) break;
 
-            boolean engineTurn = (   (pos.sideToMove == WHITE && engineWhite)
+            boolean isEngineTurn =  ((pos.sideToMove == WHITE && engineWhite)
                                   || (pos.sideToMove == BLACK && engineBlack));
 
-            if (!engineTurn) System.out.print(">");
+            if (!isEngineTurn) System.out.print(">");
 
-            String command = (engineTurn ? "go" : input.nextLine()).toLowerCase();
+            String command = (isEngineTurn ? "go" : input.nextLine()).toLowerCase();
             Move move = null;
 
             switch (command) {				
@@ -123,7 +122,7 @@ public class Savant implements Types {
                 break;
 
             case "go":
-                engineTurn = true;
+                isEngineTurn = true;
                 if (Engine.useBook && inOpening)
                     move = Engine.getMoveObject(pos, Engine.getBookMove(movesString));
 
@@ -187,7 +186,7 @@ public class Savant implements Types {
                 moveHist.push(move);
                 movesString += move + " ";
 
-                if (engineTurn) {
+                if (isEngineTurn) {
                     if (!inOpening) System.out.println();
                     System.out.println("SAVANT plays: " + move);
                 }

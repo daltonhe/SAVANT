@@ -97,7 +97,7 @@ public class Evaluate implements Types {
         //   - Phase
         //   - Pawn structure
         //   - Mobility area
-        for (int index : pos.pieceList) {
+        for (int index : pos.pieces) {
             int piece = board[index];
             int rank  = (index >> 4);
             int file  = (index & 7);
@@ -115,7 +115,7 @@ public class Evaluate implements Types {
                 if (file != FILE_H) excluded_area_b[index - 15] = true;
                 if (rank == RANK_2 || rank == RANK_3 || board[index - 16] != PIECE_NONE)
                     excluded_area_w[index] = true;
-                int dist = Position.dist(pos.king_pos_w, index);
+                int dist = Position.dist(pos.w_king, index);
                 if (dist < kp_dist_w) kp_dist_w = dist;
                 material[MG] += VALUE_PAWN[MG];
                 material[EG] += VALUE_PAWN[EG];
@@ -135,7 +135,7 @@ public class Evaluate implements Types {
                 if (file != FILE_H) excluded_area_w[index + 17] = true;
                 if (rank == RANK_7 || rank == RANK_6 || board[index + 16] != PIECE_NONE)
                     excluded_area_b[index] = true;
-                dist = Position.dist(pos.king_pos_b, index);
+                dist = Position.dist(pos.b_king, index);
                 if (dist < kp_dist_b) kp_dist_b = dist;
                 material[MG] -= VALUE_PAWN[MG];
                 material[EG] -= VALUE_PAWN[EG];
@@ -247,14 +247,14 @@ public class Evaluate implements Types {
         // for keeping distance between the two kings small.
         if (   (pieces_b == 1 && npm_w >= VALUE_ROOK[MG])
             || (pieces_w == 2 && queens_w == 1 && pieces_b == 2 && rooks_b == 1)) {
-            int cornerProximity = CORNER_PROXIMITY[pos.king_pos_b >> 4][pos.king_pos_b & 7];
-            int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.king_pos_w, pos.king_pos_b)];
+            int cornerProximity = CORNER_PROXIMITY[pos.b_king >> 4][pos.b_king & 7];
+            int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.w_king, pos.b_king)];
             return material[MG] + 10 * (cornerProximity + kingProximity);
         }
         if (   (pieces_w == 1 && npm_b >= VALUE_ROOK[MG])
             || (pieces_b == 2 && queens_b == 1 && pieces_w == 2 && rooks_w == 1)) {
-            int cornerProximity = CORNER_PROXIMITY[pos.king_pos_w >> 4][pos.king_pos_w & 7];
-            int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.king_pos_w, pos.king_pos_b)];
+            int cornerProximity = CORNER_PROXIMITY[pos.w_king >> 4][pos.w_king & 7];
+            int kingProximity   = KINGS_PROXIMITY[Position.dist(pos.w_king, pos.b_king)];
             return material[MG] - 10 * (cornerProximity + kingProximity);
         }
         
@@ -265,15 +265,15 @@ public class Evaluate implements Types {
         spaceEval(pos);
         
         // Pawn shelter
-        int shelter_w = shelterScore(pos.king_pos_w, WHITE);
-        int shelter_b = shelterScore(pos.king_pos_b, BLACK);
+        int shelter_w = shelterScore(pos.w_king, WHITE);
+        int shelter_b = shelterScore(pos.b_king, BLACK);
         king[MG] += shelter_w - shelter_b;
 
         // Second pass: 
         //   - Mobility
         //   - Pieces
         //   - Pawns
-        for (int index : pos.pieceList) {
+        for (int index : pos.pieces) {
             int piece = board[index];
             int rank  = (index >> 4);
             int file  = (index & 7);
@@ -312,14 +312,14 @@ public class Evaluate implements Types {
                         int rankBonus = PASSED_DANGER[rank];
 
                         // distance from king to block square of pawn, capped at 5
-                        int kingDist_w = Math.min(5, Position.dist(pos.king_pos_w, index - 16));
-                        int kingDist_b = Math.min(5, Position.dist(pos.king_pos_b, index - 16));
+                        int kingDist_w = Math.min(5, Position.dist(pos.w_king, index - 16));
+                        int kingDist_b = Math.min(5, Position.dist(pos.b_king, index - 16));
                         passed_bonus_eg += kingDist_b * rankBonus * 5;
                         passed_bonus_eg -= kingDist_w * rankBonus * 2;
 
                         // If the block square is not the queening square, consider a second push
                         if (rank != RANK_7) {
-                            kingDist_w = Math.min(5, Position.dist(pos.king_pos_w, index - 32));
+                            kingDist_w = Math.min(5, Position.dist(pos.w_king, index - 32));
                             passed_bonus_eg -= kingDist_w * rankBonus;
                         }
                         // If the pawn is free to advance, increase the bonus
@@ -399,13 +399,13 @@ public class Evaluate implements Types {
                     if (rank >= RANK_5) {
                         int rankBonus = PASSED_DANGER[7-rank];
 
-                        int kingDist_b = Math.min(5, Position.dist(pos.king_pos_b, index + 16));
-                        int kingDist_w = Math.min(5, Position.dist(pos.king_pos_w, index + 16));
+                        int kingDist_b = Math.min(5, Position.dist(pos.b_king, index + 16));
+                        int kingDist_w = Math.min(5, Position.dist(pos.w_king, index + 16));
                         passed_bonus_eg += kingDist_w * rankBonus * 5;
                         passed_bonus_eg -= kingDist_b * rankBonus * 2;
 
                         if (rank != RANK_2) {
-                            kingDist_b = Math.min(5, Position.dist(pos.king_pos_b, index + 32));
+                            kingDist_b = Math.min(5, Position.dist(pos.b_king, index + 32));
                             passed_bonus_eg -= kingDist_b * rankBonus;
                         }
 
@@ -451,7 +451,7 @@ public class Evaluate implements Types {
 
             case W_KNIGHT:
                 // Penalty if the knight is far from the king
-                int kingDist = Position.dist(pos.king_pos_w, index);
+                int kingDist = Position.dist(pos.w_king, index);
                 pieces[MG] -= kingDist * KING_PROTECTOR;
                 pieces[EG] -= kingDist * KING_PROTECTOR;
 
@@ -462,7 +462,7 @@ public class Evaluate implements Types {
                 break;
 
             case B_KNIGHT:
-                kingDist = Position.dist(pos.king_pos_b, index);
+                kingDist = Position.dist(pos.b_king, index);
                 pieces[MG] += kingDist * KING_PROTECTOR;
                 pieces[EG] += kingDist * KING_PROTECTOR;
 
@@ -480,7 +480,7 @@ public class Evaluate implements Types {
                     pieces[MG] += TRAPPED_BISHOP;
 
                 // Penalty if the bishop is far from the king
-                kingDist = Position.dist(pos.king_pos_w, index);
+                kingDist = Position.dist(pos.w_king, index);
                 pieces[MG] -= kingDist * KING_PROTECTOR;
                 pieces[EG] -= kingDist * KING_PROTECTOR;
 
@@ -503,7 +503,7 @@ public class Evaluate implements Types {
                 else if (index == SQ_h2 && board[SQ_g3] == W_PAWN && board[SQ_f2] == W_PAWN)
                     pieces[MG] -= TRAPPED_BISHOP;
 
-                kingDist = Position.dist(pos.king_pos_b, index);
+                kingDist = Position.dist(pos.b_king, index);
                 pieces[MG] += kingDist * KING_PROTECTOR;
                 pieces[EG] += kingDist * KING_PROTECTOR;
 
@@ -532,17 +532,17 @@ public class Evaluate implements Types {
                 }
 
                 // Bonus for a rook on the 7th rank with the enemy king on the 8th rank
-                if (rank == RANK_7 && (pos.king_pos_b >> 4) == RANK_8) {
+                if (rank == RANK_7 && (pos.b_king >> 4) == RANK_8) {
                     pieces[MG] += ROOK_ON_7TH[MG];
                     pieces[EG] += ROOK_ON_7TH[EG];
                 }
 
                 // Penalty for a rook trapped by its own uncastled king
                 if (   (index == SQ_a1 || index == SQ_a2 || index == SQ_b1 || index == SQ_b2)
-                    && (pos.king_pos_w == SQ_c1 || pos.king_pos_w == SQ_b1))
+                    && (pos.w_king == SQ_c1 || pos.w_king == SQ_b1))
                     pieces[MG] += TRAPPED_ROOK;
                 else if (   (index == SQ_h1 || index == SQ_h2 || index == SQ_g1 || index == SQ_g2)
-                         && (pos.king_pos_w == SQ_g1 || pos.king_pos_w == SQ_f1))
+                         && (pos.w_king == SQ_g1 || pos.w_king == SQ_f1))
                     pieces[MG] += TRAPPED_ROOK;
 
                 // Rook mobility
@@ -563,16 +563,16 @@ public class Evaluate implements Types {
                     }
                 }
 
-                if (rank == RANK_2 && (pos.king_pos_w >> 4) == RANK_1) {
+                if (rank == RANK_2 && (pos.w_king >> 4) == RANK_1) {
                     pieces[MG] -= ROOK_ON_7TH[MG];
                     pieces[EG] -= ROOK_ON_7TH[EG];
                 }
 
                 if (   (index == SQ_a8 || index == SQ_a7 || index == SQ_b8 || index == SQ_b7)
-                    && (pos.king_pos_b == SQ_c8 || pos.king_pos_b == SQ_b8))
+                    && (pos.b_king == SQ_c8 || pos.b_king == SQ_b8))
                     pieces[MG] -= TRAPPED_ROOK;
                 else if (   (index == SQ_h8 || index == SQ_h7 || index == SQ_g8 || index == SQ_g7)
-                         && (pos.king_pos_b == SQ_g8 || pos.king_pos_b == SQ_f8))
+                         && (pos.b_king == SQ_g8 || pos.b_king == SQ_f8))
                     pieces[MG] -= TRAPPED_ROOK;
 
                 squares = mobilityAttack(board, excluded_area_b, index, ROOK_DELTA, true, "Qqr");
@@ -582,7 +582,7 @@ public class Evaluate implements Types {
 
             case W_QUEEN:
                 // Bonus for a queen on the 7th rank with the enemy king on the 8th rank
-                if (rank == RANK_7 && (pos.king_pos_b >> 4) == RANK_8) {
+                if (rank == RANK_7 && (pos.b_king >> 4) == RANK_8) {
                     pieces[MG] += QUEEN_ON_7TH[MG];
                     pieces[EG] += QUEEN_ON_7TH[EG];
                 }
@@ -593,7 +593,7 @@ public class Evaluate implements Types {
                 break;
 
             case B_QUEEN:
-                if (rank == RANK_2 && (pos.king_pos_w >> 4) == RANK_1) {
+                if (rank == RANK_2 && (pos.w_king >> 4) == RANK_1) {
                     pieces[MG] -= QUEEN_ON_7TH[MG];
                     pieces[EG] -= QUEEN_ON_7TH[EG];
                 }

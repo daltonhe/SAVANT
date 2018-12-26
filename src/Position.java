@@ -1,6 +1,5 @@
 import java.util.List;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.Scanner;
 
 /**
@@ -20,17 +19,21 @@ public class Position implements Types {
     // 3   80  81  82  83  84  85  86  87
     // 2   96  97  98  99  100 101 102 103
     // 1   112 113 114 115 116 117 118 119
+    
     public int sideToMove; // the side to move
     public int castling;   // castling rights for the position, stored as 4 bits (0bKQkq)
-    public int enpassant;  // enpassant square index
+    public int enpassant;  // enpassant square index (-2 if none)
     public int fiftyMoves; // fifty moves half-move clock
 
-    public long key;                // zobrist hash key of the position
-    public List<State> stateHist;   // previous state history
-    public List<Integer> pieceList; // board indices of all pieces
-    public int king_pos_w;          // index of the white king
-    public int king_pos_b;          // index of the black king
-    public boolean nullAllowed;     // false if the last move was a null move
+    public long key;              // zobrist hash key of the position
+    public List<State> stateHist; // previous state history, used for unmaking moves
+    
+    public List<Integer> pieces;  // indices of all the pieces
+    public int[] indexBoard;      // piece list index lookup
+    
+    public int w_king;            // index of the white king
+    public int b_king;            // index of the black king
+    public boolean nullAllowed;   // false if the last move was a null move
 
     /**
      * Initializes the starting position.
@@ -56,10 +59,10 @@ public class Position implements Types {
                 else if (ch == '/')        index += 8;
                 else {
                     if (PIECE_STR.indexOf(ch) == -1) continue;
-                    if      (ch == 'K') king_pos_w = index;
-                    else if (ch == 'k') king_pos_b = index;
+                    if      (ch == 'K') w_king = index;
+                    else if (ch == 'k') b_king = index;
                     board[index] = PIECE_STR.indexOf(ch) - 6;
-                    pieceList.add(index);
+                    addPiece(index);
                     index++;
                 }
             }
@@ -92,9 +95,10 @@ public class Position implements Types {
         fiftyMoves  = 0;
         key         = 0;
         stateHist   = new ArrayList<State>();
-        pieceList   = new LinkedList<Integer>();
-        king_pos_w  = SQ_NONE;
-        king_pos_b  = SQ_NONE;
+        pieces      = new ArrayList<Integer>(32);
+        indexBoard  = new int[120];
+        w_king      = SQ_NONE;
+        b_king      = SQ_NONE;
         nullAllowed = true;
     }
 
@@ -120,7 +124,7 @@ public class Position implements Types {
         if (enpassant != SQ_NONE) {
             key ^= Zobrist.enpassant[enpassant & 7];
             enpassant = SQ_NONE;
-        }
+        }   
         fiftyMoves++;
         
         switch (move.type) {
@@ -128,17 +132,20 @@ public class Position implements Types {
             board[move.start]  = PIECE_NONE;
             board[move.target] = move.piece;
             
-            key ^= Zobrist.pieces[move.piece + 6][move.start];
-            key ^= Zobrist.pieces[move.piece + 6][move.target];
+            key ^= Zobrist.moves[move.piece + 6][move.start][move.target];
             
-            pieceList.remove((Integer) move.start);
-            if (move.captured == PIECE_NONE) pieceList.add(move.target);
-            else key ^= Zobrist.pieces[move.captured + 6][move.target];
-            
-            if (move.captured != PIECE_NONE || Math.abs(move.piece) == PAWN) fiftyMoves = 0;
-            
-            if      (move.piece == W_KING) king_pos_w = move.target;
-            else if (move.piece == B_KING) king_pos_b = move.target;
+            if (move.captured == PIECE_NONE) {
+                movePiece(move.start, move.target);
+                if (Math.abs(move.piece) == PAWN) fiftyMoves = 0;
+            }
+            else {
+                key ^= Zobrist.pieces[move.captured + 6][move.target];
+                removePiece(move.start);
+                fiftyMoves = 0;
+            }
+
+            if      (move.piece == W_KING) w_king = move.target;
+            else if (move.piece == B_KING) b_king = move.target;
             
             if (castling != CASTLING_NONE) updateCastlingRights();  
             break;
@@ -147,11 +154,9 @@ public class Position implements Types {
             board[move.start]  = PIECE_NONE;
             board[move.target] = move.piece;
 
-            key ^= Zobrist.pieces[move.piece + 6][move.start];
-            key ^= Zobrist.pieces[move.piece + 6][move.target];
+            key ^= Zobrist.moves[move.piece + 6][move.start][move.target];
             
-            pieceList.remove((Integer) move.start);
-            pieceList.add(move.target);
+            movePiece(move.start, move.target);
 
             enpassant = move.target + 16 * sideToMove;
             key ^= Zobrist.enpassant[enpassant & 7];
@@ -162,12 +167,13 @@ public class Position implements Types {
             board[move.start]  = PIECE_NONE;
             board[move.target] = move.piece;
             
-            key ^= Zobrist.pieces[PAWN * sideToMove + 6][move.start];
-            key ^= Zobrist.pieces[move.piece + 6][move.target];
+            key ^= Zobrist.moves[PAWN * sideToMove + 6][move.start][move.target];
             
-            pieceList.remove((Integer) move.start);
-            if (move.captured == PIECE_NONE) pieceList.add(move.target);
-            else key ^= Zobrist.pieces[move.captured + 6][move.target];
+            if (move.captured == PIECE_NONE) movePiece(move.start, move.target);
+            else {
+                key ^= Zobrist.pieces[move.captured + 6][move.target];
+                removePiece(move.start);
+            }
             
             fiftyMoves = 0;
             if (castling != CASTLING_NONE) updateCastlingRights();
@@ -180,13 +186,11 @@ public class Position implements Types {
             board[move.target]  = move.piece;
             board[captureIndex] = PIECE_NONE;
 
-            key ^= Zobrist.pieces[move.piece + 6][move.start];
-            key ^= Zobrist.pieces[move.piece + 6][move.target];
+            key ^= Zobrist.moves[move.piece + 6][move.start][move.target];
             key ^= Zobrist.pieces[PAWN * -sideToMove + 6][captureIndex];
             
-            pieceList.remove((Integer) move.start);
-            pieceList.add(move.target);
-            pieceList.remove((Integer) captureIndex);
+            movePiece(move.start, move.target);
+            removePiece(captureIndex);
             
             fiftyMoves = 0;
             break;
@@ -218,40 +222,32 @@ public class Position implements Types {
         case NORMAL:
             board[move.start]  = move.piece;
             board[move.target] = move.captured;
-
-            pieceList.add(move.start);
-            if (move.captured == PIECE_NONE) pieceList.remove((Integer) move.target);
-            
-            if      (move.piece == W_KING) king_pos_w = move.start;
-            else if (move.piece == B_KING) king_pos_b = move.start;
+            if (move.captured == PIECE_NONE) movePiece(move.target, move.start);
+            else addPiece(move.start);
+            if      (move.piece == W_KING) w_king = move.start;
+            else if (move.piece == B_KING) b_king = move.start;
             break;
         
         case PAWN_TWO:
             board[move.start]  = move.piece;
             board[move.target] = PIECE_NONE;
-            
-            pieceList.add(move.start);
-            pieceList.remove((Integer) move.target);
+            movePiece(move.target, move.start);
             break;
         
         case PROMOTION:
             board[move.start]  = PAWN * sideToMove;
             board[move.target] = move.captured;
-            
-            pieceList.add(move.start);
-            if (move.captured == PIECE_NONE) pieceList.remove((Integer) move.target);
+            if (move.captured == PIECE_NONE) movePiece(move.target, move.start);
+            else addPiece(move.start);
             break;
             
         case ENPASSANT:
             int captureIndex = move.target + 16 * sideToMove;
-            
             board[move.start]   = move.piece;
             board[move.target]  = PIECE_NONE;
             board[captureIndex] = PAWN * -sideToMove;
-            
-            pieceList.add(move.start);
-            pieceList.remove((Integer) move.target);
-            pieceList.add(captureIndex);
+            movePiece(move.target, move.start);
+            addPiece(captureIndex);
             break;
             
         case CASTLE_SHORT:
@@ -263,7 +259,7 @@ public class Position implements Types {
             break;
         }
     }
-
+    
     /**
      * Makes a null (passing) move.
      */
@@ -287,7 +283,33 @@ public class Position implements Types {
         sideToMove *= -1;
         nullAllowed = true;
     }
-
+    
+    /**
+     * Changes start index to target index in the piece list.
+     */
+    public void movePiece(int start, int target) {
+        pieces.set(indexBoard[start], target);
+        indexBoard[target] = indexBoard[start];
+    }
+    
+    /**
+     * Adds the given index to the piece list.
+     */
+    public void addPiece(int index) {
+        indexBoard[index] = pieces.size();
+        pieces.add(index);
+    }
+    
+    /**
+     * Removes the given index from the piece list.
+     */
+    public void removePiece(int index) {
+        int last = pieces.get(pieces.size() - 1);
+        pieces.set(indexBoard[index], last);
+        indexBoard[last] = indexBoard[index];
+        pieces.remove(pieces.size() - 1);
+    }
+    
     /**
      * Kingside castles for the side to move.
      */
@@ -297,12 +319,10 @@ public class Position implements Types {
             board[SQ_f1] = W_ROOK;
             board[SQ_g1] = W_KING;
             board[SQ_h1] = PIECE_NONE;
-            pieceList.remove((Integer) SQ_e1);
-            pieceList.add(SQ_f1);
-            pieceList.add(SQ_g1);
-            pieceList.remove((Integer) SQ_h1);
+            movePiece(SQ_e1, SQ_g1);
+            movePiece(SQ_h1, SQ_f1);
             key ^= Zobrist.w_short_castle;
-            king_pos_w = SQ_g1;
+            w_king = SQ_g1;
             castling &= ~W_ALL_CASTLING;
         }
         else {
@@ -310,12 +330,10 @@ public class Position implements Types {
             board[SQ_f8] = B_ROOK;
             board[SQ_g8] = B_KING;
             board[SQ_h8] = PIECE_NONE;
-            pieceList.remove((Integer) SQ_e8);
-            pieceList.add(SQ_f8);
-            pieceList.add(SQ_g8);
-            pieceList.remove((Integer) SQ_h8);
+            movePiece(SQ_e8, SQ_g8);
+            movePiece(SQ_h8, SQ_f8);
             key ^= Zobrist.b_short_castle;
-            king_pos_b = SQ_g8;
+            b_king = SQ_g8;
             castling &= ~B_ALL_CASTLING;
         }
     }
@@ -329,12 +347,10 @@ public class Position implements Types {
             board[SQ_c1] = W_KING;
             board[SQ_d1] = W_ROOK;
             board[SQ_e1] = PIECE_NONE;
-            pieceList.remove((Integer) SQ_a1);
-            pieceList.add(SQ_c1);
-            pieceList.add(SQ_d1);
-            pieceList.remove((Integer) SQ_e1);
+            movePiece(SQ_e1, SQ_c1);
+            movePiece(SQ_a1, SQ_d1);
             key ^= Zobrist.w_long_castle;
-            king_pos_w = SQ_c1;
+            w_king = SQ_c1;
             castling &= ~W_ALL_CASTLING;
         }
         else {
@@ -342,12 +358,10 @@ public class Position implements Types {
             board[SQ_c8] = B_KING;
             board[SQ_d8] = B_ROOK;
             board[SQ_e8] = PIECE_NONE;
-            pieceList.remove((Integer) SQ_a8);
-            pieceList.add(SQ_c8);
-            pieceList.add(SQ_d8);
-            pieceList.remove((Integer) SQ_e8);
+            movePiece(SQ_e8, SQ_c8);
+            movePiece(SQ_a8, SQ_d8);
             key ^= Zobrist.b_long_castle;
-            king_pos_b = SQ_c8;
+            b_king = SQ_c8;
             castling &= ~B_ALL_CASTLING;
         }
     }
@@ -361,22 +375,18 @@ public class Position implements Types {
             board[SQ_f1] = PIECE_NONE;
             board[SQ_g1] = PIECE_NONE;
             board[SQ_h1] = W_ROOK;
-            pieceList.add(SQ_e1);
-            pieceList.remove((Integer) SQ_f1);
-            pieceList.remove((Integer) SQ_g1);
-            pieceList.add(SQ_h1);
-            king_pos_w = SQ_e1;
+            movePiece(SQ_g1, SQ_e1);
+            movePiece(SQ_f1, SQ_h1);
+            w_king = SQ_e1;
         }
         else {
             board[SQ_e8] = B_KING;
             board[SQ_f8] = PIECE_NONE;
             board[SQ_g8] = PIECE_NONE;
             board[SQ_h8] = B_ROOK;
-            pieceList.add(SQ_e8);
-            pieceList.remove((Integer) SQ_f8);
-            pieceList.remove((Integer) SQ_g8);
-            pieceList.add(SQ_h8);
-            king_pos_b = SQ_e8;
+            movePiece(SQ_g8, SQ_e8);
+            movePiece(SQ_f8, SQ_h8);
+            b_king = SQ_e8;
         }
     }
 
@@ -389,22 +399,18 @@ public class Position implements Types {
             board[SQ_c1] = PIECE_NONE;
             board[SQ_d1] = PIECE_NONE;
             board[SQ_e1] = W_KING;
-            pieceList.add(SQ_a1);
-            pieceList.remove((Integer) SQ_c1);
-            pieceList.remove((Integer) SQ_d1);
-            pieceList.add(SQ_e1);
-            king_pos_w = SQ_e1;
+            movePiece(SQ_c1, SQ_e1);
+            movePiece(SQ_d1, SQ_a1);
+            w_king = SQ_e1;
         }
         else {
             board[SQ_a8] = B_ROOK;
             board[SQ_c8] = PIECE_NONE;
             board[SQ_d8] = PIECE_NONE;
             board[SQ_e8] = B_KING;
-            pieceList.add(SQ_a8);
-            pieceList.remove((Integer) SQ_c8);
-            pieceList.remove((Integer) SQ_d8);
-            pieceList.add(SQ_e8);
-            king_pos_b = SQ_e8;
+            movePiece(SQ_c8, SQ_e8);
+            movePiece(SQ_d8, SQ_a8);
+            b_king = SQ_e8;
         }
     }
 
@@ -446,7 +452,7 @@ public class Position implements Types {
     public List<Move> genPseudoMoves(int gen) {
         List<Move> moveList = new ArrayList<Move>();
 
-        for (int index : pieceList) {
+        for (int index : pieces) {
             int piece = board[index] * sideToMove;
             if (piece < 0) continue;
 
@@ -645,15 +651,15 @@ public class Position implements Types {
      * Returns {@code true} if the given side is in check.
      */
     public boolean inCheck(int side) {
-        return isAttacked((side == WHITE ? king_pos_w : king_pos_b), -side);
+        return isAttacked((side == WHITE ? w_king : b_king), -side);
     }
 
     /**
      * Returns {@code true} if the given side has no pieces left except pawns.
      */
     public boolean hasOnlyPawns(int side) {
-        if (pieceList.size() > 18) return false;
-        for (int index : pieceList) {
+        if (pieces.size() > 18) return false;
+        for (int index : pieces) {
             int piece = board[index] * side;
             if (piece > 0 && piece != PAWN && piece != KING) return false;
         }
@@ -685,9 +691,9 @@ public class Position implements Types {
      * Returns {@code true} if there is insufficient mating material.
      */
     public boolean insufficientMat() {
-        if (pieceList.size() > 3)  return false; // Too many pieces left
-        if (pieceList.size() == 2) return true;  // K vs K
-        for (int index : pieceList) {
+        if (pieces.size() > 3)  return false; // Too many pieces left
+        if (pieces.size() == 2) return true;  // K vs K
+        for (int index : pieces) {
             int piece = board[index];
             // Non-minor piece left
             if (   Math.abs(piece) == PAWN 
@@ -726,12 +732,12 @@ public class Position implements Types {
 
         sideToMove *= -1;
 
-        pieceList.clear();
+        pieces.clear();
         for (int index = 0; index < 120; index++) {
             if (board[index] != PIECE_NONE) {
-                pieceList.add(index);
-                if (board[index] == W_KING) king_pos_w = index;
-                if (board[index] == B_KING) king_pos_b = index;
+                addPiece(index);
+                if (board[index] == W_KING) w_king = index;
+                if (board[index] == B_KING) b_king = index;
             }
         }
     }

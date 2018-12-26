@@ -252,7 +252,7 @@ public class Engine implements Types {
             // Limited razoring
             if (   ply == 3
                 && standPat <= alpha - RAZOR_MARGIN
-                && pos.pieceList.size() > 6)
+                && pos.pieces.size() > 6)
                 ply--;
 
             // Null move pruning
@@ -444,7 +444,7 @@ public class Engine implements Types {
             assert(move.captured != PIECE_NONE || move.type == PROMOTION);
 
             // Delta pruning
-            if (pos.pieceList.size() > 6) {
+            if (pos.pieces.size() > 6) {
                 int materialGain = VALUE_PIECE[Math.abs(move.captured)];
                 if (move.type == PROMOTION) materialGain += VALUE_PROMOTION;
                 if (standPat + materialGain <= alpha - DELTA_MARGIN) continue;
