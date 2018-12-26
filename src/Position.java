@@ -94,7 +94,7 @@ public class Position implements Types {
         enpassant   = SQ_NONE;
         fiftyMoves  = 0;
         key         = 0;
-        stateHist   = new ArrayList<State>();
+        stateHist   = new ArrayList<State>(100);
         pieces      = new ArrayList<Integer>(32);
         indexBoard  = new int[120];
         w_king      = SQ_NONE;
@@ -106,9 +106,9 @@ public class Position implements Types {
      * Prints an ASCII board.
      */
     public void print() {
-        for (int r = 0; r < 8; r++) {
+        for (int r = RANK_8; r <= RANK_1; r++) {
             System.out.print(" " + (8 - r) + "| ");
-            for (int f = 0; f < 8; f++)
+            for (int f = FILE_A; f <= FILE_H; f++)
                 System.out.print(PIECE_STR.charAt(board[16 * r + f] + 6) + " ");
             System.out.println();
         }
@@ -411,13 +411,13 @@ public class Position implements Types {
             int piece = board[index] * toMove;
             if (piece < 0) continue;
 
-            if      (piece == PAWN)   genPawn(index, gen, moveList);
+            if (piece == PAWN) genPawn(index, gen, moveList);
             else if (piece == KING) {
                 if (gen != GEN_QSEARCH && castling != 0) genCastling(index, moveList);
                 genNonslider(index, KING_DELTA, gen, moveList);
             }
             else if (piece == KNIGHT) genNonslider(index, KNIGHT_DELTA, gen, moveList);
-            else                      genSlider(index, PIECE_DELTA[piece], gen, moveList);
+            else genSlider(index, PIECE_DELTA[piece], gen, moveList);
         }
         return moveList;
     }
@@ -636,7 +636,7 @@ public class Position implements Types {
      */
     public void flip() {
         int[] fboard = new int[120];
-        for (int f = 0; f < 8; f++) {
+        for (int f = FILE_A; f <= FILE_H; f++) {
             fboard[SQ_a8 + f] = -board[SQ_a1 + f];
             fboard[SQ_a7 + f] = -board[SQ_a2 + f];
             fboard[SQ_a6 + f] = -board[SQ_a3 + f];
