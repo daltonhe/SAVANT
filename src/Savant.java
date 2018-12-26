@@ -85,14 +85,12 @@ public class Savant implements Types {
 
         // Game loop
         while (true) {
-            
             // Check for mate/stalemate
             if (pos.genLegalMoves().isEmpty()) {
-                if (pos.inCheck(pos.sideToMove)) gameOverMsg = (pos.sideToMove == WHITE ? 
+                if (pos.inCheck(pos.toMove)) gameOverMsg = (pos.toMove == WHITE ? 
                         "Black" : "White") + " wins by checkmate.";
                 else gameOverMsg = "Game drawn by stalemate.";
             }
-            
             // Check for draw by insufficient material
             if (pos.insufficientMat()) gameOverMsg = "Game drawn by insufficient material.";
 
@@ -104,15 +102,15 @@ public class Savant implements Types {
 
             if (!gameOverMsg.isEmpty()) break;
 
-            boolean isEngineTurn =  ((pos.sideToMove == WHITE && engineWhite)
-                                  || (pos.sideToMove == BLACK && engineBlack));
+            boolean isEngineTurn =  ((pos.toMove == WHITE && engineWhite)
+                                  || (pos.toMove == BLACK && engineBlack));
 
             if (!isEngineTurn) System.out.print(">");
 
             String command = (isEngineTurn ? "go" : input.nextLine()).toLowerCase();
             Move move = null;
 
-            switch (command) {				
+            switch (command) {
             case "quit":
                 System.exit(0);
                 break;

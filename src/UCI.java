@@ -55,8 +55,8 @@ public class UCI implements Types{
                     else if (split[i].equals("winc"))  winc  = Integer.parseInt(split[i+1]);
                     else if (split[i].equals("binc"))  binc  = Integer.parseInt(split[i+1]);
                 }
-                Engine.timeLeft  = (pos.sideToMove == WHITE ? wtime : btime);
-                Engine.increment = (pos.sideToMove == WHITE ? winc  : binc);
+                Engine.timeLeft  = (pos.toMove == WHITE ? wtime : btime);
+                Engine.increment = (pos.toMove == WHITE ? winc  : binc);
                 Engine.search(pos);
                 
                 System.out.println("bestmove " + Engine.bestMove.longNot());

@@ -101,7 +101,6 @@ public interface Types {
     public static final int BLACK = -1;
 
     // Pieces (generic)
-    public static final int PIECE_NONE = 0;
     public static final int PAWN       = 1;
     public static final int KNIGHT     = 2;
     public static final int BISHOP     = 3;
@@ -126,7 +125,6 @@ public interface Types {
     public static final int B_KING   = -6;
 
     // Castling rights (KQkq)
-    public static final int CASTLING_NONE  = 0;
     public static final int W_ALL_CASTLING = 0b1100;
     public static final int B_ALL_CASTLING = 0b0011;
     public static final int W_SHORT_CASTLE = 0b1000;
@@ -150,12 +148,15 @@ public interface Types {
     public static final int GEN_QSEARCH = 2;
 
     // Piece deltas
-    public static final int[] PAWN_DELTA   = {  16,  15,  17                      };
-    public static final int[] KNIGHT_DELTA = { -33, -31, -18, -14, 14, 18, 31, 33 };
-    public static final int[] BISHOP_DELTA = { -17, -15,  15,  17                 };
-    public static final int[] ROOK_DELTA   = { -16,  -1,   1,  16                 };
-    public static final int[] QUEEN_DELTA  = { -17, -16, -15,  -1,  1, 15, 16, 17 };
-    public static final int[] KING_DELTA   = { -17, -16, -15,  -1,  1, 15, 16, 17 };
+    public static final int[] PAWN_DELTA    = {  16,  15,  17                      };
+    public static final int[] KNIGHT_DELTA  = { -33, -31, -18, -14, 14, 18, 31, 33 };
+    public static final int[] BISHOP_DELTA  = { -17, -15,  15,  17                 };
+    public static final int[] ROOK_DELTA    = { -16,  -1,   1,  16                 };
+    public static final int[] QUEEN_DELTA   = { -17, -16, -15,  -1,  1, 15, 16, 17 };
+    public static final int[] KING_DELTA    = { -17, -16, -15,  -1,  1, 15, 16, 17 };
+    public static final int[][] PIECE_DELTA = {
+        {}, PAWN_DELTA, KNIGHT_DELTA, BISHOP_DELTA, ROOK_DELTA, QUEEN_DELTA, KING_DELTA
+    };
 
     /* SEARCH */
     
@@ -192,7 +193,6 @@ public interface Types {
     // Transposition table
     public static final int HASH_SIZE_TT = 65536;
     public static final int HASH_SIZE_PV = 16384;
-    public static final int MOVE_NONE = 0;
     public static final int BOUND_EXACT = 0;
     public static final int BOUND_LOWER = 1;
     public static final int BOUND_UPPER = 2;

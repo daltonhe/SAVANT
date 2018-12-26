@@ -109,11 +109,11 @@ public class Evaluate implements Types {
                 pawn_file_w[file][0]++;
                 if (rank > pawn_file_w[file][1]) pawn_file_w[file][1] = rank;
                 pawn_color_w[COLOR_LOOKUP[index]]++;
-                if (file > FILE_B && file < FILE_G && board[index - 16] != PIECE_NONE)
+                if (file > FILE_B && file < FILE_G && board[index - 16] != 0)
                     blocked_pawns_w++;
                 if (file != FILE_A) excluded_area_b[index - 17] = true;
                 if (file != FILE_H) excluded_area_b[index - 15] = true;
-                if (rank == RANK_2 || rank == RANK_3 || board[index - 16] != PIECE_NONE)
+                if (rank == RANK_2 || rank == RANK_3 || board[index - 16] != 0)
                     excluded_area_w[index] = true;
                 int dist = Position.dist(pos.w_king, index);
                 if (dist < kp_dist_w) kp_dist_w = dist;
@@ -129,11 +129,11 @@ public class Evaluate implements Types {
                 pawn_file_b[file][0]++;
                 if (rank < pawn_file_b[file][1]) pawn_file_b[file][1] = rank;
                 pawn_color_b[COLOR_LOOKUP[index]]++;
-                if (file > FILE_B && file < FILE_G && board[index + 16] != PIECE_NONE)
+                if (file > FILE_B && file < FILE_G && board[index + 16] != 0)
                     blocked_pawns_b++;
                 if (file != FILE_A) excluded_area_w[index + 15] = true;
                 if (file != FILE_H) excluded_area_w[index + 17] = true;
-                if (rank == RANK_7 || rank == RANK_6 || board[index + 16] != PIECE_NONE)
+                if (rank == RANK_7 || rank == RANK_6 || board[index + 16] != 0)
                     excluded_area_b[index] = true;
                 dist = Position.dist(pos.b_king, index);
                 if (dist < kp_dist_b) kp_dist_b = dist;
@@ -323,7 +323,7 @@ public class Evaluate implements Types {
                             passed_bonus_eg -= kingDist_w * rankBonus;
                         }
                         // If the pawn is free to advance, increase the bonus
-                        if (board[index - 16] == PIECE_NONE) {
+                        if (board[index - 16] == 0) {
                             passed_bonus_mg += rankBonus * 5;
                             passed_bonus_eg += rankBonus * 5;
                         }
@@ -409,7 +409,7 @@ public class Evaluate implements Types {
                             passed_bonus_eg -= kingDist_b * rankBonus;
                         }
 
-                        if (board[index + 16] == PIECE_NONE) {
+                        if (board[index + 16] == 0) {
                             passed_bonus_mg += rankBonus * 5;
                             passed_bonus_eg += rankBonus * 5;
                         }
@@ -628,7 +628,7 @@ public class Evaluate implements Types {
         
         // Give a small bonus for having the right to move (middlegame only). This helps to
         // mitigate the parity problem of scores at alternating even/odd depths.
-        score_mg += TEMPO * pos.sideToMove;
+        score_mg += TEMPO * pos.toMove;
 
         // Endgame scaling: Scale down scores of likely draws.
         if (score_eg != VALUE_DRAW) {
@@ -817,8 +817,7 @@ public class Evaluate implements Types {
                 int piece = board[target];
                 if (!excludedArea[target]) count++;
                 if (!slider) break;
-                if (   piece != PIECE_NONE 
-                    && xray.indexOf(PIECE_STR.charAt(piece + 6)) == -1) break;
+                if (piece != 0 && xray.indexOf(PIECE_STR.charAt(piece + 6)) == -1) break;
                 target += delta[i];
             }
         }
