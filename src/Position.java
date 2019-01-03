@@ -9,7 +9,7 @@ import java.util.Scanner;
  * 
  */
 public class Position implements Types {
-    public int[] board;    // 0x88 board array of pieces
+    public int[] board;           // 0x88 board array of pieces
     //     A   B   C   D   E   F   G   H
     // 8   0   1   2   3   4   5   6   7 
     // 7   16  17  18  19  20  21  22  23
@@ -20,10 +20,10 @@ public class Position implements Types {
     // 2   96  97  98  99  100 101 102 103
     // 1   112 113 114 115 116 117 118 119
     
-    public int toMove;     // the side to move
-    public int castling;   // castling rights for the position, stored as 4 bits (0bKQkq)
-    public int enpassant;  // enpassant square index (-2 if none)
-    public int fiftyMoves; // fifty moves half-move clock
+    public int toMove;            // the side to move
+    public int castling;          // castling rights for the position, stored as 4 bits (0bKQkq)
+    public int enpassant;         // enpassant square index (-2 if none)
+    public int fiftyMoves;        // fifty moves half-move clock
 
     public long key;              // zobrist hash key of the position
     public List<State> stateHist; // previous state history, used for unmaking moves

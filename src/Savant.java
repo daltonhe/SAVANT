@@ -32,7 +32,7 @@ public class Savant implements Types {
     // TODO: killer moves
     // TODO: pawn hash table
     // TODO: TT buckets
-
+    
     public static Position pos;
     public static String movesString;
     public static boolean inOpening;

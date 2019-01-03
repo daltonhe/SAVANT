@@ -220,11 +220,6 @@ public interface Types {
 
     // Bonuses/penalties {middlegame | endgame}
     public static final int   TEMPO            =  10;
-    public static final int   BISHOP_PAIR      =  43;
-    public static final int   REDUNDANT_KNIGHT = -4;
-    public static final int   REDUNDANT_ROOK   = -12;
-    public static final int   REDUNDANT_QUEEN  = -4;
-    public static final int   KNIGHT_PAWN      =  7;
     public static final int   TRAPPED_KNIGHT   = -100;
     public static final int   TRAPPED_BISHOP   = -150;
     public static final int   TRAPPED_ROOK     = -47;
@@ -242,6 +237,44 @@ public interface Types {
     public static final int   SUPPORTED_PAWN   =  8;
     public static final int   KING_PAWN_DIST   = -8;
     public static final int   KING_PROTECTOR   =  3;
+    
+    // Imbalance
+    public static final double P_WITH_P    =  1.1;
+    public static final double N_WITH_P    =  7.7;
+    public static final double N_WITH_N    = -1.9;
+    public static final double B_WITH_P    =  3.1;
+    public static final double B_WITH_N    =  0.1;
+    public static final double R_WITH_P    = -0.1;
+    public static final double R_WITH_N    =  1.4;
+    public static final double R_WITH_B    =  3.2;
+    public static final double R_WITH_R    = -6.3;
+    public static final double Q_WITH_P    =  0.7;
+    public static final double Q_WITH_N    =  3.5;
+    public static final double Q_WITH_B    =  4.0;
+    public static final double Q_WITH_R    = -4.0;
+    public static final double Q_WITH_Q    = -0.2; 
+    
+    public static final double N_VS_P      =  1.9;
+    public static final double B_VS_P      =  2.0;
+    public static final double B_VS_N      =  1.3;
+    public static final double R_VS_P      =  1.2;
+    public static final double R_VS_N      =  0.7;
+    public static final double R_VS_B      = -0.7;
+    public static final double Q_VS_P      =  3.0;
+    public static final double Q_VS_N      = -1.3;
+    public static final double Q_VS_B      =  4.1;
+    public static final double Q_VS_R      =  8.1;
+    
+    public static final double BISHOP_PAIR = 43.2;
+    public static final double P_WITH_BB   =  1.2;
+    public static final double N_WITH_BB   =  1.0;
+    public static final double R_WITH_BB   = -0.8;
+    public static final double Q_WITH_BB   = -5.7;
+    public static final double P_VS_BB     =  1.1;
+    public static final double N_VS_BB     =  0.3;
+    public static final double B_VS_BB     =  1.8;
+    public static final double R_VS_BB     =  1.4;
+    public static final double Q_VS_BB     =  2.9;
 
     // Piece-square tables
     public static final int[][] PAWN_PSQT_MG = {
