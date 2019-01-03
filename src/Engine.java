@@ -168,7 +168,7 @@ public class Engine implements Types {
 
             // Stop searching if a forced mate was found or if the time left is probably not 
             // enough to search the next depth
-            if (Math.abs(eval) > VALUE_MATE_THRESH || timeElapsed >= timeForMove / 4) break;
+            if (Math.abs(eval) > VALUE_MATETHRESH || timeElapsed >= timeForMove / 4) break;
         }
     }
 
@@ -272,9 +272,9 @@ public class Engine implements Types {
                 // Fail-high
                 if (eval >= beta) {
                     // Do not return unproven mate scores
-                    if (eval >= VALUE_MATE_THRESH) eval = beta;
+                    if (eval >= VALUE_MATETHRESH) eval = beta;
                     
-                    if (Math.abs(beta) < VALUE_MATE_THRESH) return eval;
+                    if (Math.abs(beta) < VALUE_MATETHRESH) return eval;
                 }
             }
         }
@@ -314,8 +314,8 @@ public class Engine implements Types {
 
             // Futility pruning
             if (   pruningOk
-                && Math.abs(alpha) < VALUE_MATE_THRESH 
-                && Math.abs(beta)  < VALUE_MATE_THRESH
+                && Math.abs(alpha) < VALUE_MATETHRESH 
+                && Math.abs(beta)  < VALUE_MATETHRESH
                 && (   (ply == 1 && standPat <= alpha - FUTILITY_MARGIN)
                     || (ply == 2 && standPat <= alpha - EXT_FUTILITY_MARGIN))) {
                 pos.unmakeMove(move);

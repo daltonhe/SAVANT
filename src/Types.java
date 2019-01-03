@@ -96,19 +96,19 @@ public interface Types {
     public static final int SQ_g1 = 118;
     public static final int SQ_h1 = 119;
 
-    // Side
+    // Color
     public static final int WHITE =  1;
     public static final int BLACK = -1;
 
     // Pieces (generic)
-    public static final int PAWN       = 1;
-    public static final int KNIGHT     = 2;
-    public static final int BISHOP     = 3;
-    public static final int ROOK       = 4;
-    public static final int QUEEN      = 5;
-    public static final int KING       = 6;
+    public static final int PAWN   = 1;
+    public static final int KNIGHT = 2;
+    public static final int BISHOP = 3;
+    public static final int ROOK   = 4;
+    public static final int QUEEN  = 5;
+    public static final int KING   = 6;
 
-    // White pieces
+    // Pieces (White)
     public static final int W_PAWN   = 1;
     public static final int W_KNIGHT = 2;
     public static final int W_BISHOP = 3;
@@ -116,7 +116,7 @@ public interface Types {
     public static final int W_QUEEN  = 5;
     public static final int W_KING   = 6;
 
-    // Black pieces
+    // Pieces (Black)
     public static final int B_PAWN   = -1;
     public static final int B_KNIGHT = -2;
     public static final int B_BISHOP = -3;
@@ -124,7 +124,7 @@ public interface Types {
     public static final int B_QUEEN  = -5;
     public static final int B_KING   = -6;
 
-    // Castling rights (KQkq)
+    // Castling rights (0bKQkq)
     public static final int W_ALL_CASTLING = 0b1100;
     public static final int B_ALL_CASTLING = 0b0011;
     public static final int W_SHORT_CASTLE = 0b1000;
@@ -134,7 +134,7 @@ public interface Types {
     
     /* MOVE GENERATION */
 
-    // Move types
+    // Move type
     public static final int NORMAL       = 0;
     public static final int CASTLE_SHORT = 1;
     public static final int CASTLE_LONG  = 2;
@@ -142,7 +142,7 @@ public interface Types {
     public static final int ENPASSANT    = 4;
     public static final int PROMOTION    = 5;
     
-    // Generation stages
+    // Generation stage
     public static final int GEN_ALL     = 0;
     public static final int GEN_SEARCH  = 1;
     public static final int GEN_QSEARCH = 2;
@@ -160,23 +160,22 @@ public interface Types {
 
     /* SEARCH */
     
-    // Values
-    public static final int VALUE_INF         = 10001;
-    public static final int VALUE_MATE        = 10000;
-    public static final int VALUE_MATE_THRESH = 9900;
-    public static final int VALUE_DRAW        = 0;
-    public static final int VALUE_CONTEMPT    = 20;
+    // Bounds
+    public static final int VALUE_INF        = 10001;
+    public static final int VALUE_MATE       = 10000;
+    public static final int VALUE_MATETHRESH = 9900;
+    public static final int VALUE_DRAW       = 0;
     
-    // Search depths
+    // Depth
     public static final int DEPTH_MAX = 99;
     public static final int DEPTH_QS  = -1;
 
-    // Node types
+    // Node type
     public static final int NODE_PV  =  0;
     public static final int NODE_CUT =  1;
     public static final int NODE_ALL = -1;
 
-    // Pruning parameters
+    // Pruning
     public static final int INITIAL_WINDOW      = 10;
     public static final int DELTA_MARGIN        = 100;
     public static final int FUTILITY_MARGIN     = 200;
@@ -193,9 +192,9 @@ public interface Types {
     // Transposition table
     public static final int HASH_SIZE_TT = 65536;
     public static final int HASH_SIZE_PV = 16384;
-    public static final int BOUND_EXACT = 0;
-    public static final int BOUND_LOWER = 1;
-    public static final int BOUND_UPPER = 2;
+    public static final int BOUND_EXACT  = 0;
+    public static final int BOUND_LOWER  = 1;
+    public static final int BOUND_UPPER  = 2;
 
     /* EVALUATION */
     
@@ -203,78 +202,75 @@ public interface Types {
     public static final int MG = 0;
     public static final int EG = 1;
     
-    // Threshold values
+    // Phase threshold
     public static final int MIDGAME_THRESH = 7336;
     public static final int ENDGAME_THRESH = 1882;
-    public static final int SPACE_THRESH   = 5875;
-    public static final int INSUFF_THRESH  = 798;
     
-    // Piece values {middlegame | endgame}
-    public static final int[] VALUE_PIECE  = { 0, 100, 416, 441, 663, 1292 };
+    // Piece value [MG | EG]
     public static final int[] VALUE_PAWN   = {   65,  100 };
     public static final int[] VALUE_KNIGHT = {  376,  416 };
     public static final int[] VALUE_BISHOP = {  399,  441 };
     public static final int[] VALUE_ROOK   = {  620,  663 };
     public static final int[] VALUE_QUEEN  = { 1216, 1292 };
+    public static final int[] VALUE_PIECE  = { 0, 100, 416, 441, 663, 1292 };
     public static final int   VALUE_PROMOTION = 1192; // VALUE_QUEEN - VALUE_PAWN
+    
 
-    // Bonuses/penalties {middlegame | endgame}
-    public static final int   TEMPO            =  10;
-    public static final int   TRAPPED_KNIGHT   = -100;
-    public static final int   TRAPPED_BISHOP   = -150;
-    public static final int   TRAPPED_ROOK     = -47;
-    public static final int[] ROOK_OPEN_FILE   = { 21,  10 };
-    public static final int[] ROOK_SEMI_FILE   = {  9,   4 };
-    public static final int[] ROOK_ON_7TH      = { 20,  40 };
-    public static final int[] QUEEN_ON_7TH     = { 10,  20 };
-    public static final int[] DOUBLED_PAWN     = { -5, -27 };
-    public static final int[] ISOLATED_PAWN    = { -3,  -8 };
-    public static final int[] BACKWARD_PAWN    = { -5, -12 };
-    public static final int[] WEAK_PAWN        = { -2, -14 };
-    public static final int[] BAD_BISHOP_PAWN  = { -2,  -5 };
-    public static final int[] CONNECTED_PAWN   = { 0, 84, 48, 31,  9, 12, 6, 0 };
-    public static final int[] PAWN_PHALANX     = { 0, 37, 18,  8, 11, -1, 3, 0 };
-    public static final int   SUPPORTED_PAWN   =  8;
-    public static final int   KING_PAWN_DIST   = -8;
-    public static final int   KING_PROTECTOR   =  3;
+    // Bonuses/penalties [MG | EG]
+    public static final int   TEMPO          =  10;
+    public static final int   TRAPPED_KNIGHT = -100;
+    public static final int   TRAPPED_BISHOP = -150;
+    public static final int   TRAPPED_ROOK   = -47;
+    public static final int[] ROOK_OPEN_FILE = { 21,  10 };
+    public static final int[] ROOK_SEMI_FILE = {  9,   4 };
+    public static final int[] DOUBLED_PAWN   = { -5, -27 };
+    public static final int[] ISOLATED_PAWN  = { -3,  -8 };
+    public static final int[] BACKWARD_PAWN  = { -5, -12 };
+    public static final int[] WEAK_PAWN      = { -2, -14 };
+    public static final int[] BISHOP_PAWN    = { -2,  -5 };
+    public static final int[] CONNECTED_PAWN = { 0, 84, 48, 31,  9, 12, 6, 0 };
+    public static final int[] PAWN_PHALANX   = { 0, 37, 18,  8, 11, -1, 3, 0 };
+    public static final int   SUPPORTED_PAWN =  8;
+    public static final int   KING_PAWN_DIST = -8;
+    public static final int   KING_PROTECTOR =  3;
     
     // Imbalance
-    public static final double P_WITH_P    =  1.1;
-    public static final double N_WITH_P    =  7.7;
-    public static final double N_WITH_N    = -1.9;
-    public static final double B_WITH_P    =  3.1;
-    public static final double B_WITH_N    =  0.1;
-    public static final double R_WITH_P    = -0.1;
-    public static final double R_WITH_N    =  1.4;
-    public static final double R_WITH_B    =  3.2;
-    public static final double R_WITH_R    = -6.3;
-    public static final double Q_WITH_P    =  0.7;
-    public static final double Q_WITH_N    =  3.5;
-    public static final double Q_WITH_B    =  4.0;
-    public static final double Q_WITH_R    = -4.0;
-    public static final double Q_WITH_Q    = -0.2; 
+    public static final double P_WITH_P =  1.1;
+    public static final double N_WITH_P =  7.7;
+    public static final double N_WITH_N = -1.9;
+    public static final double B_WITH_P =  3.1;
+    public static final double B_WITH_N =  0.1;
+    public static final double R_WITH_P = -0.1;
+    public static final double R_WITH_N =  1.4;
+    public static final double R_WITH_B =  3.2;
+    public static final double R_WITH_R = -6.3;
+    public static final double Q_WITH_P =  0.7;
+    public static final double Q_WITH_N =  3.5;
+    public static final double Q_WITH_B =  4.0;
+    public static final double Q_WITH_R = -4.0;
+    public static final double Q_WITH_Q = -0.2; 
     
-    public static final double N_VS_P      =  1.9;
-    public static final double B_VS_P      =  2.0;
-    public static final double B_VS_N      =  1.3;
-    public static final double R_VS_P      =  1.2;
-    public static final double R_VS_N      =  0.7;
-    public static final double R_VS_B      = -0.7;
-    public static final double Q_VS_P      =  3.0;
-    public static final double Q_VS_N      = -1.3;
-    public static final double Q_VS_B      =  4.1;
-    public static final double Q_VS_R      =  8.1;
+    public static final double N_VS_P =  1.9;
+    public static final double B_VS_P =  2.0;
+    public static final double B_VS_N =  1.3;
+    public static final double R_VS_P =  1.2;
+    public static final double R_VS_N =  0.7;
+    public static final double R_VS_B = -0.7;
+    public static final double Q_VS_P =  3.0;
+    public static final double Q_VS_N = -1.3;
+    public static final double Q_VS_B =  4.1;
+    public static final double Q_VS_R =  8.1;
     
     public static final double BISHOP_PAIR = 43.2;
-    public static final double P_WITH_BB   =  1.2;
-    public static final double N_WITH_BB   =  1.0;
-    public static final double R_WITH_BB   = -0.8;
-    public static final double Q_WITH_BB   = -5.7;
-    public static final double P_VS_BB     =  1.1;
-    public static final double N_VS_BB     =  0.3;
-    public static final double B_VS_BB     =  1.8;
-    public static final double R_VS_BB     =  1.4;
-    public static final double Q_VS_BB     =  2.9;
+    public static final double P_WITH_BB =  1.2;
+    public static final double N_WITH_BB =  1.0;
+    public static final double R_WITH_BB = -0.8;
+    public static final double Q_WITH_BB = -5.7;
+    public static final double P_VS_BB   =  1.1;
+    public static final double N_VS_BB   =  0.3;
+    public static final double B_VS_BB   =  1.8;
+    public static final double R_VS_BB   =  1.4;
+    public static final double Q_VS_BB   =  2.9;
 
     // Piece-square tables
     public static final int[][] PAWN_PSQT_MG = {
@@ -484,6 +480,7 @@ public interface Types {
             7, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 0,
             7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0
     };
+    
     // Square color lookup (0 = light square, 1 = dark square): Use COLOR_LOOKUP[index]
     public static final int[] COLOR_LOOKUP = {
             0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,

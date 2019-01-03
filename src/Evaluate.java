@@ -290,8 +290,7 @@ public class Evaluate implements Types {
                     // candidate passer
                     if (   !passed && !opposed && supporters > 0
                         && (file == FILE_A || rank <= pawn_rank_b[file - 1] + 1)
-                        && (file == FILE_H || rank <= pawn_rank_b[file + 1] + 1))
-                        passed = true;
+                        && (file == FILE_H || rank <= pawn_rank_b[file + 1] + 1)) passed = true;
 
                     // Bonus for passed pawns depending on rank and file, and king proximity.
                     // Any pawn which is unopposed and cannot be contested by an enemy pawn is 
@@ -302,24 +301,24 @@ public class Evaluate implements Types {
                         int bonus_eg = PASSED_PAWN_EG[rank][file];
 
                         if (rank <= RANK_4) {
-                            int w = PASSED_DANGER[rank];
+                            int weight = PASSED_DANGER[rank];
 
                             // distance from king to block square of pawn, capped at 5
                             int dist_w = Math.min(5, Position.dist(pos.w_king, index - 16));
                             int dist_b = Math.min(5, Position.dist(pos.b_king, index - 16));
-                            bonus_eg += dist_b * w * 5;
-                            bonus_eg -= dist_w * w * 2;
+                            bonus_eg += dist_b * weight * 5;
+                            bonus_eg -= dist_w * weight * 2;
 
                             // If the block square is not the queening square, consider a
                             // second push
                             if (rank != RANK_7) {
                                 dist_w = Math.min(5, Position.dist(pos.w_king, index - 32));
-                                bonus_eg -= dist_w * w;
+                                bonus_eg -= dist_w * weight;
                             }
                             // If the pawn is free to advance, increase the bonus
                             if (board[index - 16] == 0) {
-                                bonus_mg += w * 5;
-                                bonus_eg += w * 5;
+                                bonus_mg += weight * 5;
+                                bonus_eg += weight * 5;
                             }
                         }
                         // Scale down bonus if there is a friendly pawn in front
@@ -359,13 +358,13 @@ public class Evaluate implements Types {
                     // adjusted based on rank, whether the pawn is in a phalanx, whether the
                     // pawn is opposed, and the number of supporting pawns. 
                     if (supporters > 0 || phalanx) {
-                        int connectedBonus = CONNECTED_PAWN[rank];
-                        if (phalanx) connectedBonus += PAWN_PHALANX[rank];
-                        if (opposed) connectedBonus >>= 1;
-                        connectedBonus += supporters *= SUPPORTED_PAWN;
+                        int bonus = CONNECTED_PAWN[rank];
+                        if (phalanx) bonus += PAWN_PHALANX[rank];
+                        if (opposed) bonus >>= 1;
+                        bonus += supporters *= SUPPORTED_PAWN;
                         // In the endgame only pawns on the 4th through 7th ranks receive the bonus.
-                        pawns[MG] += connectedBonus;
-                        if (rank <= RANK_4) pawns[EG] += connectedBonus;
+                        pawns[MG] += bonus;
+                        if (rank <= RANK_4) pawns[EG] += bonus;
                     }
                 }
                 else if (piece == W_KNIGHT) {
@@ -395,9 +394,9 @@ public class Evaluate implements Types {
                     // Penalty for the number of pawns on the same color square
                     // as the bishop. The penalty is increased for each blocked pawn on the
                     // central 4 files (C, D, E, and F).
-                    int bishopPawns = pawn_color_w[COLOR_LOOKUP[index]];
-                    pieces[MG] += bishopPawns * (blocked_pawns_w + 1) * BAD_BISHOP_PAWN[MG];
-                    pieces[EG] += bishopPawns * (blocked_pawns_w + 1) * BAD_BISHOP_PAWN[EG];
+                    int bishop_pawns = pawn_color_w[COLOR_LOOKUP[index]];
+                    pieces[MG] += bishop_pawns * (blocked_pawns_w + 1) * BISHOP_PAWN[MG];
+                    pieces[EG] += bishop_pawns * (blocked_pawns_w + 1) * BISHOP_PAWN[EG];
 
                     // Bishop mobility
                     squares = sliderMobility(board, excluded_area_w, index, BISHOP_DELTA, "Qq");
@@ -418,11 +417,6 @@ public class Evaluate implements Types {
                             pieces[EG] += ROOK_SEMI_FILE[EG];
                         }
                     }
-                    // Bonus for a rook on the 7th rank with the enemy king on the 8th rank.
-                    if (rank == RANK_7 && (pos.b_king >> 4) == RANK_8) {
-                        pieces[MG] += ROOK_ON_7TH[MG];
-                        pieces[EG] += ROOK_ON_7TH[EG];
-                    }
                     // Penalty for a rook trapped by its own uncastled king.
                     if (   (index == SQ_a1 || index == SQ_a2 || index == SQ_b1 || index == SQ_b2)
                         && (pos.w_king == SQ_c1 || pos.w_king == SQ_b1))
@@ -437,11 +431,6 @@ public class Evaluate implements Types {
                     mobility[EG] += ROOK_MOB_EG[squares];
                 }
                 else if (piece == W_QUEEN) {
-                    // Bonus for a queen on the 7th rank with the enemy king on the 8th rank.
-                    if (rank == RANK_7 && (pos.b_king >> 4) == RANK_8) {
-                        pieces[MG] += QUEEN_ON_7TH[MG];
-                        pieces[EG] += QUEEN_ON_7TH[EG];
-                    }
                     // Queen mobility
                     squares = sliderMobility(board, excluded_area_w, index, QUEEN_DELTA, "");
                     mobility[MG] += QUEEN_MOB_MG[squares];
@@ -464,12 +453,11 @@ public class Evaluate implements Types {
                                               || (file == FILE_A || board[index + 31] == W_PAWN)
                                               || (file == FILE_H || board[index + 33] == W_PAWN)));
                     int supporters = ((file != FILE_A && board[index - 17] == B_PAWN) ? 1 : 0) +
-                                 ((file != FILE_H && board[index - 15] == B_PAWN) ? 1 : 0);
+                                     ((file != FILE_H && board[index - 15] == B_PAWN) ? 1 : 0);
                     
                     if (   !passed && !opposed && supporters > 0
                         && (file == FILE_A || rank >= pawn_rank_w[file - 1] - 1)
-                        && (file == FILE_H || rank >= pawn_rank_w[file + 1] - 1))
-                        passed = true;
+                        && (file == FILE_H || rank >= pawn_rank_w[file + 1] - 1)) passed = true;
 
                     if (passed) {
                         passers_b++;
@@ -477,20 +465,19 @@ public class Evaluate implements Types {
                         int bonus_eg = PASSED_PAWN_EG[7-rank][file];
 
                         if (rank >= RANK_5) {
-                            int w = PASSED_DANGER[7-rank];
-
+                            int weight = PASSED_DANGER[7-rank];
                             int dist_b = Math.min(5, Position.dist(pos.b_king, index + 16));
                             int dist_w = Math.min(5, Position.dist(pos.w_king, index + 16));
-                            bonus_eg += dist_w * w * 5;
-                            bonus_eg -= dist_b * w * 2;
-
+                            bonus_eg += dist_w * weight * 5;
+                            bonus_eg -= dist_b * weight * 2;
+                            
                             if (rank != RANK_2) {
                                 dist_b = Math.min(5, Position.dist(pos.b_king, index + 32));
-                                bonus_eg -= dist_b * w;
+                                bonus_eg -= dist_b * weight;
                             }
                             if (board[index + 16] == 0) {
-                                bonus_mg += w * 5;
-                                bonus_eg += w * 5;
+                                bonus_mg += weight * 5;
+                                bonus_eg += weight * 5;
                             }
                         }
                         if (board[index + 16] == B_PAWN) {
@@ -545,9 +532,9 @@ public class Evaluate implements Types {
                     pieces[MG] += dist * KING_PROTECTOR;
                     pieces[EG] += dist * KING_PROTECTOR;
 
-                    int bishopPawns = pawn_color_b[COLOR_LOOKUP[index]];
-                    pieces[MG] -= bishopPawns * (blocked_pawns_b + 1) * BAD_BISHOP_PAWN[MG];
-                    pieces[EG] -= bishopPawns * (blocked_pawns_b + 1) * BAD_BISHOP_PAWN[EG];
+                    int bishop_pawns = pawn_color_b[COLOR_LOOKUP[index]];
+                    pieces[MG] -= bishop_pawns * (blocked_pawns_b + 1) * BISHOP_PAWN[MG];
+                    pieces[EG] -= bishop_pawns * (blocked_pawns_b + 1) * BISHOP_PAWN[EG];
 
                     squares = sliderMobility(board, excluded_area_b, index, BISHOP_DELTA, "Qq");
                     mobility[MG] -= BISHOP_MOB_MG[squares];
@@ -564,10 +551,6 @@ public class Evaluate implements Types {
                             pieces[EG] -= ROOK_SEMI_FILE[EG];
                         }
                     }
-                    if (rank == RANK_2 && (pos.w_king >> 4) == RANK_1) {
-                        pieces[MG] -= ROOK_ON_7TH[MG];
-                        pieces[EG] -= ROOK_ON_7TH[EG];
-                    }
                     if (   (index == SQ_a8 || index == SQ_a7 || index == SQ_b8 || index == SQ_b7)
                         && (pos.b_king == SQ_c8 || pos.b_king == SQ_b8))
                         pieces[MG] -= TRAPPED_ROOK;
@@ -580,10 +563,6 @@ public class Evaluate implements Types {
                     mobility[EG] -= ROOK_MOB_EG[squares];
                 }
                 else if (piece == B_QUEEN) {
-                    if (rank == RANK_2 && (pos.w_king >> 4) == RANK_1) {
-                        pieces[MG] -= QUEEN_ON_7TH[MG];
-                        pieces[EG] -= QUEEN_ON_7TH[EG];
-                    }
                     squares = sliderMobility(board, excluded_area_b, index, QUEEN_DELTA, "");
                     mobility[MG] -= QUEEN_MOB_MG[squares];
                     mobility[EG] -= QUEEN_MOB_EG[squares];
