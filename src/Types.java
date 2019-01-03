@@ -203,8 +203,8 @@ public interface Types {
     public static final int EG = 1;
     
     // Phase threshold
-    public static final int MG_THRESH = 7336;
-    public static final int EG_THRESH = 1882;
+    public static final int MIDGAME_THRESH = 7336;
+    public static final int ENDGAME_THRESH = 1882;
     
     // Piece value [MG | EG]
     public static final int[] VALUE_PAWN   = {   65,  100 };
@@ -223,6 +223,8 @@ public interface Types {
     public static final int   TRAPPED_ROOK   = -47;
     public static final int[] ROOK_OPEN_FILE = { 21,  10 };
     public static final int[] ROOK_SEMI_FILE = {  9,   4 };
+    public static final int[] ROOK_ON_7TH    = { 20,  40 };
+    public static final int[] QUEEN_ON_7TH   = { 10,  20 };
     public static final int[] DOUBLED_PAWN   = { -5, -27 };
     public static final int[] ISOLATED_PAWN  = { -3,  -8 };
     public static final int[] BACKWARD_PAWN  = { -5, -12 };
@@ -415,14 +417,14 @@ public interface Types {
           59, 61, 64, 65, 67, 69, 71, 80, 82, 84, 88, 92, 99, 102};
 
     // Passed pawns
-    public static final int[] PASSED_DANGER  = {0, 10, 5, 3, 1, 0, 0, 0};
+    public static final int[] PASSED_DANGER  = { 0, 10, 5, 3, 1, 0, 0, 0 };
     public static final int PASSED_PAWN_MG[][] = {
             {                                        },
             { 130, 131, 126, 116, 116, 126, 131, 130 },
             {  78,  78,  74,  64,  64,  74,  78,  78 },
             {  27,  27,  23,  13,  13,  23,  27,  27 },
             {   4,   5,   0,   0,   0,   0,   5,   4 },
-            {   5,   6,   1,   0,   0,   1,   6,   5 },
+            {   5,   6,   0,   0,   0,   0,   6,   5 },
             {   2,   2,   0,   0,   0,   0,   2,   2 },
             {                                        }
     };

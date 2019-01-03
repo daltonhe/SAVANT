@@ -19,18 +19,14 @@ public class Position implements Types {
     // 3   80  81  82  83  84  85  86  87
     // 2   96  97  98  99  100 101 102 103
     // 1   112 113 114 115 116 117 118 119
-    
     public int toMove;            // the side to move
     public int castling;          // castling rights for the position, stored as 4 bits (0bKQkq)
     public int enpassant;         // enpassant square index (-2 if none)
     public int fiftyMoves;        // fifty moves half-move clock
-
     public long key;              // zobrist hash key of the position
     public List<State> stateHist; // previous state history, used for unmaking moves
-    
     public List<Integer> pieces;  // indices of all the pieces
     public int[] indexBoard;      // piece list index lookup
-    
     public int w_king;            // index of the white king
     public int b_king;            // index of the black king
     public boolean nullAllowed;   // false if the last move was a null move
