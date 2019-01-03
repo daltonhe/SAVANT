@@ -203,8 +203,8 @@ public interface Types {
     public static final int EG = 1;
     
     // Phase threshold
-    public static final int MIDGAME_THRESH = 7336;
-    public static final int ENDGAME_THRESH = 1882;
+    public static final int MG_THRESH = 7336;
+    public static final int EG_THRESH = 1882;
     
     // Piece value [MG | EG]
     public static final int[] VALUE_PAWN   = {   65,  100 };
