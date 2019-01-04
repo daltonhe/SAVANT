@@ -37,15 +37,13 @@ public class Evaluate implements Types {
     //   2) Occupied by a friendly pawn on rank 2 or 3
     //   3) Occupied by a blocked friendly pawn
     //   4) Occupied by our king or queen
-    private static boolean[] excluded_area_w, excluded_area_b;
-    
+    private static boolean[] excluded_w, excluded_b;
     
     /**
      * Initialize evaluation fields.
      */
     public static void initEval() {
-        npm_w = 0; npm_b = 0;
-        
+        npm_w     = 0; npm_b     = 0;
         material  = new int[2];
         imbalance = 0;
         psqt      = new int[2];
@@ -53,14 +51,12 @@ public class Evaluate implements Types {
         pieces    = new int[2];
         mobility  = new int[2];
         king      = new int[2];
-
         pieces_w  = 0; pieces_b  = 0;
         pawns_w   = 0; pawns_b   = 0;
         knights_w = 0; knights_b = 0;
         bishops_w = 0; bishops_b = 0;
         rooks_w   = 0; rooks_b   = 0;
         queens_w  = 0; queens_b  = 0;
-        
         passers_w = 0; passers_b = 0;         
         blocked_w = 0; blocked_b = 0;
         pawn_count_w = new int[8]; pawn_count_b = new int[8];
@@ -69,7 +65,7 @@ public class Evaluate implements Types {
         pawn_color_w = new int[2]; pawn_color_b = new int[2];
         kp_dist_w = 8; kp_dist_b = 8;
         opp_bishops = 0; 
-        excluded_area_w = new boolean[120]; excluded_area_b = new boolean[120];
+        excluded_w = new boolean[120]; excluded_b = new boolean[120];
     }
 
     /**
@@ -100,9 +96,9 @@ public class Evaluate implements Types {
                     if (rank > pawn_rank_w[file]) pawn_rank_w[file] = rank;
                     pawn_color_w[COLOR_LOOKUP[index]]++;
                     if (file > FILE_B && file < FILE_G && board[index - 16] != 0) blocked_w++;
-                    if (file != FILE_A) excluded_area_b[index - 17] = true;
-                    if (file != FILE_H) excluded_area_b[index - 15] = true;
-                    if (rank >= RANK_3 || board[index - 16] != 0) excluded_area_w[index] = true;
+                    if (file != FILE_A) excluded_b[index - 17] = true;
+                    if (file != FILE_H) excluded_b[index - 15] = true;
+                    if (rank >= RANK_3 || board[index - 16] != 0) excluded_w[index] = true;
                     int dist = Position.dist(w_king, index);
                     if (dist < kp_dist_w) kp_dist_w = dist;
                     material[MG] += VALUE_PAWN[MG];
@@ -141,7 +137,7 @@ public class Evaluate implements Types {
                 else if (piece == W_QUEEN) {
                     queens_w++;
                     pieces_w++;
-                    excluded_area_w[index] = true;
+                    excluded_w[index] = true;
                     material[MG] += VALUE_QUEEN[MG];
                     material[EG] += VALUE_QUEEN[EG];
                     psqt    [MG] += QUEEN_PSQT_MG[rank][file];
@@ -150,7 +146,7 @@ public class Evaluate implements Types {
                 }
                 else { // piece == W_KING
                     pieces_w++;
-                    excluded_area_w[index] = true;
+                    excluded_w[index] = true;
                     psqt[MG] += KING_PSQT_MG[rank][file];
                     psqt[EG] += KING_PSQT_EG[rank][file];
                 }
@@ -163,9 +159,9 @@ public class Evaluate implements Types {
                     if (rank < pawn_rank_b[file]) pawn_rank_b[file] = rank;
                     pawn_color_b[COLOR_LOOKUP[index]]++;
                     if (file > FILE_B && file < FILE_G && board[index + 16] != 0) blocked_b++;
-                    if (file != FILE_A) excluded_area_w[index + 15] = true;
-                    if (file != FILE_H) excluded_area_w[index + 17] = true;
-                    if (rank <= RANK_6 || board[index + 16] != 0) excluded_area_b[index] = true;
+                    if (file != FILE_A) excluded_w[index + 15] = true;
+                    if (file != FILE_H) excluded_w[index + 17] = true;
+                    if (rank <= RANK_6 || board[index + 16] != 0) excluded_b[index] = true;
                     int dist = Position.dist(b_king, index);
                     if (dist < kp_dist_b) kp_dist_b = dist;
                     material[MG] -= VALUE_PAWN[MG];
@@ -204,7 +200,7 @@ public class Evaluate implements Types {
                 else if (piece == B_QUEEN) {
                     queens_b++;
                     pieces_b++;
-                    excluded_area_b[index] = true;
+                    excluded_b[index] = true;
                     material[MG] -= VALUE_QUEEN[MG];
                     material[EG] -= VALUE_QUEEN[EG];
                     psqt    [MG] -= QUEEN_PSQT_MG[7-rank][file];
@@ -213,7 +209,7 @@ public class Evaluate implements Types {
                 }
                 else { // piece == B_KING
                     pieces_b++;
-                    excluded_area_b[index] = true;
+                    excluded_b[index] = true;
                     psqt[MG] -= KING_PSQT_MG[7-rank][file];
                     psqt[EG] -= KING_PSQT_EG[7-rank][file];
                 }
@@ -250,10 +246,8 @@ public class Evaluate implements Types {
         for (int index : pos.pieces) {
             int piece = board[index];
             if (Math.abs(piece) == KING) continue;
-            
             int rank  = (index >> 4);
             int file  = (index & 7);
-            int squares; // number of attacked squares in the mobility area
             
             if (piece > 0) {
                 if (piece == W_PAWN) {
@@ -358,11 +352,11 @@ public class Evaluate implements Types {
                 else if (piece == W_KNIGHT) {
                     // Penalty if the knight is far from the king.
                     int dist = Position.dist(w_king, index);
-                    pieces[MG] -= dist * KING_PROTECTOR;
-                    pieces[EG] -= dist * KING_PROTECTOR;
+                    pieces[MG] -= dist * KING_PROTECTOR[MG];
+                    pieces[EG] -= dist * KING_PROTECTOR[EG];
 
                     // Knight mobility
-                    squares = knightMobility(board, excluded_area_w, index);
+                    int squares = knightMobility(board, excluded_w, index);
                     mobility[MG] += KNIGHT_MOB_MG[squares];
                     mobility[EG] += KNIGHT_MOB_EG[squares];
                 }
@@ -376,8 +370,8 @@ public class Evaluate implements Types {
 
                     // Penalty if the bishop is far from the king.
                     int dist = Position.dist(w_king, index);
-                    pieces[MG] -= dist * KING_PROTECTOR;
-                    pieces[EG] -= dist * KING_PROTECTOR;
+                    pieces[MG] -= dist * KING_PROTECTOR[MG];
+                    pieces[EG] -= dist * KING_PROTECTOR[EG];
 
                     // Penalty for the number of pawns on the same color square
                     // as the bishop. The penalty is increased for each blocked pawn on the
@@ -387,7 +381,7 @@ public class Evaluate implements Types {
                     pieces[EG] += bishopPawns * (blocked_w + 1) * BISHOP_PAWN[EG];
 
                     // Bishop mobility
-                    squares = sliderMobility(board, excluded_area_w, index, BISHOP_DELTA, "Qq");
+                    int squares = sliderMobility(board, excluded_w, index, BISHOP_DELTA, "Qq");
                     mobility[MG] += BISHOP_MOB_MG[squares];
                     mobility[EG] += BISHOP_MOB_EG[squares];
                 }
@@ -414,13 +408,13 @@ public class Evaluate implements Types {
                         pieces[MG] += TRAPPED_ROOK;
 
                     // Rook mobility
-                    squares = sliderMobility(board, excluded_area_w, index, ROOK_DELTA, "QqR");
+                    int squares = sliderMobility(board, excluded_w, index, ROOK_DELTA, "QqR");
                     mobility[MG] += ROOK_MOB_MG[squares];
                     mobility[EG] += ROOK_MOB_EG[squares];
                 }
                 else { // piece == W_QUEEN
                     // Queen mobility
-                    squares = sliderMobility(board, excluded_area_w, index, QUEEN_DELTA, "");
+                    int squares = sliderMobility(board, excluded_w, index, QUEEN_DELTA, "");
                     mobility[MG] += QUEEN_MOB_MG[squares];
                     mobility[EG] += QUEEN_MOB_EG[squares];
                 }
@@ -505,10 +499,10 @@ public class Evaluate implements Types {
                 }
                 else if (piece == B_KNIGHT) {
                     int dist = Position.dist(b_king, index);
-                    pieces[MG] += dist * KING_PROTECTOR;
-                    pieces[EG] += dist * KING_PROTECTOR;
+                    pieces[MG] += dist * KING_PROTECTOR[MG];
+                    pieces[EG] += dist * KING_PROTECTOR[EG];
 
-                    squares = knightMobility(board, excluded_area_b, index);
+                    int squares = knightMobility(board, excluded_b, index);
                     mobility[MG] -= KNIGHT_MOB_MG[squares];
                     mobility[EG] -= KNIGHT_MOB_EG[squares];
                 }
@@ -519,14 +513,14 @@ public class Evaluate implements Types {
                         pieces[MG] -= TRAPPED_BISHOP;
 
                     int dist = Position.dist(b_king, index);
-                    pieces[MG] += dist * KING_PROTECTOR;
-                    pieces[EG] += dist * KING_PROTECTOR;
+                    pieces[MG] += dist * KING_PROTECTOR[MG];
+                    pieces[EG] += dist * KING_PROTECTOR[EG];
 
                     int bishopPawns = pawn_color_b[COLOR_LOOKUP[index]];
                     pieces[MG] -= bishopPawns * (blocked_b + 1) * BISHOP_PAWN[MG];
                     pieces[EG] -= bishopPawns * (blocked_b + 1) * BISHOP_PAWN[EG];
 
-                    squares = sliderMobility(board, excluded_area_b, index, BISHOP_DELTA, "Qq");
+                    int squares = sliderMobility(board, excluded_b, index, BISHOP_DELTA, "Qq");
                     mobility[MG] -= BISHOP_MOB_MG[squares];
                     mobility[EG] -= BISHOP_MOB_EG[squares];
                 }
@@ -548,12 +542,12 @@ public class Evaluate implements Types {
                              && (b_king == SQ_g8 || b_king == SQ_f8))
                         pieces[MG] -= TRAPPED_ROOK;
 
-                    squares = sliderMobility(board, excluded_area_b, index, ROOK_DELTA, "Qqr");
+                    int squares = sliderMobility(board, excluded_b, index, ROOK_DELTA, "Qqr");
                     mobility[MG] -= ROOK_MOB_MG[squares];
                     mobility[EG] -= ROOK_MOB_EG[squares];
                 }
                 else { // piece == B_QUEEN
-                    squares = sliderMobility(board, excluded_area_b, index, QUEEN_DELTA, "");
+                    int squares = sliderMobility(board, excluded_b, index, QUEEN_DELTA, "");
                     mobility[MG] -= QUEEN_MOB_MG[squares];
                     mobility[EG] -= QUEEN_MOB_EG[squares];
                 }
@@ -567,10 +561,6 @@ public class Evaluate implements Types {
         // Sum the component scores
         double score_mg = material[MG] + psqt[MG] + imbalance + pawns[MG] + pieces[MG] + mobility[MG] + king[MG];
         double score_eg = material[EG] + psqt[EG] + imbalance + pawns[EG] + pieces[EG] + mobility[EG] + king[EG];
-        
-        // Bonus for having the right to move (middlegame only). This helps mitigate the parity
-        // problem of scores alternating at even/odd depths.
-        score_mg += TEMPO * pos.toMove;
 
         // Endgame scaling: Scale down scores of likely draws.
         if (npm_w + npm_b < MIDGAME_THRESH && score_eg != VALUE_DRAW) {
@@ -622,6 +612,10 @@ public class Evaluate implements Types {
 //        System.out.println("SPACE:       " + space);
 //        System.out.println("king[MG]:    " + king[MG]);
 //        System.out.println("king[EG]:    " + king[EG]);
+        
+        // Bonus for having the right to move. This helps mitigate the problem of scores
+        // alternating at even/odd depths.
+        score_tapered += TEMPO * pos.toMove;
         
         return score_tapered;
     }
