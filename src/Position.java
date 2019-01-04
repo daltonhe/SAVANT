@@ -138,8 +138,14 @@ public class Position implements Types {
                     key ^= Zobrist.pieces[move.captured + 6][move.target];
                     removePiece(move.start);
                 }
-                if      (move.piece == W_KING) w_king = move.target;
-                else if (move.piece == B_KING) b_king = move.target;
+                if (move.piece == W_KING) {
+                    w_king = move.target;
+                    castling &= ~W_ALL_CASTLING;
+                }
+                else if (move.piece == B_KING) {
+                    b_king = move.target;
+                    castling &= ~B_ALL_CASTLING;
+                }
                 if (castling != 0) updateCastlingRights();
             }
             else if (move.type == PAWN_TWO) {
@@ -366,20 +372,13 @@ public class Position implements Types {
     }
 
     /**
-     * Checks the original squares of kings and rooks, and updates the castling rights
-     * accordingly.
+     * Checks the corner squares for the rooks, and updates castling rights accordingly.
      */
     public void updateCastlingRights() {
-        if (board[SQ_e1] != W_KING) castling &= ~W_ALL_CASTLING;
-        else {
-            if (board[SQ_h1] != W_ROOK) castling &= ~W_SHORT_CASTLE;
-            if (board[SQ_a1] != W_ROOK) castling &= ~W_LONG_CASTLE;
-        }
-        if (board[SQ_e8] != B_KING) castling &= ~B_ALL_CASTLING;
-        else {
-            if (board[SQ_h8] != B_ROOK) castling &= ~B_SHORT_CASTLE;
-            if (board[SQ_a8] != B_ROOK) castling &= ~B_LONG_CASTLE;
-        }
+        if      (board[SQ_h1] != W_ROOK) castling &= ~W_SHORT_CASTLE;
+        else if (board[SQ_a1] != W_ROOK) castling &= ~W_LONG_CASTLE;
+        if      (board[SQ_h8] != B_ROOK) castling &= ~B_SHORT_CASTLE;
+        else if (board[SQ_a8] != B_ROOK) castling &= ~B_LONG_CASTLE;
     }
 
     /**
