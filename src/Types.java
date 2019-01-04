@@ -217,24 +217,21 @@ public interface Types {
     
 
     // Bonuses/penalties [MG | EG]
-    public static final int   TEMPO          =  10;
-    public static final int   TRAPPED_KNIGHT = -100;
+    public static final int   TEMPO          =  13;
     public static final int   TRAPPED_BISHOP = -150;
-    public static final int   TRAPPED_ROOK   = -47;
+    public static final int   TRAPPED_ROOK   = -46;
     public static final int[] ROOK_OPEN_FILE = { 21,  10 };
-    public static final int[] ROOK_SEMI_FILE = {  9,   4 };
-    public static final int[] ROOK_ON_7TH    = { 20,  40 };
-    public static final int[] QUEEN_ON_7TH   = { 10,  20 };
+    public static final int[] ROOK_SEMI_FILE = {  9,   4 }; 
     public static final int[] DOUBLED_PAWN   = { -5, -27 };
-    public static final int[] ISOLATED_PAWN  = { -3,  -8 };
-    public static final int[] BACKWARD_PAWN  = { -5, -12 };
-    public static final int[] WEAK_PAWN      = { -2, -14 };
-    public static final int[] BISHOP_PAWN    = { -2,  -5 };
+    public static final int[] ISOLATED_PAWN  = { -2,  -7 };
+    public static final int[] BACKWARD_PAWN  = { -4, -12 };
+    public static final int[] WEAK_PAWN      = { -6, -11 };
+    public static final int[] BISHOP_PAWN    = { -1,  -3 };
+    public static final int[] KING_PROTECTOR = {  3,   4 };
     public static final int[] CONNECTED_PAWN = { 0, 84, 48, 31,  9, 12, 6, 0 };
     public static final int[] PAWN_PHALANX   = { 0, 37, 18,  8, 11, -1, 3, 0 };
     public static final int   SUPPORTED_PAWN =  8;
     public static final int   KING_PAWN_DIST = -8;
-    public static final int   KING_PROTECTOR =  3;
     
     // Imbalance
     public static final double P_WITH_P =  1.1;
@@ -280,8 +277,8 @@ public interface Types {
             {  -1,  10,  -5,  -1,  -1,  -5,  10,  -1 },
             {  -5,  -6,  -1,   2,   2,  -1,  -6,  -5 },
             {  -2,  -1,   0,   6,   6,   0,  -1,  -2 },
-            {  -7,  -3,  10,  12,  12,  10,  -3,  -7 },    	
-            {  -8,  -1,  11,  11,  11,  11,  -1,  -8 },	
+            {  -7,  -3,  10,  12,  12,  10,  -3,  -7 },     
+            {  -8,  -1,  11,  11,  11,  11,  -1,  -8 }, 
             {  -5,   3,   3,   8,   8,   3,   3,  -5 },
             {                                        }
     };
@@ -316,45 +313,46 @@ public interface Types {
             { -50, -36, -22,  -9,  -9, -22, -36, -50 }
     };
     public static final int[][] BISHOP_PSQT_MG = {
-            { -23,  -3,  -8, -14, -14,  -8,  -3, -23 },
-            {  -9,  -6,   3,  -5,  -5,   3,  -6,  -9 },
-            {  -8,   7,  -3,   3,   3,  -3,   7,  -8 },
-            {  -4,  13,   6,  14,  14,   6,  13,  -4 },
-            {   2,   4,   9,  19,  19,   9,   4,   2 },
-            {  -4,  11,  -1,   6,   6,  -1,  11,  -4 },
-            { -12,   4,   7,   0,   0,   7,   4, -12 },
-            { -24,  -3,  -5, -16,- 16,  -5,  -3, -24 }	
+            { -23,  -1,  -6, -12, -12,  -6,  -1, -23 },
+            { -10,  -9,   5,  -3,  -3,   5,  -9, -10 },
+            {  -8,   2,   0,   4,   4,   0,   2,  -8 },
+            {  -3,  14,  11,  13,  13,  11,  14,  -3 },
+            {   0,   4,  13,  18,  18,  13,   4,   0 },
+            {  -4,  12,  -1,   7,   7,  -1,  12,  -4 },
+            {  -9,   3,   7,   1,   1,   7,   3,  -9 },
+            { -21,  -2,  -5, -13, -13,  -5,  -2, -21 }  
     };
     public static final int[][] BISHOP_PSQT_EG = {
-            { -26, -15, -17,  -8,  -8, -17, -15, -26 },
-            { -16,  -5,  -6,   3,   3,  -6,  -5, -16 },
-            { -12,  -1,   0,   6,   6,   0,  -1, -12 },
-            { -13,  -2,  -3,   7,   7,  -3,  -2, -13 },
-            { -13,  -1,  -2,   8,   8,  -2,  -1, -13 },
-            { -11,   0,  -1,   8,   8,  -1,   0, -11 },
-            { -16,  -4,  -7,   2,   2,  -7,  -4, -16 },
-            { -28, -15, -18,  -9,  -9, -18, -15, -28 }	
+            { -25, -19, -19, -10, -10, -19, -19, -25 },
+            { -16,  -9,  -3,   4,   4,  -3,  -9, -16 },
+            { -13,   1,   0,   8,   8,   0,   1, -13 },
+            { -12,  -3,  -5,   8,   8,  -5,  -3, -12 },
+            { -13,  -1,   0,   8,   8,   0,  -1, -13 },
+            {  -9,   0,  -3,   6,   6,  -3,   0,  -9 },
+            { -18,  -6,  -7,   0,   0,  -7,  -6, -18 },
+            { -30, -14, -17,  -4,  -4, -17, -14, -30 }  
     };
     public static final int[][] ROOK_PSQT_MG = {
-            { -12,  -9,  -5,   1,   1,  -5,  -9, -12 },
-            {  -5,   4,   4,   6,   6,   4,   4,  -5 },
-            { -11,  -5,   0,   3,   3,   0,  -5, -11 },
-            { -10,  -6,   0,   2,   2,   0,  -6, -10 },
-            { -10,  -3,  -2,  -2,  -2,  -2,  -3, -10 },
-            {  -9,  -5,   0,   0,   0,   0,  -5,  -9 },
-            {  -9,  -2,   0,   0,   0,   0,  -2,  -9 },
-            { -12,  -7,  -4,   0,   0,  -4,  -7, -12 }	
+            { -11, -12,  -3,   2,   2,  -3, -12, -11 },
+            {  -4,   3,   5,   6,   6,   5,   3,  -4 },
+            { -12,  -2,   2,   5,   5,   2,  -2, -12 },
+            { -12,  -6,   0,   3,   3,   0,  -6, -12 },
+            {  -6,  -2,  -2,  -3,  -3,  -2,  -2,  -6 },
+            { -10,  -3,   1,   0,   0,   1,  -3, -10 },
+            {  -9,  -5,  -2,   4,   4,  -2,  -5,  -9 },
+            { -12,  -6,  -3,   1,   1,  -3,  -6, -12 }  
     };
     public static final int[][] ROOK_PSQT_EG = {
-            {   3,   2,   3,   1,   1,   3,   2,   3 },
-            {   0,   3,   5,   0,   0,   5,   3,   0 },
-            {   1,   1,   0,   1,   1,   0,   1,   1 },
-            {  -3,   2,  -2,  -3,  -3,  -2,   2,  -3 },
-            {   0,   2,  -1,   0,   0,  -1,   2,   0 },
-            {   3,  -3,   1,   1,   1,   1,  -3,   3 },
-            {  -3,  -2,  -2,   0,   0,  -2,  -2,  -3 },
-            {   0,   1,   0,   1,   1,   0,   1,   0 }
+            {   6,  -3,   6,   3,   3,   6,  -3,   6 },
+            {   0,   1,   8,  -4,  -4,   8,   1,   0 },
+            {   1,  -1,  -5,   3,   3,  -5,  -1,   1 },
+            {  -4,   2,   2,  -4,  -4,   2,   2,  -4 },
+            {  -2,   1,  -4,   4,   4,  -4,   1,  -2 },
+            {   5,  -2,   1,  -1,  -1,   1,  -2,   5 },
+            {  -5,  -3,   0,   0,   0,   0,  -3,  -5 },
+            {  -1,  -3,  -1,  -1,  -1,  -1,  -3,  -1 }
     };
+
     public static final int[][] QUEEN_PSQT_MG = {
             {  -1,  -1,   0,  -1,  -1,   0,  -1,  -1 },
             {  -2,   3,   5,   4,   4,   5,   3,  -2 },
